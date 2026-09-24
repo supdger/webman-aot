@@ -230,7 +230,7 @@ while ([DateTime]::UtcNow -lt $llvmDeadline) {
         (Test-Path -LiteralPath $llvmNm -PathType Leaf)
     ) {
         $compilerVersion = (& $compiler --version 2>$null | Select-Object -First 1)
-        if ($LASTEXITCODE -eq 0 -and $compilerVersion -match '19\.1\.7') {
+        if ($compilerVersion -match '^clang version 19\.1\.7(?:\s|$)') {
             $llvmReady = $true
             break
         }

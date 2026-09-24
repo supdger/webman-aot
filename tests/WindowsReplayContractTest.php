@@ -46,7 +46,7 @@ final class WindowsReplayContractTest
             "Join-Path \$llvmRoot 'bin\\clang++.exe'",
             "Join-Path \$llvmRoot 'bin\\llvm-nm.exe'",
             '$llvmReady = $true',
-            "\$LASTEXITCODE -eq 0 -and \$compilerVersion -match '19\\.1\\.7'",
+            "\$compilerVersion -match '^clang version 19\\.1\\.7(?:\\s|\$)'",
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',
