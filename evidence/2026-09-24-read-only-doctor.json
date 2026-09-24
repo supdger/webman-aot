@@ -1,0 +1,51 @@
+{
+    "schema": "webman-aot-doctor-evidence-v1",
+    "task": "OpenSpec 2.3",
+    "status": "pass",
+    "sourceRevision": "8ea3cfd6b44ff3a9b6f84bbf0c3d05f275c13484",
+    "checks": [
+        "platform and architecture",
+        "free disk space",
+        "toolchain lock schema",
+        "toolchain source network reachability",
+        "host-applicable component versions and SHA-256",
+        "Webman project structure and locked framework version"
+    ],
+    "fixtures": {
+        "healthyMacosArm64": "pass",
+        "healthyWindowsX64": "pass",
+        "missingComponent": "pass",
+        "corruptComponent": "pass",
+        "insufficientDisk": "pass",
+        "unreachableNetwork": "pass",
+        "incompleteProject": "pass",
+        "unsupportedPlatform": "pass",
+        "inputTreeUnchangedAfterHealthyInspection": true
+    },
+    "macos": {
+        "host": "macOS-arm64-physical",
+        "repositoryTests": "pass",
+        "nativeDoctorMissingStateExitCode": 69,
+        "nativeDoctorReportParsed": true,
+        "nativeDoctorCheckCount": 24
+    },
+    "windows": {
+        "host": "windows-x86_64-physical",
+        "privatePhpUsed": true,
+        "repositoryTests": "pass",
+        "nativeDoctorPlatformCheck": "ok",
+        "nativeDoctorDiskCheck": "ok",
+        "nativeDoctorLockCheck": "ok",
+        "nativeDoctorNetworkCheck": "ok",
+        "nativeDoctorProjectCheck": "ok",
+        "detectedWebmanVersion": "v2.2.4",
+        "nativeDoctorMissingStateExitCode": 69,
+        "repairAttempted": false
+    },
+    "privacy": {
+        "privatePathsIncluded": false,
+        "privateAddressesIncluded": false,
+        "accountsIncluded": false,
+        "businessSourceIncluded": false
+    }
+}

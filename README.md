@@ -32,6 +32,17 @@ php bin/webman-aot.php --help
 额外生成 `diagnostic.json`，并使用稳定退出码区分用法错误、不可用依赖、
 内部错误和配置错误。
 
+只读环境检查：
+
+```bash
+webman-aot doctor
+webman-aot doctor --json
+```
+
+`doctor` 检查构建主机、架构、磁盘、工具链源站、当前 Webman 项目、锁定组件
+版本和归档摘要。缺失或损坏时列出具体组件并返回非零状态，不下载、不修复，
+自动修复属于后续独立命令能力。
+
 ## Windows 跨主机复现
 
 在 Windows x64 PowerShell 中检出同一提交后直接运行：
