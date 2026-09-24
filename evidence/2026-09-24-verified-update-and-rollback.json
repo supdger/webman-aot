@@ -1,0 +1,54 @@
+{
+    "schema": "webman-aot-task-evidence-v1",
+    "task": "2.5",
+    "recordedAt": "2026-09-24T14:32:08Z",
+    "source": {
+        "branch": "feat/full-static-sdk-cross-host",
+        "commit": "45e1e147e4bd29503efcf067ac19af7e88299013"
+    },
+    "controls": {
+        "manifest": "Ed25519 signature verified against an explicit trusted public-key store",
+        "downloads": "SHA-256 verified before promotion; partial files removed on interruption or mismatch",
+        "cliActivation": "versioned generation promoted by same-volume rename after candidate self-check",
+        "toolchainActivation": "versioned generation preserves its verified lock and is selected atomically",
+        "rollback": "latest valid CLI or toolchain generation is moved aside only when a previous valid generation exists",
+        "bootstrap": "the stable launcher dispatches to the highest valid CLI generation before loading application classes"
+    },
+    "tests": {
+        "macosArm64": {
+            "command": "php tests/run.php",
+            "result": "passed",
+            "assertions": [
+                "signed manifest acceptance and tamper rejection",
+                "digest mismatch and interrupted download cleanup",
+                "failed CLI candidate self-check leaves active generation unchanged",
+                "unsafe ZIP traversal rejection",
+                "CLI rollback reveals the previous generation",
+                "failed toolchain component self-check leaves active generation unchanged",
+                "toolchain rollback reveals the previous generation",
+                "launcher dispatches to the active CLI generation"
+            ]
+        },
+        "physicalWindowsX64": {
+            "transport": "SSH CLI",
+            "runtime": "PHP 8.5.10 ZTS x64",
+            "command": "php tests/run.php",
+            "result": "passed",
+            "sourceArchiveSha256": "8b9fe8779299a9855c5a689e2ea982428f4230193b03b2c2e175b4209c53edb3",
+            "note": "The validation checkout was isolated from the existing Windows workspace."
+        },
+        "windowsCloudReplay": {
+            "runId": 36013302965,
+            "url": "https://github.com/supdger/webman-aot/actions/runs/36013302965",
+            "result": "passed",
+            "normalizedInputSha256": "579b865e9fab8b916d74aef2f9d55a7edea46108a490af568e1e4d0cf82c88b4",
+            "artifactSha256": "e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017",
+            "expectedMacArtifactSha256": "e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017"
+        }
+    },
+    "boundary": {
+        "productionReleaseKey": "not provisioned; installer and release-channel provisioning remain task 2.6",
+        "testKey": "verification-only public key and pre-generated signature; no private key is committed",
+        "liveUpdate": "no production release was downloaded, installed, or published"
+    }
+}
