@@ -1,0 +1,40 @@
+{
+  "schema": "webman-aot-runtime-evidence-v1",
+  "scope": "public minimal Webman fixture on locked open-source dependencies; not SaiAdmin",
+  "generator": {
+    "project": "supdger/webman-typephp",
+    "revision": "45bc1fb2f30ba71f07c6eec9ea34725b06916074",
+    "sourceSha256": "8691d936b4ea492accdb1394a426def2b6df3e18faeae07643b63dc616da59c7",
+    "swooleBarrierSource": "vendor/workerman/coroutine/src/Barrier/Swoole.php",
+    "swooleBarrierShadow": ".typephp/build/coroutine-barrier-swoole.php",
+    "sourceUnmodified": true
+  },
+  "build": {
+    "host": "macOS ARM64",
+    "compiler": "TypePHP 0.9.2 with locked full-static cross-target patches",
+    "target": "Linux x86-64 musl",
+    "compiledFiles": 110,
+    "result": "linked",
+    "elfSha256": "10fe8abc2319bd6c6f7cbdc722862c992c068fbc5910d131ba2384fe91e3ce13",
+    "elfStaticVerifier": "pass",
+    "projectComposerAotPluginInstalled": false,
+    "globalBuildCommandUsed": false,
+    "manualFullStaticYamlOverlay": true
+  },
+  "linuxRuntime": {
+    "environment": "isolated Ubuntu 24.04 x86_64 QEMU full-system guest",
+    "guestSha256Matched": true,
+    "ldd": "not a dynamic executable",
+    "start": "Workerman 5.2.2 and PHP 8.4.25 reported Start success",
+    "request": "GET http://127.0.0.1:18781/health",
+    "responseStatus": 200,
+    "responseBody": "ok",
+    "stop": "Workerman reported stop success"
+  },
+  "remaining": [
+    "Global webman-aot build pipeline is not wired to this generator and SDK yet.",
+    "Full source coverage ledger and release packaging were not run for this fixture.",
+    "pcntl_wait by-reference warning appeared on start and stop; investigate before product acceptance.",
+    "This VM run does not satisfy SaiAdmin business, Windows build, or target bare-metal OS gates."
+  ]
+}

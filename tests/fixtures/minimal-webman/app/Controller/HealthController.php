@@ -6,7 +6,7 @@ namespace app\Controller;
 
 final class HealthController
 {
-    public function index(): string
+    public function index(\support\Request $request): string
     {
         return 'ok';
     }

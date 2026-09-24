@@ -27,6 +27,14 @@
             "sha256": "7e5fe3549397e819c20b82c4586af5cad7cb03d6743d86fbca5094d629894902"
         },
         {
+            "id": "webman-typephp-generator-source",
+            "kind": "source",
+            "version": "45bc1fb2f30ba71f07c6eec9ea34725b06916074",
+            "revision": "45bc1fb2f30ba71f07c6eec9ea34725b06916074",
+            "sourceUrl": "https://github.com/supdger/webman-typephp/archive/45bc1fb2f30ba71f07c6eec9ea34725b06916074.zip",
+            "sha256": "b70003e1e694f971446fd75b9d136dfc1794cfb664d3614ab68965919f732b91"
+        },
+        {
             "id": "phpx-source",
             "kind": "source",
             "version": "2.9.1",

@@ -16,7 +16,7 @@ final class UpstreamGeneratorBoundaryTest
         );
         $this->assert(
             ($lock['schema'] ?? null) === 'webman-aot-upstream-generator-lock-v1'
-            && count($lock['mappings'] ?? []) === 24
+            && count($lock['mappings'] ?? []) === 26
             && ($lock['status'] ?? null) === 'prototype-only',
             'upstream generator prototype lock is incomplete'
         );

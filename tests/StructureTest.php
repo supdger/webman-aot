@@ -50,6 +50,7 @@ final class StructureTest
             'src/Compatibility/RuleEngine.php',
             'src/Compatibility/WebmanWorkermanRules.php',
             'src/Compatibility/UpstreamGeneratorBoundary.php',
+            'src/Compatibility/UpstreamGeneratorArchive.php',
             'src/Doctor/Doctor.php',
             'src/Doctor/DoctorReport.php',
             'src/Doctor/NativeSystemProbe.php',

@@ -1,8 +1,14 @@
 {
   "schema": "webman-aot-evidence-v1",
-  "scope": "prototype reuse of the existing TypePHP ProjectGenerator for locked Webman/Workerman dependencies",
-  "generatorRevision": "0ecbb29721eb9c395926dd4e90183611dadad1aa",
-  "generatorSourceSha256": "dffcd3d5ac8228cfe5d4730ef07a93732ac501afc8cf4385bd44dde413bbaa29",
+  "scope": "prototype reuse of the existing TypePHP ProjectGenerator for locked Webman/Workerman/FastRoute dependencies",
+  "generatorRevision": "45bc1fb2f30ba71f07c6eec9ea34725b06916074",
+  "generatorSourceSha256": "8691d936b4ea492accdb1394a426def2b6df3e18faeae07643b63dc616da59c7",
+  "generatorArchive": {
+    "source": "toolchain.lock.json:webman-typephp-generator-source",
+    "sha256": "b70003e1e694f971446fd75b9d136dfc1794cfb664d3614ab68965919f732b91",
+    "privateMaterialization": "pass",
+    "projectComposerPluginInstall": false
+  },
   "lock": "compatibility/locks/webman-workerman-2026-09-25.json",
   "run": {
     "host": "macOS ARM64",
@@ -10,22 +16,23 @@
     "mirror": ".webman-aot/build/project",
     "projectComposerPluginInstall": false,
     "dependencyVersionAndReferenceCheck": "pass",
-    "generatedPhpCount": 24,
-    "verifiedSourceToShadowCount": 24,
+    "generatedPhpCount": 26,
+    "verifiedSourceToShadowCount": 26,
     "sourceDigestCheck": "pass",
     "shadowDigestCheck": "pass",
     "extraOrMissingGeneratedPhpCheck": "pass",
     "compilerSourcesAndIgnoreClosure": "pass",
     "generatedPhpSyntaxCheck": "pass",
-    "lockedGeneratorIntegration": "pass"
+    "lockedGeneratorIntegration": "pass",
+    "archiveInstalledGeneratorIntegration": "pass"
   },
   "testReplay": {
     "macHostPhp": "23/23 pass",
     "macStaticPhp": "23/23 pass",
-    "windowsPhysicalPhp": "23/23 pass",
-    "transferSha256": "c2338f146426fd9a4880a0647bf821322e0cfb71708cfcb3324fca1e14bac140",
+    "windowsPhysicalPhp": "24/24 pass on updated archive lock",
+    "transferSha256": "3069d06b0264596da4f05a4b24075e9b0c85e411df8a8f92f9ecd3eef92e42c0",
     "windows": "NT 10.0.19045.0",
     "testArchiveOnly": true
   },
-  "boundary": "This proves guarded generator reuse for the three locked dependencies only. The generator is not yet bundled into the global installer or wired to webman-aot build; no Webman ELF or SaiAdmin runtime acceptance is claimed."
+  "boundary": "This proves guarded generator reuse for four locked public dependencies only. The ZIP source is a private toolchain component and materializes safely, but the generator is not yet invoked by webman-aot build. Minimal Webman ELF/runtime evidence is separate; no SaiAdmin acceptance is claimed."
 }

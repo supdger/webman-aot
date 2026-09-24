@@ -2,6 +2,10 @@
   "schema": "webman-aot-upstream-generator-lock-v1",
   "status": "prototype-only",
   "packages": {
+    "nikic/fast-route": {
+      "version": "1.3.1",
+      "reference": "7476684f39bb9124b3be69ed3d84b66723920298"
+    },
     "workerman/coroutine": {
       "version": "v1.1.6",
       "reference": "918c10be5270a74f91ff77cc66b6a821cc456a25"
@@ -17,11 +21,19 @@
   },
   "generator": {
     "repository": "supdger/webman-typephp",
-    "revision": "0ecbb29721eb9c395926dd4e90183611dadad1aa",
+    "revision": "45bc1fb2f30ba71f07c6eec9ea34725b06916074",
+    "archiveSha256": "b70003e1e694f971446fd75b9d136dfc1794cfb664d3614ab68965919f732b91",
     "sourcePath": "src/Compiler/ProjectGenerator.php",
-    "sourceSha256": "dffcd3d5ac8228cfe5d4730ef07a93732ac501afc8cf4385bd44dde413bbaa29"
+    "sourceSha256": "8691d936b4ea492accdb1394a426def2b6df3e18faeae07643b63dc616da59c7",
+    "profileSha256": "e7614758435ed7c0336e63642d757a62eb6574dbd9bc1bcf799827216da6c175",
+    "mainStubSha256": "179bd48dcbcbe81accc456c8cb57a3c0a478b02ea774f6c7d2587f7025e9c56e"
   },
   "mappings": {
+    "vendor/nikic/fast-route/src/functions.php": {
+      "shadow": ".typephp/build/fast-route-functions.php",
+      "sourceSha256": "9254012e02a3a3b0f75360ac122e0e7ced796c61d1f57ad59747ec00d6b6fc7f",
+      "shadowSha256": "c5ca5efe972fb1cadfb370837cc8799e2849624dd435a451b9fb80f70304b025"
+    },
     "vendor/workerman/coroutine/src/Barrier.php": {
       "shadow": ".typephp/build/coroutine-barrier.php",
       "sourceSha256": "60f5f2ae05aacdc04f617c658b2ddccfb3ca04ccedb02c5ab233fea489222557",
@@ -31,6 +43,11 @@
       "shadow": ".typephp/build/coroutine-barrier-interface.php",
       "sourceSha256": "e3379b834e9db8bc006de87ee15bb928b8016646e3f2d82e5f349abcc3d76f3d",
       "shadowSha256": "d7da0bcc1a7a8fef7341c8ea7f0440d54753fdd64467502c38e854e9135c4a04"
+    },
+    "vendor/workerman/coroutine/src/Barrier/Swoole.php": {
+      "shadow": ".typephp/build/coroutine-barrier-swoole.php",
+      "sourceSha256": "540f9a7e8a8b0fd50e7e9852efe2d4ef56a573a94bbbced26742ccb5cab71514",
+      "shadowSha256": "1437a58df7e126732c4d416e08efacfe43592a16422b8c0a013dce67d9913fe6"
     },
     "vendor/workerman/coroutine/src/Barrier/Fiber.php": {
       "shadow": ".typephp/build/coroutine-barrier-fiber.php",
