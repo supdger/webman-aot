@@ -1,0 +1,76 @@
+{
+    "schema": "webman-aot-cli-stage-diagnostics-evidence-v1",
+    "task": "OpenSpec 2.2",
+    "status": "pass",
+    "sourceRevision": "dfe082c9145272e71f11ad926504af76de6a5240",
+    "stages": [
+        "bootstrap",
+        "dispatch",
+        "execute"
+    ],
+    "stableExitCodes": {
+        "success": 0,
+        "usage": 64,
+        "unavailable": 69,
+        "software": 70,
+        "configuration": 78
+    },
+    "failureMatrix": [
+        {
+            "failedStage": "bootstrap",
+            "expectedExitCode": 78,
+            "actualExitCode": 78,
+            "diagnosticGenerated": true
+        },
+        {
+            "failedStage": "dispatch",
+            "expectedExitCode": 64,
+            "actualExitCode": 64,
+            "diagnosticGenerated": true
+        },
+        {
+            "failedStage": "execute",
+            "expectedExitCode": 70,
+            "actualExitCode": 70,
+            "diagnosticGenerated": true
+        }
+    ],
+    "outputs": {
+        "structuredLog": "events.jsonl",
+        "humanLog": "run.log",
+        "diagnosticBundle": "diagnostic.json",
+        "diagnosticIncludes": [
+            "run id",
+            "CLI version",
+            "command",
+            "failed stage",
+            "stable exit code",
+            "failure type",
+            "host category",
+            "all stage states",
+            "log filenames"
+        ]
+    },
+    "macos": {
+        "host": "macOS-arm64-physical",
+        "repositoryTests": "pass",
+        "allFailureStagesExercised": true,
+        "unknownCommandFailedAtDispatch": true
+    },
+    "windows": {
+        "host": "windows-x86_64-physical",
+        "privatePhpUsed": true,
+        "repositoryTests": "pass",
+        "globalCmdVersionExitCode": 0,
+        "globalCmdUnknownCommandExitCode": 64,
+        "unknownCommandFailedAtDispatch": true,
+        "nextStageRemainedPending": true,
+        "diagnosticParsed": true
+    },
+    "privacy": {
+        "privatePathsIncluded": false,
+        "privateAddressesIncluded": false,
+        "accountsIncluded": false,
+        "businessSourceIncluded": false
+    }
+}

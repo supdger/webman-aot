@@ -27,6 +27,11 @@ php bin/webman-aot.php --help
 源码开发时直接运行 `php bin/webman-aot.php`；最终安装包会把私有 PHP、
 应用版本和启动器放入上述目录，不读取目标项目的 PHP 或 Composer AOT 包。
 
+每次命令运行按 `bootstrap`、`dispatch`、`execute` 记录阶段状态。用户私有
+`logs/<run-id>/` 中包含结构化 `events.jsonl` 和人类可读 `run.log`；失败时
+额外生成 `diagnostic.json`，并使用稳定退出码区分用法错误、不可用依赖、
+内部错误和配置错误。
+
 ## Windows 跨主机复现
 
 在 Windows x64 PowerShell 中检出同一提交后直接运行：
