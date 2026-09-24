@@ -50,10 +50,11 @@ final class GlobalLauncherTest
             }
         }
 
-        $this->assert($paths['home'] === $temporaryRoot, 'private user home path drifted');
+        $expectedRoot = str_replace('\\', '/', $temporaryRoot);
+        $this->assert($paths['home'] === $expectedRoot, 'private user home path drifted');
         foreach (['current', 'versions', 'toolchains', 'artifacts', 'cache', 'logs', 'tmp'] as $name) {
             $this->assert(
-                str_starts_with($paths[$name], $temporaryRoot . '/'),
+                str_starts_with($paths[$name], $expectedRoot . '/'),
                 "private user path escaped its root: {$name}"
             );
         }
