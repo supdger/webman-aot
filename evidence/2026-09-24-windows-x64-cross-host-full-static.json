@@ -1,0 +1,70 @@
+{
+    "schema": "webman-aot-cross-host-full-static-evidence-v1",
+    "task": "OpenSpec 1.7",
+    "status": "pass",
+    "sourceRevision": "200b6f664cea3ba0308760dd6ea8d4542b87c944",
+    "normalizationValidationRevision": "a6bb2c116d170f90dafc825ab4fe60b6429115c4",
+    "buildHost": {
+        "os": "Windows",
+        "architecture": "x86_64",
+        "physicalHost": true,
+        "containerUsed": false,
+        "dockerUsed": false,
+        "systemPhpUsed": false,
+        "administratorInstallRequired": false
+    },
+    "target": "x86_64-unknown-linux-musl",
+    "toolchain": {
+        "privateLlvmVersion": "19.1.7",
+        "typePhpVersion": "0.9.2",
+        "phpxVersion": "2.9.1",
+        "phpVersion": "8.4.25",
+        "patchCount": 5,
+        "patchRulesAppliedAndVerified": 11,
+        "strippedSdkFiles": 7,
+        "strippedSdkSha256": "bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb"
+    },
+    "normalizedInput": {
+        "windowsSha256": "579b865e9fab8b916d74aef2f9d55a7edea46108a490af568e1e4d0cf82c88b4",
+        "macSha256": "579b865e9fab8b916d74aef2f9d55a7edea46108a490af568e1e4d0cf82c88b4",
+        "matches": true,
+        "checkoutLineEndingsNormalized": true
+    },
+    "artifact": {
+        "name": "full_static_cross_smoke",
+        "size": 127132552,
+        "windowsSha256": "e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017",
+        "macBuildOneSha256": "e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017",
+        "macBuildTwoSha256": "e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017",
+        "windowsMatchesBothMacBuildsByteForByte": true,
+        "machine": "x86_64",
+        "interpreter": false,
+        "dynamicSegment": false,
+        "neededLibraries": []
+    },
+    "assertions": {
+        "windowsReplayExitCode": 0,
+        "artifactCopiedBackAndCompared": true,
+        "macComparisonExitCodes": [
+            0,
+            0
+        ],
+        "cloudReplay": {
+            "workflowRunId": 36006181707,
+            "sourceRevision": "a6bb2c116d170f90dafc825ab4fe60b6429115c4",
+            "conclusion": "success",
+            "normalizedInputMatchesPhysicalWindows": true,
+            "artifactMatchesPhysicalWindowsByteForByte": true,
+            "artifactMatchesMacByteForByte": true
+        },
+        "repositoryTests": "pass",
+        "toolchainLockValidation": "pass",
+        "lineEndingRegression": "LF and CRLF repository text produce the same normalized input digest"
+    },
+    "privacy": {
+        "privatePathsIncluded": false,
+        "privateAddressesIncluded": false,
+        "accountsIncluded": false,
+        "businessSourceIncluded": false
+    }
+}
