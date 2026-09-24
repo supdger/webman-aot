@@ -276,6 +276,12 @@ YAML;
     );
 
     $artifact = $output . '/full_static_cross_smoke';
+    $llvmObjcopy = dirname($compiler) . '/llvm-objcopy'
+        . (PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+    if (!is_file($llvmObjcopy) || !is_executable($llvmObjcopy)) {
+        throw new RuntimeException("llvm-objcopy does not exist: {$llvmObjcopy}");
+    }
+    run([$llvmObjcopy, '--remove-section=.comment', $artifact], $output);
     (new ElfStaticVerifier())->assertFullyStaticX86_64($artifact);
     fwrite(
         STDOUT,
