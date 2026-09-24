@@ -30,6 +30,10 @@ final class DoctorTest
                 ($checks['project']['details']['webmanVersion'] ?? null) === 'v2.2.4',
                 'doctor did not report the locked Webman version'
             );
+            $this->assert(
+                ($checks['project']['details']['profile'] ?? null) === 'webman',
+                'doctor did not report the detected Webman profile'
+            );
             $hostComponent = $host === 'macos-arm64'
                 ? 'component:typephp-macos-arm64'
                 : 'component:typephp-windows-x64';
@@ -110,7 +114,12 @@ final class DoctorTest
     private function createFixture(string $root): string
     {
         $fixture = sys_get_temp_dir() . '/webman-aot-doctor-' . bin2hex(random_bytes(8));
-        foreach ([$fixture, $fixture . '/artifacts', $fixture . '/project'] as $directory) {
+        foreach ([
+            $fixture,
+            $fixture . '/artifacts',
+            $fixture . '/project',
+            $fixture . '/project/app',
+        ] as $directory) {
             if (!mkdir($directory, 0700, true) && !is_dir($directory)) {
                 throw new RuntimeException("unable to create doctor fixture directory: {$directory}");
             }

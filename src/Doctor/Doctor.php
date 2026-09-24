@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WebmanAot\Doctor;
 
+use WebmanAot\Cli\ConfigurationException;
+use WebmanAot\Project\ProfileDetector;
 use WebmanAot\Toolchain\LockValidator;
 use WebmanAot\Toolchain\HostComponentSelector;
 
@@ -180,51 +182,28 @@ final class Doctor
      */
     private function inspectProject(array &$checks): void
     {
-        $required = ['composer.json', 'composer.lock', 'start.php'];
-        $missing = [];
-        foreach ($required as $relativePath) {
-            if (!is_file($this->projectDirectory . '/' . $relativePath)) {
-                $missing[] = $relativePath;
-            }
-        }
-        if ($missing !== []) {
-            $checks[] = $this->check(
-                'project',
-                false,
-                'Webman project structure is incomplete',
-                ['missing' => $missing]
-            );
-            return;
-        }
-
         try {
-            $lock = json_decode(
-                (string) file_get_contents($this->projectDirectory . '/composer.lock'),
-                true,
-                flags: JSON_THROW_ON_ERROR
-            );
-        } catch (\JsonException $exception) {
+            $profile = (new ProfileDetector($this->projectDirectory))->detect();
+        } catch (ConfigurationException $exception) {
             $checks[] = $this->check(
                 'project',
                 false,
-                'project composer.lock is invalid',
+                'project profile detection failed',
                 ['error' => $exception->getMessage()]
             );
             return;
         }
-        $webmanVersion = null;
-        foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $package) {
-            if (is_array($package) && ($package['name'] ?? null) === 'workerman/webman-framework') {
-                $webmanVersion = $package['version'] ?? null;
-                break;
-            }
-        }
-        $valid = is_string($webmanVersion) && $webmanVersion !== '';
         $checks[] = $this->check(
             'project',
-            $valid,
-            $valid ? 'Webman project detected' : 'workerman/webman-framework is absent from composer.lock',
-            ['webmanVersion' => $valid ? $webmanVersion : null]
+            true,
+            ($profile->name() === 'saiadmin' ? 'SaiAdmin' : 'Webman') . ' project detected',
+            [
+                'profile' => $profile->name(),
+                'packages' => $profile->packages(),
+                'evidence' => $profile->evidence(),
+                'webmanVersion' => $profile->packages()['workerman/webman-framework'],
+                'saiAdminVersion' => $profile->packages()['saithink/saiadmin'] ?? null,
+            ]
         );
     }
 

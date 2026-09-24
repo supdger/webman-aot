@@ -48,6 +48,8 @@ final class StructureTest
             'src/Doctor/NativeSystemProbe.php',
             'src/Doctor/SystemProbe.php',
             'src/Platform/UserDirectoryLayout.php',
+            'src/Project/ProfileDetector.php',
+            'src/Project/ProjectProfile.php',
             'src/README.md',
             'src/Toolchain/Downloader.php',
             'src/Toolchain/HostComponentSelector.php',
