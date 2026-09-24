@@ -1,0 +1,72 @@
+{
+    "schema": "webman-aot-task-evidence-v1",
+    "task": "3.5",
+    "status": "passed",
+    "recordedAt": "2026-09-24T15:35:31Z",
+    "source": {
+        "branch": "feat/full-static-sdk-cross-host",
+        "commit": "f9d7a20d96d0cec3f9e2a6e45ff5b6883a3ecffc"
+    },
+    "contract": {
+        "manifest": "webman-aot-runtime-resources-v1",
+        "files": "discovered configuration, template, static, certificate, timezone, and font files retain source SHA-256 and relative paths",
+        "declaredFiles": "additional certificate, timezone, and font files require an existing safe source file; PHP cannot be declared as runtime data",
+        "environment": "deployment .env is a mutable external file; source .env contents and digest are not copied into this manifest",
+        "writableDirectories": "public/storage and runtime/logs are registered even if empty; additional upload or log paths can be declared",
+        "omissions": "missing required files, changed discovered resources, and missing coverage records fail manifest planning"
+    },
+    "tests": {
+        "syntheticMatrix": {
+            "result": "passed",
+            "roles": [
+                "configuration",
+                "template",
+                "static",
+                "certificate",
+                "timezone",
+                "font",
+                "environment",
+                "uploads",
+                "logs"
+            ],
+            "negativeCases": [
+                "declared certificate absent",
+                "discovered template deleted after coverage",
+                "business PHP declared as a runtime resource",
+                "source .env secret excluded from serialized manifest"
+            ]
+        },
+        "realSaiAdminReadOnly": {
+            "profile": "saiadmin",
+            "discoveredFiles": 580,
+            "resourceCounts": {
+                "configuration": 81,
+                "environment": 1,
+                "logs": 1,
+                "static": 17,
+                "template": 23,
+                "uploads": 1
+            },
+            "certificateTimezoneFont": "no such source resource was detected in this project; synthetic fixtures verify these roles",
+            "privacy": "only aggregate resource counts were recorded"
+        },
+        "macosArm64": {
+            "commands": [
+                "php tests/run.php",
+                "private-static-php -n tests/run.php"
+            ],
+            "result": "passed"
+        },
+        "physicalWindowsX64": {
+            "transport": "SSH CLI",
+            "sourceArchiveSha256": "648cc003e65017f31b50e4c79177f67a6584dabc171668430dc45a5f9534b890",
+            "runtime": "private TypePHP PHP 8.5.10 ZTS x64",
+            "command": "php.exe -c private-php.ini tests/run.php",
+            "result": "passed"
+        }
+    },
+    "boundary": {
+        "buildIntegration": "the build packaging and independent artifact verifier consume this manifest in later tasks 5.4 through 5.6",
+        "deployment": "resource inventory alone does not prove a runnable SaiAdmin package"
+    }
+}
