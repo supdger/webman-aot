@@ -73,6 +73,14 @@ final class ProjectDiscoveryTest
                 ),
                 'plugin static asset was not classified'
             );
+            $this->assert(
+                in_array(
+                    'plugin/neutral/README.md',
+                    $after->paths(ProjectDiscovery::SOURCE_METADATA),
+                    true
+                ),
+                'plugin source metadata was not classified'
+            );
         } finally {
             $this->removeDirectory($fixture);
         }
@@ -205,6 +213,7 @@ final class ProjectDiscoveryTest
         }
         $this->write($directory . '/plugin/neutral/app/view/ping.html', "pong\n");
         $this->write($directory . '/plugin/neutral/public/neutral.js', "void 0;\n");
+        $this->write($directory . '/plugin/neutral/README.md', "fixture\n");
     }
 
     private function write(string $path, string $contents): void

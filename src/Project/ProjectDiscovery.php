@@ -13,6 +13,8 @@ final class ProjectDiscovery
     public const TEMPLATE = 'template';
     public const STATIC_ASSET = 'static';
     public const INSTALL_ONLY = 'install-only';
+    public const SOURCE_METADATA = 'source-metadata';
+    public const UNCLASSIFIED = 'unclassified';
 
     public function __construct(private readonly string $projectDirectory)
     {
@@ -130,9 +132,13 @@ final class ProjectDiscovery
         }
     }
 
-    private function classify(string $path): ?string
+    private function classify(string $path): string
     {
         $normalized = strtolower(trim(str_replace('\\', '/', $path), '/'));
+        $basename = basename($normalized);
+        if ($basename === '.ds_store' || $basename === 'readme.md') {
+            return self::SOURCE_METADATA;
+        }
         if (preg_match('#^plugin/[^/]+/(?:install\.php|db/)#D', $normalized) === 1
             || preg_match(
                 '#^vendor/saithink/saiadmin/src/plugin/[^/]+/(?:install\.php|db/)#D',
@@ -156,7 +162,15 @@ final class ProjectDiscovery
                 $normalized
             ) === 1
             || preg_match(
+                '#^plugin/[^/]+/utils/code/stub/#D',
+                $normalized
+            ) === 1
+            || preg_match(
                 '#^vendor/saithink/saiadmin/src/plugin/[^/]+/app/(?:view|views|template|templates)/#D',
+                $normalized
+            ) === 1
+            || preg_match(
+                '#^vendor/saithink/saiadmin/src/plugin/[^/]+/utils/code/stub/#D',
                 $normalized
             ) === 1
         ) {
@@ -175,7 +189,7 @@ final class ProjectDiscovery
             return self::BUSINESS_PHP;
         }
 
-        return null;
+        return self::UNCLASSIFIED;
     }
 
     private function relative(string $path): string
