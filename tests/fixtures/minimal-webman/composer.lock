@@ -1,0 +1,13 @@
+{
+    "_readme": [
+        "Synthetic lock file for Webman AOT tests."
+    ],
+    "content-hash": "webman-aot-minimal-fixture",
+    "packages": [
+        {
+            "name": "workerman/webman-framework",
+            "version": "v2.2.4"
+        }
+    ],
+    "packages-dev": []
+}

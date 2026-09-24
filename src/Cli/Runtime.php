@@ -32,8 +32,8 @@ final class Runtime
             'dispatch' => static function () use ($application, $arguments, &$resolved): void {
                 $resolved = $application->resolve($arguments);
             },
-            'execute' => static function () use ($application, &$resolved): void {
-                $application->execute($resolved);
+            'execute' => static function () use ($application, $arguments, &$resolved): void {
+                $application->execute($resolved, $arguments);
             },
         ]);
     }
