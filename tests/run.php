@@ -18,6 +18,11 @@ require dirname(__DIR__) . '/src/Toolchain/ToolchainLocator.php';
 require dirname(__DIR__) . '/src/Toolchain/Downloader.php';
 require dirname(__DIR__) . '/src/Toolchain/ToolchainRepairer.php';
 require __DIR__ . '/ToolchainRepairerTest.php';
+require dirname(__DIR__) . '/src/Update/TrustedKeyStore.php';
+require dirname(__DIR__) . '/src/Update/UpdateManifest.php';
+require dirname(__DIR__) . '/src/Update/SignedManifestVerifier.php';
+require dirname(__DIR__) . '/src/Update/VerifiedDownloader.php';
+require __DIR__ . '/UpdateSecurityTest.php';
 require dirname(__DIR__) . '/src/Doctor/SystemProbe.php';
 require dirname(__DIR__) . '/src/Doctor/DoctorReport.php';
 require dirname(__DIR__) . '/src/Doctor/Doctor.php';
@@ -36,6 +41,7 @@ try {
     (new GlobalLauncherTest())->run($root);
     (new StagePipelineIntegrationTest())->run($root);
     (new ToolchainRepairerTest())->run();
+    (new UpdateSecurityTest())->run();
     (new DoctorTest())->run($root);
     (new ToolchainLockTest())->run($root);
     (new TypePhpPatchManifestTest())->run($root);
@@ -47,6 +53,7 @@ try {
     fwrite(STDOUT, "[PASS] global launcher uses the private user layout without a project plugin\n");
     fwrite(STDOUT, "[PASS] CLI stages emit stable exits, logs, and diagnostic bundles\n");
     fwrite(STDOUT, "[PASS] doctor repair promotes only verified toolchain generations\n");
+    fwrite(STDOUT, "[PASS] update manifests and downloads fail closed on tampering or interruption\n");
     fwrite(STDOUT, "[PASS] doctor is read-only and detects healthy, missing, and corrupt inputs\n");
     fwrite(STDOUT, "[PASS] toolchain lock schema and digest guards are valid\n");
     fwrite(STDOUT, "[PASS] TypePHP patch manifest and patch set are guarded\n");
