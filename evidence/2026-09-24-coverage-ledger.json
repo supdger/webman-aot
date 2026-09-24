@@ -1,0 +1,73 @@
+{
+    "schema": "webman-aot-task-evidence-v1",
+    "task": "3.3",
+    "status": "passed",
+    "recordedAt": "2026-09-24T15:20:54Z",
+    "source": {
+        "branch": "feat/full-static-sdk-cross-host",
+        "commit": "68e522924bd7908c83269a29e2141370c02425ff"
+    },
+    "contract": {
+        "legalStatuses": [
+            "compiled-direct",
+            "compiled-shadow",
+            "runtime-approved",
+            "install-only"
+        ],
+        "sourceIntegrity": "every ledger record contains the project-relative source path and SHA-256",
+        "shadowIntegrity": "compiled-shadow additionally requires a distinct replacement, replacement SHA-256, policy ID, and reason",
+        "runtimePolicy": "configuration, templates, static assets, known source metadata, and install-only files receive bounded policy IDs and reasons",
+        "businessClosure": "business PHP may only be compiled-direct or compiled-shadow; runtime-approved and install-only overrides fail closed",
+        "unknownClosure": "unclassified files and decisions for undiscovered paths fail closed"
+    },
+    "tests": {
+        "syntheticMatrix": {
+            "result": "passed",
+            "cases": [
+                "directly compiled business PHP",
+                "business PHP replaced by a digest-recorded AOT shadow",
+                "runtime-approved configuration, template, and static files",
+                "install-only plugin installer",
+                "unclassified file rejection",
+                "business PHP runtime bypass rejection",
+                "undiscovered decision rejection"
+            ]
+        },
+        "realSaiAdminReadOnly": {
+            "profile": "saiadmin",
+            "result": "passed",
+            "discoveryCounts": {
+                "business-php": 419,
+                "config": 81,
+                "install-only": 31,
+                "source-metadata": 9,
+                "static": 17,
+                "template": 23,
+                "total": 580
+            },
+            "coverageCounts": {
+                "compiled-direct": 419,
+                "install-only": 40,
+                "runtime-approved": 121,
+                "total": 580
+            },
+            "businessRuntimeBypassCount": 0,
+            "unclassifiedCount": 0,
+            "privacy": "only aggregate classification and coverage counts were recorded"
+        },
+        "macosArm64": {
+            "commands": [
+                "php tests/run.php",
+                "private-static-php -n tests/run.php"
+            ],
+            "result": "passed"
+        },
+        "physicalWindowsX64": {
+            "transport": "SSH CLI",
+            "sourceArchiveSha256": "8f14ad77dcccbbb344625591b5c98f159deb662a9b3715043b302ce14736131b",
+            "runtime": "PHP 8.5.10 ZTS x64 from the private TypePHP runtime",
+            "command": "php.exe -c private-php.ini tests/run.php",
+            "result": "passed"
+        }
+    }
+}
