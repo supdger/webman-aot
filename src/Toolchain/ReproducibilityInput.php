@@ -67,18 +67,17 @@ final class ReproducibilityInput
             '0004-full-static-host-target-separation.patch',
             '0005-windows-clang-response-paths.patch',
         ] as $patch) {
-            $digest = hash_file('sha256', $patchDirectory . '/' . $patch);
-            if (!is_string($digest)) {
-                throw new \RuntimeException("unable to hash reproducibility patch: {$patch}");
-            }
-            $patches[$patch] = $digest;
+            $patches[$patch] = $this->hashNormalizedTextFile(
+                $patchDirectory . '/' . $patch,
+                "reproducibility patch: {$patch}"
+            );
         }
 
         $fixture = $root . '/tests/fixtures/full-static-smoke/main.php';
-        $fixtureDigest = hash_file('sha256', $fixture);
-        if (!is_string($fixtureDigest)) {
-            throw new \RuntimeException('unable to hash full-static smoke fixture');
-        }
+        $fixtureDigest = $this->hashNormalizedTextFile(
+            $fixture,
+            'full-static smoke fixture'
+        );
 
         $input = [
             'target' => $lock['target'] ?? null,
@@ -111,6 +110,16 @@ final class ReproducibilityInput
             'input' => $input,
             'sha256' => hash('sha256', $canonical),
         ];
+    }
+
+    private function hashNormalizedTextFile(string $path, string $description): string
+    {
+        $contents = file_get_contents($path);
+        if (!is_string($contents)) {
+            throw new \RuntimeException("unable to hash {$description}");
+        }
+
+        return hash('sha256', str_replace(["\r\n", "\r"], "\n", $contents));
     }
 
     /**
