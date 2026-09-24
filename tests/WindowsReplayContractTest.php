@@ -33,6 +33,10 @@ final class WindowsReplayContractTest
         foreach ([
             'Get-FileHash',
             "GetFolderPath('LocalApplicationData')",
+            "Get-Command 'curl.exe'",
+            "'--continue-at' '-'",
+            "'--retry-all-errors'",
+            'TypePHP Windows archive extraction',
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',
@@ -54,6 +58,16 @@ final class WindowsReplayContractTest
         $this->assert(
             preg_match('/Parameter\\(Mandatory\\s*=\\s*\\$true\\).*\\$(?:Artifacts|WorkRoot)/is', $contents) !== 1,
             'Windows replay paths must default to the current user private directory'
+        );
+        $this->assert(
+            str_contains($contents, 'downloaded archive digest mismatch') &&
+            str_contains($contents, 'Remove-Item -LiteralPath $partial -Force'),
+            'Windows replay must delete a digest-mismatched download candidate'
+        );
+        $this->assert(
+            !str_contains($contents, 'Expand-Archive') &&
+            str_contains($contents, "& tar.exe -xf \$archives['typephp-windows-x64']"),
+            'Windows replay must avoid the observed Expand-Archive hang'
         );
 
         $workflowPath = $root . '/.github/workflows/windows-full-static-replay.yml';

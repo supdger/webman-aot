@@ -27,17 +27,69 @@ function Get-ArchivePath([object] $Component, [string] $Directory) {
     return Join-Path $Directory ([IO.Path]::GetFileName($uri.AbsolutePath))
 }
 
+function Invoke-VerifiedDownload([object] $Component, [string] $Path) {
+    $partial = "$Path.partial"
+    if (-not (Test-Path -LiteralPath $partial -PathType Leaf)) {
+        $legacyPartial = Get-ChildItem `
+            -LiteralPath (Split-Path -Parent $Path) `
+            -Filter "$([IO.Path]::GetFileName($Path)).partial-*" `
+            -File |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+        if ($null -ne $legacyPartial) {
+            Move-Item -LiteralPath $legacyPartial.FullName -Destination $partial
+        }
+    }
+
+    $curl = Get-Command 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue
+    if ($null -ne $curl) {
+        & $curl.Source `
+            '--fail' `
+            '--location' `
+            '--retry' '5' `
+            '--retry-delay' '2' `
+            '--retry-all-errors' `
+            '--connect-timeout' '30' `
+            '--continue-at' '-' `
+            '--output' $partial `
+            $Component.sourceUrl
+        Assert-LastExitCode "resumable download for $($Component.id)"
+    } else {
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+                Invoke-WebRequest `
+                    -UseBasicParsing `
+                    -Uri $Component.sourceUrl `
+                    -OutFile $partial
+                break
+            } catch {
+                if ($attempt -eq 3) {
+                    throw
+                }
+                Start-Sleep -Seconds (2 * $attempt)
+            }
+        }
+    }
+
+    $downloadDigest = (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($downloadDigest -ne ([string] $Component.sha256).ToLowerInvariant()) {
+        Remove-Item -LiteralPath $partial -Force
+        throw "downloaded archive digest mismatch: $partial"
+    }
+    Move-Item -LiteralPath $partial -Destination $Path
+    Get-ChildItem `
+        -LiteralPath (Split-Path -Parent $Path) `
+        -Filter "$([IO.Path]::GetFileName($Path)).partial-*" `
+        -File |
+        Remove-Item -Force
+}
+
 function Resolve-LockedArchive([object] $Component, [string] $Directory) {
     $path = Get-ArchivePath $Component $Directory
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        $partial = "$path.partial-$([Guid]::NewGuid().ToString('N'))"
         Write-Host "Downloading $($Component.id) ..."
-        Invoke-WebRequest -UseBasicParsing -Uri $Component.sourceUrl -OutFile $partial
-        $downloadDigest = (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($downloadDigest -ne ([string] $Component.sha256).ToLowerInvariant()) {
-            throw "downloaded archive digest mismatch: $partial"
-        }
-        Move-Item -LiteralPath $partial -Destination $path
+        Invoke-VerifiedDownload $Component $path
     }
     $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actual -ne ([string] $Component.sha256).ToLowerInvariant()) {
@@ -106,7 +158,10 @@ foreach ($id in $componentIds) {
 }
 
 $hostExtract = Join-Path $WorkRoot 'typephp-host'
-Expand-Archive -LiteralPath $archives['typephp-windows-x64'] -DestinationPath $hostExtract
+Write-Host 'Extracting TypePHP Windows host package ...'
+New-Item -ItemType Directory -Path $hostExtract | Out-Null
+& tar.exe -xf $archives['typephp-windows-x64'] -C $hostExtract
+Assert-LastExitCode 'TypePHP Windows archive extraction'
 $hostRoot = Get-SingleDirectory $hostExtract 'TypePHP Windows archive'
 $php = Join-Path $hostRoot 'php.exe'
 $sevenZip = Join-Path $hostRoot 'PhpManager\private\bin\7za-x64.exe'
@@ -117,6 +172,7 @@ foreach ($required in @($php, $sevenZip)) {
 }
 
 $sourceExtract = Join-Path $WorkRoot 'typephp-source'
+Write-Host 'Extracting TypePHP source ...'
 New-Item -ItemType Directory -Path $sourceExtract | Out-Null
 & tar.exe -xf $archives['typephp-source'] -C $sourceExtract
 Assert-LastExitCode 'TypePHP source extraction'
@@ -126,6 +182,7 @@ $swooleVendor = Join-Path $typephpRoot 'vendor\swoole'
 New-Item -ItemType Directory -Path $swooleVendor -Force | Out-Null
 
 $phpxExtract = Join-Path $WorkRoot 'phpx-source'
+Write-Host 'Extracting PHPX source ...'
 New-Item -ItemType Directory -Path $phpxExtract | Out-Null
 & tar.exe -xf $archives['phpx-source'] -C $phpxExtract
 Assert-LastExitCode 'PHPX source extraction'
@@ -134,6 +191,7 @@ $phpx = Join-Path $swooleVendor 'phpx'
 Move-Item -LiteralPath $phpxSource -Destination $phpx
 
 $sdkExtract = Join-Path $WorkRoot 'sdk-extract'
+Write-Host 'Extracting Linux x64 PHPX SDK ...'
 New-Item -ItemType Directory -Path $sdkExtract | Out-Null
 & tar.exe -xf $archives['phpx-sdk-linux-x64'] -C $sdkExtract
 Assert-LastExitCode 'PHPX SDK extraction'
@@ -144,6 +202,7 @@ $sdk = Join-Path $fullStatic 'sdk'
 Move-Item -LiteralPath $sdkSource -Destination $sdk
 
 $llvmRoot = Join-Path $WorkRoot 'llvm'
+Write-Host 'Extracting private LLVM toolchain ...'
 New-Item -ItemType Directory -Path $llvmRoot | Out-Null
 & $sevenZip x '-y' "-o$llvmRoot" $archives['llvm-windows-x64'] | Out-Host
 Assert-LastExitCode 'LLVM private extraction'
@@ -177,23 +236,27 @@ $env:PHPX_HOME = $phpx
 $env:PHPRC = $phpConfig
 $env:PATH = "$hostRoot;$(Split-Path -Parent $compiler);$env:PATH"
 
+Write-Host 'Applying guarded TypePHP/PHPX patches ...'
 & $php (Join-Path $repository 'tools\apply-typephp-patches.php') `
     "--typephp=$typephpRoot" `
     "--phpx=$phpx"
 Assert-LastExitCode 'TypePHP patch application'
 
 $sysroot = Join-Path $WorkRoot 'sysroot'
+Write-Host 'Assembling locked Linux x86-64 musl sysroot ...'
 & $php (Join-Path $repository 'tools\assemble-sysroot.php') `
     "--artifacts=$Artifacts" `
     "--output=$sysroot" `
     '--tar=tar.exe'
 Assert-LastExitCode 'musl sysroot assembly'
 
+Write-Host 'Calculating normalized reproducibility input ...'
 $normalizedInput = & $php (Join-Path $repository 'tools\reproducibility-input.php') |
     ConvertFrom-Json
 Assert-LastExitCode 'normalized input calculation'
 
 $output = Join-Path $WorkRoot 'probe'
+Write-Host 'Building full-static Linux x86-64 probe ...'
 & $php (Join-Path $repository 'tools\build-full-static-smoke.php') `
     "--typephp=$typephpRoot" `
     "--php=$php" `
