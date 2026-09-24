@@ -12,7 +12,7 @@ final class WebmanWorkermanRulesTest
     public function run(): void
     {
         $rules = WebmanWorkermanRules::knownRules();
-        $this->assert(count($rules) === 13, 'unexpected known Webman/Workerman rule set');
+        $this->assert(count($rules) === 17, 'unexpected known Webman/Workerman rule set');
         $versions = [
             'workerman/webman-framework' => 'v2.2.4',
             'workerman/workerman' => 'v5.2.2',
@@ -28,11 +28,27 @@ final class WebmanWorkermanRulesTest
                 . "throw new PageNotFoundException();\n};\n}\n"
                 . "public static function findFile() {\n"
                 . "static::collectCallbacks(\$key, [function () use (\$file) {\n"
-                . "return static::execPhpFile(\$file);\n}]);\n}\n}\n",
+                . "return static::execPhpFile(\$file);\n}]);\n}\n"
+                . "protected static function stringify(\$data): string {\n"
+                . "switch (gettype(\$data)) {\ncase 'object':\n"
+                . "                if (!method_exists(\$data, '__toString')) {\n"
+                . "                    return 'Object';\n"
+                . "                }\n"
+                . "            default:\n"
+                . "return (string)\$data;\n}\n}\n}\n",
             'vendor/workerman/webman-framework/src/File.php' =>
                 "<?php\nclass File {\npublic function move(string \$destination): File {\n"
                 . "set_error_handler(function (\$type, \$msg) use (&\$error) {\n"
                 . "\$error = \$msg;\n});\nreturn \$this;\n}\n}\n",
+            'vendor/workerman/webman-framework/src/Config.php' =>
+                "<?php\nclass Config {\n"
+                . "public static function loadFromDir(string \$configPath): array {\n"
+                . "\$file = new SplFileInfo('config.php');\n"
+                . "if (is_dir(\$file) || false) { return []; }\n"
+                . "\$path = substr(\$file, 0, -4);\n"
+                . "\$config = include \$file;\n"
+                . "\$config = include \$file;\n"
+                . "return (array) \$config;\n}\n}\n",
             'vendor/workerman/workerman/src/Timer.php' =>
                 "<?php\nclass Timer {\npublic static function init(?EventInterface \$event = null): void {\n"
                 . "pcntl_signal(SIGALRM, self::signalHandle(...), false);\n}\n"
@@ -73,13 +89,14 @@ final class WebmanWorkermanRulesTest
         $engine = new RuleEngine();
         try {
             $manifest = $engine->apply($project, $build, $rules, $versions);
-            $this->assert(count($manifest) === 7, 'known rules did not create seven shadows');
+            $this->assert(count($manifest) === 8, 'known rules did not create eight shadows');
             foreach ($manifest as $item) {
                 $this->assert(
                     hash_file('sha256', $project . '/' . $item['path']) === $item['sourceSha256']
                     && hash_file('sha256', $item['shadowPath']) === $item['shadowSha256'],
                     "known rule changed source or shadow digest: {$item['path']}"
                 );
+                token_get_all((string) file_get_contents($item['shadowPath']), TOKEN_PARSE);
             }
             $this->assert(
                 $manifest === $engine->apply($project, $build, $rules, $versions),
@@ -89,14 +106,12 @@ final class WebmanWorkermanRulesTest
                 $path = $rule->sourcePath();
                 $source = $sources[$path];
                 $this->fails(
-                    fn () => $rule->transform(str_replace($this->needle($rule->id()), 'unrelated', $source), $versions[$rule->dependency()]),
+                    fn () => $rule->transform(str_replace($rule->searchText(), 'unrelated', $source), $versions[$rule->dependency()]),
                     'found 0'
                 );
                 $this->fails(
                     fn () => $rule->transform($source . $source, $versions[$rule->dependency()]),
-                    $rule->id() === 'workerman-worker-error-suppressor-variadic'
-                        ? 'found 14'
-                        : 'found 2'
+                    'found ' . ($rule->expectedHits() * 2)
                 );
                 $this->fails(
                     fn () => $rule->transform($source, 'v99.0.0'),
@@ -122,25 +137,6 @@ final class WebmanWorkermanRulesTest
             }
             rmdir($project);
         }
-    }
-
-    private function needle(string $id): string
-    {
-        return match ($id) {
-            'webman-405-handler-variadic' => 'return static function () use ($allowHeader) {',
-            'webman-fallback-handler-variadic' => 'return Route::getFallback($plugin, $status) ?: function () {',
-            'webman-include-handler-variadic' => 'static::collectCallbacks($key, [function () use ($file) {',
-            'webman-file-error-handler-variadic' => 'set_error_handler(function ($type, $msg) use (&$error) {',
-            'workerman-timer-signal-variadic' => 'pcntl_signal(SIGALRM, self::signalHandle(...), false);',
-            'workerman-select-signal-variadic' => 'pcntl_signal($signal, fn () => $this->safeCall($this->signalEvents[$signal], [$signal]));',
-            'workerman-worker-error-suppressor-variadic' => 'set_error_handler(static fn (): bool => true);',
-            'workerman-worker-error-handler-variadic' => 'set_error_handler(function ($code, $msg) {',
-            'workerman-worker-walk-stop-variadic' => 'array_walk($workers, static fn (Worker $worker) => $worker->stop(false));',
-            'workerman-worker-walk-pid-variadic' => 'array_walk($workerPidArray, static fn ($pid) => posix_kill($pid, $sig));',
-            'workerman-worker-signal-variadic' => 'pcntl_signal($signal, static::signalHandler(...), false);',
-            'workerman-tcp-error-handler-variadic' => 'set_error_handler(static function (int $code, string $msg): bool {',
-            'workerman-async-tcp-error-handler-variadic' => 'set_error_handler(fn() => false);',
-        };
     }
 
     private function fails(Closure $action, string $expected): void

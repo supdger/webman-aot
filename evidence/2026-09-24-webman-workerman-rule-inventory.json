@@ -1,5 +1,6 @@
 {
   "schema": "webman-aot-compatibility-inventory-v1",
+  "updatedOn": "2026-09-25",
   "scope": "Literal Webman and Workerman replacements observed in three existing TypePHP profile families; other generator transforms are not inventoried and task 4.2 remains incomplete",
   "testedPackages": {
     "workerman/webman-framework": "v2.2.4",
@@ -31,7 +32,11 @@
     "webman-405-handler-variadic",
     "webman-fallback-handler-variadic",
     "webman-include-handler-variadic",
+    "webman-object-switch-terminal",
     "webman-file-error-handler-variadic",
+    "webman-config-directory-object",
+    "webman-config-path-string",
+    "webman-config-include-path-string",
     "workerman-timer-signal-variadic",
     "workerman-select-signal-variadic",
     "workerman-worker-error-suppressor-variadic",
@@ -47,13 +52,13 @@
     "macos": "php tests/run.php and private static PHP tests/run.php passed",
     "windowsX64": {
       "environment": "physical host over SSH; private TypePHP SDK PHP; isolated user-temp source copy",
-      "archiveSha256": "e1f8a02cf88f63cb4c5cbef86eea00bffd4ffa53c3432f43dc597de807bbd73b",
+      "archiveSha256": "c2338f146426fd9a4880a0647bf821322e0cfb71708cfcb3324fca1e14bac140",
       "result": "php tests/run.php passed"
     }
   },
   "notes": [
     "Counts are per upstream literal replacement against the read-only locked dependency files, not claims of compiled or working application behavior.",
     "Zero-hit upstream replacements require version-specific investigation; they must not be silently copied into the global rule set.",
-    "The current 13 rules cover only a subset of the known Webman/Workerman compatibility work."
+    "The current 17 rules cover only a subset of the known Webman/Workerman compatibility work."
   ]
 }

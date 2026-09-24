@@ -1,0 +1,31 @@
+{
+  "schema": "webman-aot-evidence-v1",
+  "scope": "prototype reuse of the existing TypePHP ProjectGenerator for locked Webman/Workerman dependencies",
+  "generatorRevision": "0ecbb29721eb9c395926dd4e90183611dadad1aa",
+  "generatorSourceSha256": "dffcd3d5ac8228cfe5d4730ef07a93732ac501afc8cf4385bd44dde413bbaa29",
+  "lock": "compatibility/locks/webman-workerman-2026-09-25.json",
+  "run": {
+    "host": "macOS ARM64",
+    "input": "read-only locked open-source vendor dependencies copied into an isolated build mirror",
+    "mirror": ".webman-aot/build/project",
+    "projectComposerPluginInstall": false,
+    "dependencyVersionAndReferenceCheck": "pass",
+    "generatedPhpCount": 24,
+    "verifiedSourceToShadowCount": 24,
+    "sourceDigestCheck": "pass",
+    "shadowDigestCheck": "pass",
+    "extraOrMissingGeneratedPhpCheck": "pass",
+    "compilerSourcesAndIgnoreClosure": "pass",
+    "generatedPhpSyntaxCheck": "pass",
+    "lockedGeneratorIntegration": "pass"
+  },
+  "testReplay": {
+    "macHostPhp": "23/23 pass",
+    "macStaticPhp": "23/23 pass",
+    "windowsPhysicalPhp": "23/23 pass",
+    "transferSha256": "c2338f146426fd9a4880a0647bf821322e0cfb71708cfcb3324fca1e14bac140",
+    "windows": "NT 10.0.19045.0",
+    "testArchiveOnly": true
+  },
+  "boundary": "This proves guarded generator reuse for the three locked dependencies only. The generator is not yet bundled into the global installer or wired to webman-aot build; no Webman ELF or SaiAdmin runtime acceptance is claimed."
+}

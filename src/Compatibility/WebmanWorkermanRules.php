@@ -51,6 +51,24 @@ final class WebmanWorkermanRules
                 ['static::collectCallbacks($key, [function (...$arguments) use ($file) {']
             ),
             new BoundedTextRule(
+                'webman-object-switch-terminal',
+                'workerman/webman-framework',
+                'vendor/workerman/webman-framework/src/App.php',
+                new VersionRange('2.2.4', '2.2.5'),
+                ['function stringify($data): string', "case 'object':"],
+                "                if (!method_exists(\$data, '__toString')) {\n"
+                    . "                    return 'Object';\n"
+                    . "                }\n"
+                    . "            default:",
+                "                if (!method_exists(\$data, '__toString')) {\n"
+                    . "                    return 'Object';\n"
+                    . "                }\n"
+                    . "                return (string)\$data;\n"
+                    . "            default:",
+                1,
+                ["                return (string)\$data;\n            default:"]
+            ),
+            new BoundedTextRule(
                 'webman-file-error-handler-variadic',
                 'workerman/webman-framework',
                 'vendor/workerman/webman-framework/src/File.php',
@@ -60,6 +78,39 @@ final class WebmanWorkermanRules
                 'set_error_handler(function ($type, $msg, ...$__err) use (&$error) {',
                 1,
                 ['set_error_handler(function ($type, $msg, ...$__err) use (&$error) {']
+            ),
+            new BoundedTextRule(
+                'webman-config-directory-object',
+                'workerman/webman-framework',
+                'vendor/workerman/webman-framework/src/Config.php',
+                new VersionRange('2.2.4', '2.2.5'),
+                ['class Config', 'function loadFromDir('],
+                'if (is_dir($file) ||',
+                'if ($file->isDir() ||',
+                1,
+                ['if ($file->isDir() ||']
+            ),
+            new BoundedTextRule(
+                'webman-config-path-string',
+                'workerman/webman-framework',
+                'vendor/workerman/webman-framework/src/Config.php',
+                new VersionRange('2.2.4', '2.2.5'),
+                ['class Config', 'function loadFromDir('],
+                'substr($file, 0, -4)',
+                'substr((string) $file, 0, -4)',
+                1,
+                ['substr((string) $file, 0, -4)']
+            ),
+            new BoundedTextRule(
+                'webman-config-include-path-string',
+                'workerman/webman-framework',
+                'vendor/workerman/webman-framework/src/Config.php',
+                new VersionRange('2.2.4', '2.2.5'),
+                ['class Config', 'function loadFromDir('],
+                '$config = include $file;',
+                '$config = include (string) $file;',
+                2,
+                ['$config = include (string) $file;']
             ),
             new BoundedTextRule(
                 'workerman-timer-signal-variadic',

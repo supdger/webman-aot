@@ -45,6 +45,16 @@ final class BoundedTextRule implements CompatibilityRule
         return $this->sourcePath;
     }
 
+    public function searchText(): string
+    {
+        return $this->needle;
+    }
+
+    public function expectedHits(): int
+    {
+        return $this->expectedHits;
+    }
+
     public function transform(string $source, string $version): string
     {
         $hits = substr_count($source, $this->needle);
