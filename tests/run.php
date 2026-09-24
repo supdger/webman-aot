@@ -11,6 +11,7 @@ require dirname(__DIR__) . '/src/Cli/UnavailableException.php';
 require dirname(__DIR__) . '/src/Cli/ConfigurationException.php';
 require dirname(__DIR__) . '/src/Cli/Application.php';
 require __DIR__ . '/GlobalLauncherTest.php';
+require __DIR__ . '/InstallerContractTest.php';
 require __DIR__ . '/StagePipelineIntegrationTest.php';
 require dirname(__DIR__) . '/src/Toolchain/LockValidator.php';
 require dirname(__DIR__) . '/src/Toolchain/HostComponentSelector.php';
@@ -48,6 +49,7 @@ try {
     $root = dirname(__DIR__);
     (new StructureTest($root))->run();
     (new GlobalLauncherTest())->run($root);
+    (new InstallerContractTest())->run($root);
     (new StagePipelineIntegrationTest())->run($root);
     (new ToolchainRepairerTest())->run();
     (new UpdateSecurityTest())->run();
@@ -62,6 +64,7 @@ try {
     (new ElfStaticVerifierTest())->run();
     fwrite(STDOUT, "[PASS] repository structure is independent and self-contained\n");
     fwrite(STDOUT, "[PASS] global launcher uses the private user layout without a project plugin\n");
+    fwrite(STDOUT, "[PASS] installers are user-private, digest-locked, and package-manager-free\n");
     fwrite(STDOUT, "[PASS] CLI stages emit stable exits, logs, and diagnostic bundles\n");
     fwrite(STDOUT, "[PASS] doctor repair promotes only verified toolchain generations\n");
     fwrite(STDOUT, "[PASS] update manifests and downloads fail closed on tampering or interruption\n");

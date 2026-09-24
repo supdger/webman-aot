@@ -26,9 +26,12 @@ final class NativeCliSelfChecker implements CliSelfChecker
         }
         $environment['WEBMAN_AOT_HOME'] = $this->layout->root();
         $environment['WEBMAN_AOT_BOOTSTRAPPED'] = '1';
+        $command = PHP_OS_FAMILY === 'Windows'
+            ? [PHP_BINARY, '-c', dirname(PHP_BINARY) . '/php.ini', $entry, '--version']
+            : [PHP_BINARY, '-n', $entry, '--version'];
         $pipes = [];
         $process = proc_open(
-            [PHP_BINARY, $entry, '--version'],
+            $command,
             [
                 0 => ['pipe', 'r'],
                 1 => ['pipe', 'w'],

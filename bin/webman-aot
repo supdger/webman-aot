@@ -31,4 +31,4 @@ if [ ! -f "$application" ]; then
     exit 1
 fi
 
-exec "$private_php" "$application" "$@"
+exec "$private_php" -n "$application" "$@"

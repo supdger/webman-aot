@@ -29,6 +29,12 @@ final class StructureTest
             'bin/webman-aot.cmd',
             'bin/webman-aot.php',
             'composer.json',
+            'installer/macos/install.sh',
+            'installer/macos/uninstall.sh',
+            'installer/README.md',
+            'installer/runtime.lock.json',
+            'installer/windows/install.ps1',
+            'installer/windows/uninstall.ps1',
             'src/Cli/Application.php',
             'src/Cli/DiagnosticBundleWriter.php',
             'src/Cli/ExitCode.php',
@@ -63,6 +69,7 @@ final class StructureTest
             'toolchain/README.md',
             'toolchain/recipes/README.md',
             'tools/toolchain.php',
+            'tools/package-installers.php',
         ];
 
         foreach ($required as $relativePath) {

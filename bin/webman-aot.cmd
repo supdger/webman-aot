@@ -29,5 +29,5 @@ if not exist "%APPLICATION%" (
     exit /b 1
 )
 
-"%PRIVATE_PHP%" "%APPLICATION%" %*
+"%PRIVATE_PHP%" -c "%AOT_HOME%\current\runtime\php.ini" "%APPLICATION%" %*
 exit /b %ERRORLEVEL%
