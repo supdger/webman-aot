@@ -33,6 +33,7 @@ final class WindowsReplayContractTest
         foreach ([
             'Get-FileHash',
             "GetFolderPath('LocalApplicationData')",
+            "Join-Path \$env:SystemRoot 'System32\\tar.exe'",
             "Get-Command 'curl.exe'",
             'Select-Object -First 1',
             "'--continue-at' '-'",
@@ -69,7 +70,7 @@ final class WindowsReplayContractTest
         );
         $this->assert(
             !str_contains($contents, 'Expand-Archive') &&
-            str_contains($contents, "& tar.exe -xf \$archives['typephp-windows-x64']"),
+            str_contains($contents, "& \$systemTar -xf \$archives['typephp-windows-x64']"),
             'Windows replay must avoid the observed Expand-Archive hang'
         );
         $this->assert(

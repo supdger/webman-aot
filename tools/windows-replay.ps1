@@ -113,6 +113,10 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
 }
 
 $repository = Split-Path -Parent $PSScriptRoot
+$systemTar = Join-Path $env:SystemRoot 'System32\tar.exe'
+if (-not (Test-Path -LiteralPath $systemTar -PathType Leaf)) {
+    throw "Windows system tar is unavailable: $systemTar"
+}
 $privateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'webman-aot'
 if ([string]::IsNullOrWhiteSpace($Artifacts)) {
     $Artifacts = Join-Path $privateRoot 'artifacts'
@@ -161,7 +165,7 @@ foreach ($id in $componentIds) {
 $hostExtract = Join-Path $WorkRoot 'typephp-host'
 Write-Host 'Extracting TypePHP Windows host package ...'
 New-Item -ItemType Directory -Path $hostExtract | Out-Null
-& tar.exe -xf $archives['typephp-windows-x64'] -C $hostExtract
+& $systemTar -xf $archives['typephp-windows-x64'] -C $hostExtract
 Assert-LastExitCode 'TypePHP Windows archive extraction'
 $hostRoot = Get-SingleDirectory $hostExtract 'TypePHP Windows archive'
 $php = Join-Path $hostRoot 'php.exe'
@@ -175,7 +179,7 @@ foreach ($required in @($php, $sevenZip)) {
 $sourceExtract = Join-Path $WorkRoot 'typephp-source'
 Write-Host 'Extracting TypePHP source ...'
 New-Item -ItemType Directory -Path $sourceExtract | Out-Null
-& tar.exe -xf $archives['typephp-source'] -C $sourceExtract
+& $systemTar -xf $archives['typephp-source'] -C $sourceExtract
 Assert-LastExitCode 'TypePHP source extraction'
 $typephpRoot = Get-SingleDirectory $sourceExtract 'TypePHP source archive'
 Copy-Item -LiteralPath (Join-Path $hostRoot 'vendor') -Destination $typephpRoot -Recurse
@@ -185,7 +189,7 @@ New-Item -ItemType Directory -Path $swooleVendor -Force | Out-Null
 $phpxExtract = Join-Path $WorkRoot 'phpx-source'
 Write-Host 'Extracting PHPX source ...'
 New-Item -ItemType Directory -Path $phpxExtract | Out-Null
-& tar.exe -xf $archives['phpx-source'] -C $phpxExtract
+& $systemTar -xf $archives['phpx-source'] -C $phpxExtract
 Assert-LastExitCode 'PHPX source extraction'
 $phpxSource = Get-SingleDirectory $phpxExtract 'PHPX source archive'
 $phpx = Join-Path $swooleVendor 'phpx'
@@ -257,7 +261,7 @@ Write-Host 'Assembling locked Linux x86-64 musl sysroot ...'
 & $php (Join-Path $repository 'tools\assemble-sysroot.php') `
     "--artifacts=$Artifacts" `
     "--output=$sysroot" `
-    '--tar=tar.exe'
+    "--tar=$systemTar"
 Assert-LastExitCode 'musl sysroot assembly'
 
 Write-Host 'Calculating normalized reproducibility input ...'
