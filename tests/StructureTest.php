@@ -47,6 +47,7 @@ final class StructureTest
             'src/Compatibility/CompatibilityRule.php',
             'src/Compatibility/BoundedTextRule.php',
             'src/Compatibility/RuleEngine.php',
+            'src/Compatibility/WebmanWorkermanRules.php',
             'src/Doctor/Doctor.php',
             'src/Doctor/DoctorReport.php',
             'src/Doctor/NativeSystemProbe.php',

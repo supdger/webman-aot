@@ -47,26 +47,34 @@ final class BoundedTextRule implements CompatibilityRule
 
     public function transform(string $source, string $version): string
     {
-        $this->versions->assertSupported($version, $this->id, $this->dependency);
+        $hits = substr_count($source, $this->needle);
+        $this->versions->assertSupported(
+            $version,
+            $this->id,
+            $this->dependency,
+            $this->sourcePath,
+            $hits
+        );
         foreach ($this->requiredBefore as $marker) {
             if ($marker === '' || !str_contains($source, $marker)) {
                 throw new ConfigurationException(
-                    "compatibility rule {$this->id}: source structure drift in {$this->sourcePath}"
+                    "compatibility rule {$this->id}: source structure drift in {$this->sourcePath} "
+                    . "at {$version}, found {$hits} hits"
                 );
             }
         }
-        $hits = substr_count($source, $this->needle);
         if ($hits !== $this->expectedHits) {
             throw new ConfigurationException(
                 "compatibility rule {$this->id}: expected {$this->expectedHits} hits "
-                . "in {$this->sourcePath}, found {$hits}"
+                . "in {$this->sourcePath} at {$version}, found {$hits}"
             );
         }
         $output = str_replace($this->needle, $this->replacement, $source);
         foreach ($this->requiredAfter as $marker) {
             if ($marker === '' || !str_contains($output, $marker)) {
                 throw new ConfigurationException(
-                    "compatibility rule {$this->id}: postcondition failed in {$this->sourcePath}"
+                    "compatibility rule {$this->id}: postcondition failed in {$this->sourcePath} "
+                    . "at {$version}, found {$hits} hits"
                 );
             }
         }

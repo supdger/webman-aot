@@ -1,0 +1,59 @@
+{
+  "schema": "webman-aot-compatibility-inventory-v1",
+  "scope": "Literal Webman and Workerman replacements observed in three existing TypePHP profile families; other generator transforms are not inventoried and task 4.2 remains incomplete",
+  "testedPackages": {
+    "workerman/webman-framework": "v2.2.4",
+    "workerman/workerman": "v5.2.2"
+  },
+  "sourceFamilies": {
+    "variadicHandler": {
+      "vendor/workerman/workerman/src/Worker.php": [7, 1, 1, 1, 1, 1, 1],
+      "vendor/workerman/workerman/src/Timer.php": [1],
+      "vendor/workerman/workerman/src/Connection/TcpConnection.php": [1, 0, 0],
+      "vendor/workerman/workerman/src/Connection/AsyncTcpConnection.php": [1],
+      "vendor/workerman/workerman/src/Events/Select.php": [1],
+      "vendor/workerman/webman-framework/src/File.php": [1]
+    },
+    "switchTerminal": {
+      "vendor/workerman/coroutine/src/Pool.php": [1, 1],
+      "vendor/workerman/workerman/src/Protocols/Websocket.php": [1, 1, 0, 0, 1],
+      "vendor/workerman/webman-framework/src/App.php": [1, 1, 1, 1, 1],
+      "vendor/workerman/webman-framework/src/Config.php": [1, 1, 2]
+    },
+    "referenceCapture": {
+      "vendor/workerman/webman-framework/src/Route/Route.php": [1],
+      "vendor/workerman/coroutine/src/Barrier/Fiber.php": [1, 1, 1],
+      "vendor/workerman/coroutine/src/Parallel.php": [1, 1, 1],
+      "vendor/workerman/coroutine/src/Channel/Fiber.php": [2]
+    }
+  },
+  "currentRuleIds": [
+    "webman-405-handler-variadic",
+    "webman-fallback-handler-variadic",
+    "webman-include-handler-variadic",
+    "webman-file-error-handler-variadic",
+    "workerman-timer-signal-variadic",
+    "workerman-select-signal-variadic",
+    "workerman-worker-error-suppressor-variadic",
+    "workerman-worker-error-handler-variadic",
+    "workerman-worker-walk-stop-variadic",
+    "workerman-worker-walk-pid-variadic",
+    "workerman-worker-signal-variadic",
+    "workerman-tcp-error-handler-variadic",
+    "workerman-async-tcp-error-handler-variadic"
+  ],
+  "verification": {
+    "lockedVendorSource": "all 13 current rules transformed matching dependency source; source files were read-only",
+    "macos": "php tests/run.php and private static PHP tests/run.php passed",
+    "windowsX64": {
+      "environment": "physical host over SSH; private TypePHP SDK PHP; isolated user-temp source copy",
+      "archiveSha256": "e1f8a02cf88f63cb4c5cbef86eea00bffd4ffa53c3432f43dc597de807bbd73b",
+      "result": "php tests/run.php passed"
+    }
+  },
+  "notes": [
+    "Counts are per upstream literal replacement against the read-only locked dependency files, not claims of compiled or working application behavior.",
+    "Zero-hit upstream replacements require version-specific investigation; they must not be silently copied into the global rule set.",
+    "The current 13 rules cover only a subset of the known Webman/Workerman compatibility work."
+  ]
+}

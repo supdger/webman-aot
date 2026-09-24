@@ -19,15 +19,21 @@ final class VersionRange
         }
     }
 
-    public function assertSupported(string $version, string $ruleId, string $dependency): void
-    {
+    public function assertSupported(
+        string $version,
+        string $ruleId,
+        string $dependency,
+        string $sourcePath,
+        int $hits
+    ): void {
         $normalized = ltrim($version, 'v');
         if (!$this->isRelease($version)
             || version_compare($normalized, ltrim($this->minimum, 'v'), '<')
             || version_compare($normalized, ltrim($this->maximumExclusive, 'v'), '>=')
         ) {
             throw new ConfigurationException(
-                "compatibility rule {$ruleId}: unsupported {$dependency} version {$version}; "
+                "compatibility rule {$ruleId}: unsupported {$dependency} version {$version} "
+                . "in {$sourcePath}, found {$hits} hits; "
                 . "expected [{$this->minimum}, {$this->maximumExclusive})"
             );
         }

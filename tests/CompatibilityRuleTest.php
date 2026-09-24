@@ -45,7 +45,11 @@ final class CompatibilityRuleTest
                     [$rule],
                     ['example/widget' => 'v2.0.0']
                 ),
-                'unsupported example/widget version'
+                [
+                    'unsupported example/widget version v2.0.0',
+                    'vendor/example/Widget.php',
+                    'found 1 hits',
+                ]
             );
             $this->fails(
                 fn () => $engine->apply($project, $paths['build'], [$rule, $rule], $versions),
@@ -103,18 +107,24 @@ final class CompatibilityRuleTest
         );
     }
 
-    private function fails(Closure $action, string $message): void
+    /**
+     * @param string|list<string> $message
+     */
+    private function fails(Closure $action, string|array $message): void
     {
+        $expected = is_array($message) ? $message : [$message];
         try {
             $action();
         } catch (ConfigurationException $exception) {
-            $this->assert(
-                str_contains($exception->getMessage(), $message),
-                "unexpected rule failure: {$exception->getMessage()}"
-            );
+            foreach ($expected as $part) {
+                $this->assert(
+                    str_contains($exception->getMessage(), $part),
+                    "unexpected rule failure: {$exception->getMessage()}"
+                );
+            }
             return;
         }
-        throw new RuntimeException("compatibility rule did not fail: {$message}");
+        throw new RuntimeException('compatibility rule did not fail: ' . implode(', ', $expected));
     }
 
     private function assert(bool $condition, string $message): void
