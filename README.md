@@ -37,11 +37,13 @@ php bin/webman-aot.php --help
 ```bash
 webman-aot doctor
 webman-aot doctor --json
+webman-aot doctor --repair
 ```
 
 `doctor` 检查构建主机、架构、磁盘、工具链源站、当前 Webman 项目、锁定组件
 版本和归档摘要。缺失或损坏时列出具体组件并返回非零状态，不下载、不修复，
-自动修复属于后续独立命令能力。
+只有显式执行 `doctor --repair` 才会下载缺失或损坏组件。修复先写入候选代次，
+完成全部摘要自检后通过目录重命名发布；失败候选会被删除，当前代次保持不变。
 
 ## Windows 跨主机复现
 
