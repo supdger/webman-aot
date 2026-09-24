@@ -2,16 +2,26 @@
 
 declare(strict_types=1);
 
-use WebmanAot\Cli\Application;
+use WebmanAot\Cli\ExitCode;
+use WebmanAot\Cli\Runtime;
 use WebmanAot\Platform\UserDirectoryLayout;
 
-require dirname(__DIR__) . '/src/Version.php';
-require dirname(__DIR__) . '/src/Platform/UserDirectoryLayout.php';
-require dirname(__DIR__) . '/src/Cli/Application.php';
+$root = dirname(__DIR__);
+spl_autoload_register(static function (string $class) use ($root): void {
+    $prefix = 'WebmanAot\\';
+    if (!str_starts_with($class, $prefix)) {
+        return;
+    }
+    $relative = str_replace('\\', '/', substr($class, strlen($prefix)));
+    $path = $root . '/src/' . $relative . '.php';
+    if (is_file($path)) {
+        require $path;
+    }
+});
 
 try {
-    exit((new Application(UserDirectoryLayout::detect()))->run($argv));
+    exit((new Runtime(UserDirectoryLayout::detect()))->run($argv));
 } catch (Throwable $throwable) {
     fwrite(STDERR, '[ERROR] ' . $throwable->getMessage() . PHP_EOL);
-    exit(1);
+    exit(ExitCode::forFailure($throwable));
 }

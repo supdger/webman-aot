@@ -88,7 +88,7 @@ final class GlobalLauncherTest
     {
         $runtime = $temporaryRoot . '/current/runtime/bin';
         $application = $temporaryRoot . '/current/app';
-        foreach ([$runtime, $application . '/bin', $application . '/src/Cli', $application . '/src/Platform'] as $directory) {
+        foreach ([$runtime, $application . '/bin'] as $directory) {
             if (!mkdir($directory, 0700, true) && !is_dir($directory)) {
                 throw new RuntimeException("unable to create staged launcher directory: {$directory}");
             }
@@ -96,16 +96,10 @@ final class GlobalLauncherTest
         if (!symlink(PHP_BINARY, $runtime . '/php')) {
             throw new RuntimeException('unable to stage private PHP runtime link');
         }
-        foreach ([
-            'bin/webman-aot.php',
-            'src/Version.php',
-            'src/Cli/Application.php',
-            'src/Platform/UserDirectoryLayout.php',
-        ] as $relativePath) {
-            if (!copy($root . '/' . $relativePath, $application . '/' . $relativePath)) {
-                throw new RuntimeException("unable to stage launcher application: {$relativePath}");
-            }
+        if (!copy($root . '/bin/webman-aot.php', $application . '/bin/webman-aot.php')) {
+            throw new RuntimeException('unable to stage launcher application entrypoint');
         }
+        $this->copyDirectory($root . '/src', $application . '/src');
 
         $result = $this->runProcess(
             ['/bin/sh', $root . '/bin/webman-aot', 'version'],
@@ -186,6 +180,25 @@ final class GlobalLauncherTest
             }
         }
         rmdir($directory);
+    }
+
+    private function copyDirectory(string $source, string $destination): void
+    {
+        if (!mkdir($destination, 0700, true) && !is_dir($destination)) {
+            throw new RuntimeException("unable to create staged application directory: {$destination}");
+        }
+        $items = new DirectoryIterator($source);
+        foreach ($items as $item) {
+            if ($item->isDot()) {
+                continue;
+            }
+            $target = $destination . '/' . $item->getFilename();
+            if ($item->isDir()) {
+                $this->copyDirectory($item->getPathname(), $target);
+            } elseif (!copy($item->getPathname(), $target)) {
+                throw new RuntimeException("unable to stage application file: {$target}");
+            }
+        }
     }
 
     private function assert(bool $condition, string $message): void

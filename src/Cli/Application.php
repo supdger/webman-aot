@@ -16,23 +16,35 @@ final class Application
     /**
      * @param list<string> $arguments
      */
-    public function run(array $arguments): int
+    public function resolve(array $arguments): string
     {
         $command = $arguments[1] ?? 'help';
 
         if (in_array($command, ['help', '-h', '--help'], true)) {
-            $this->writeHelp();
-            return 0;
+            return 'help';
         }
 
         if (in_array($command, ['version', '-V', '--version'], true)) {
-            fwrite(STDOUT, 'webman-aot ' . Version::VALUE . PHP_EOL);
-            return 0;
+            return 'version';
         }
 
-        fwrite(STDERR, "Unknown command: {$command}" . PHP_EOL);
-        fwrite(STDERR, "Run 'webman-aot help' to see available commands." . PHP_EOL);
-        return 64;
+        throw new UsageException(
+            "Unknown command: {$command}. Run 'webman-aot help' to see available commands."
+        );
+    }
+
+    public function execute(string $command): void
+    {
+        if ($command === 'help') {
+            $this->writeHelp();
+            return;
+        }
+        if ($command === 'version') {
+            fwrite(STDOUT, 'webman-aot ' . Version::VALUE . PHP_EOL);
+            return;
+        }
+
+        throw new \LogicException("unsupported resolved command: {$command}");
     }
 
     private function writeHelp(): void

@@ -64,6 +64,16 @@ final class UserDirectoryLayout
         return $this->root;
     }
 
+    public function path(string $name): string
+    {
+        $paths = $this->paths();
+        if (!isset($paths[$name])) {
+            throw new \InvalidArgumentException("unknown private directory: {$name}");
+        }
+
+        return $paths[$name];
+    }
+
     private static function normalize(string $path): string
     {
         $normalized = str_replace('\\', '/', trim($path));
