@@ -41,6 +41,7 @@ final class WindowsReplayContractTest
             'TypePHP Windows archive extraction',
             'PHPX SDK xz extraction',
             'PHPX SDK tar extraction',
+            'LLVM silent private installation',
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',
@@ -77,6 +78,11 @@ final class WindowsReplayContractTest
             !str_contains($contents, "& tar.exe -xf \$archives['phpx-sdk-linux-x64']") &&
             str_contains($contents, "& \$sevenZip x '-y' \"-o\$sdkExtract\" \$archives['phpx-sdk-linux-x64']"),
             'Windows replay must avoid the observed tar.exe hang on the PHPX SDK tar.xz'
+        );
+        $this->assert(
+            !str_contains($contents, "& \$sevenZip x '-y' \"-o\$llvmRoot\" \$archives['llvm-windows-x64']") &&
+            str_contains($contents, "& \$archives['llvm-windows-x64'] '/S' \"/D=\$llvmRoot\""),
+            'Windows replay must run the locked LLVM installer silently into the isolated work root'
         );
 
         $workflowPath = $root . '/.github/workflows/windows-full-static-replay.yml';

@@ -216,10 +216,9 @@ $sdk = Join-Path $fullStatic 'sdk'
 Move-Item -LiteralPath $sdkSource -Destination $sdk
 
 $llvmRoot = Join-Path $WorkRoot 'llvm'
-Write-Host 'Extracting private LLVM toolchain ...'
-New-Item -ItemType Directory -Path $llvmRoot | Out-Null
-& $sevenZip x '-y' "-o$llvmRoot" $archives['llvm-windows-x64'] | Out-Host
-Assert-LastExitCode 'LLVM private extraction'
+Write-Host 'Installing private LLVM toolchain into isolated work root ...'
+& $archives['llvm-windows-x64'] '/S' "/D=$llvmRoot"
+Assert-LastExitCode 'LLVM silent private installation'
 $compilerFile = Get-ChildItem -LiteralPath $llvmRoot -Recurse -Filter 'clang++.exe' -File |
     Select-Object -First 1
 $llvmNmFile = Get-ChildItem -LiteralPath $llvmRoot -Recurse -Filter 'llvm-nm.exe' -File |
