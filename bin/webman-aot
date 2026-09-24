@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+fwrite(STDERR, "webman-aot CLI is not implemented yet; run tools/toolchain.php self-check.\n");
+exit(64);
+

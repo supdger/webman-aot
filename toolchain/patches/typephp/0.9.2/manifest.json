@@ -1,0 +1,57 @@
+{
+    "component": "typephp-source",
+    "version": "0.9.2",
+    "rules": [
+        {
+            "path": "src/Build/NativeBuildConfigurationTrait.php",
+            "beforeSha256": "fe82fa555bc5586adaafca46a02e8188ed00809a494361ce342d5737d30e20de",
+            "afterSha256": "691933676e46eeca1ae0fc8778423ec50959985865062fe6d43f8504fe7a05b9"
+        },
+        {
+            "path": "src/Build/NativeCommandOptionsTrait.php",
+            "beforeSha256": "174fdcb4025863ca260871e93a59e362099638e57840ce2e7007620f7d23785b",
+            "afterSha256": "7aa0c5c7205d270098df1dda36879d19f854eb015e5a887f1f269d166d7e7ed4"
+        },
+        {
+            "path": "src/Build/SourcePipelineTrait.php",
+            "beforeSha256": "41d51d474b4c127ec2c8ad8b8f0189f5ee7af8a00ac56cd8f61e50fdbfffa8ac",
+            "afterSha256": "95d9f4511f7337d9049bc919337118ccd6379cab2e92aecfff95a3a31d108807"
+        },
+        {
+            "path": "src/CompilerBase.php",
+            "beforeSha256": "f67b86b42ee6f6e868ffa78316263828d2ebc2caa89f950b5d6cb50f968668a4",
+            "afterSha256": "619138a59e32dd62dc694c16895ad9abac11063b703d91d408e1f44ed3eee1bb"
+        },
+        {
+            "path": "src/Generator/Utils.php",
+            "beforeSha256": "aea50ef6412beedb6661998f5ef274b650a5e5298ef5334f5bd7e79405979553",
+            "afterSha256": "ae93dfb8e0b316404ebe4b7f1cad2be0e9ad4929ac6abcda1478a5cbaa7ca382"
+        },
+        {
+            "path": "src/Optimizer/FuncCallOptimizer.php",
+            "beforeSha256": "e232cdec93e92aa8b1a74290730a0a9aa983156be771b2a7c1c5266ea3a9607c",
+            "afterSha256": "007205885631988f0589cb5d10dea7b1911820ccb316332a2ac95a3f620f21be"
+        },
+        {
+            "path": "src/Parser/StdContainerTrait.php",
+            "beforeSha256": "26ab574c43c6674d12e49aee351e6c5c52244a222a34c9d96b256e32c09c040e",
+            "afterSha256": "e539a13eab2881a22f0e1bf1c2c2c5651962b86c4eeedf657906b7b438c77ddc"
+        },
+        {
+            "path": "src/Preprocessor.php",
+            "beforeSha256": "c987350417c9a8ec83a77b6930236e21b918804603519177b383d20353250243",
+            "afterSha256": "0bf8d2c1f3a14c985e919c90f76d3bf3d2386a3750a08e31233412c94d29db9e"
+        },
+        {
+            "path": "src/Translator.php",
+            "beforeSha256": "553c40c83d85fb14c6780ef4a02f2c32c1b5703c81f3b35d6e9cb066b5fcacf4",
+            "afterSha256": "728da536d766a890ee1b48508444961c041357893d5f7d8ce46cddea41d202fd"
+        },
+        {
+            "path": "vendor/swoole/phpx/src/misc/typephp_runtime.cc",
+            "beforeSha256": "0bd21015eb6a2b3027aa8f5658eaf6ce624f50b3645c1faf0dee30f5eeba961d",
+            "afterSha256": "56390337e2e6d4ef5fac0d42aa775a088b46ac44b260e1fb1b6308ace37828f0"
+        }
+    ],
+    "reason": "Derive the Linux musl target from the locked SDK, register locked static PECL modules, map generated source identities to a host-independent prefix, and separate host filesystem behavior from Linux target code generation for reproducible full-static output."
+}

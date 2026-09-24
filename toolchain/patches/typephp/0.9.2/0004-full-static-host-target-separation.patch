@@ -1,0 +1,180 @@
+--- a/src/Build/SourcePipelineTrait.php
++++ b/src/Build/SourcePipelineTrait.php
+@@ -50,7 +50,7 @@
+ 
+     private function getOpcodeBuildPhpCli(): string
+     {
+-        return $this->getPhpDir() . ($this->isWindows() ? '/php.exe' : '/bin/php');
++        return $this->getPhpDir() . ($this->isHostWindows() ? '/php.exe' : '/bin/php');
+     }
+ 
+     /**
+@@ -211,7 +211,7 @@
+         }
+ 
+         $extensionCandidates = [[], ['-d', 'zend_extension=opcache']];
+-        if ($this->isWindows()) {
++        if ($this->isHostWindows()) {
+             $extensionCandidates[] = ['-d', 'zend_extension=' . $this->getPhpDir() . '/ext/php_opcache.dll'];
+         }
+         foreach ($extensionCandidates as $extensionArgs) {
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -816,19 +816,29 @@
+ 
+     public function isWindows(): bool
+     {
+-        return $this->getPlatform() instanceof Windows;
++        return !$this->fullStatic && $this->getPlatform() instanceof Windows;
+     }
+ 
++    public function isHostWindows(): bool
++    {
++        return PHP_OS_FAMILY === 'Windows';
++    }
++
+     public function isLinux(): bool
+     {
+-        return $this->getPlatform() instanceof Linux;
++        return $this->fullStatic || $this->getPlatform() instanceof Linux;
+     }
+ 
+     public function isMacos(): bool
+     {
+-        return $this->getPlatform() instanceof Macos;
++        return !$this->fullStatic && $this->getPlatform() instanceof Macos;
+     }
+ 
++    protected function getTargetIntegerLiteralSuffix(): string
++    {
++        return $this->fullStatic ? 'L' : $this->getPlatform()->getIntegerLiteralSuffix();
++    }
++
+     public function isIosTarget(): bool
+     {
+         return $this->getPlatform() instanceof Ios;
+@@ -1869,7 +1879,7 @@
+                 if ($this->bigintTypes) {
+                     return 'php::toBigInt(' . $expr->value . ')';
+                 }
+-                return $expr->value . $this->getPlatform()->getIntegerLiteralSuffix();
++                return $expr->value . $this->getTargetIntegerLiteralSuffix();
+             case 'Scalar_Float':
+                 if ($this->isBigIntLiteral($expr)) {
+                     return 'php::toBigInt(' . $this->getLiteralString($this->getBigIntLiteralString($expr)) . ')';
+--- a/src/Generator/Utils.php
++++ b/src/Generator/Utils.php
+@@ -22,7 +22,7 @@
+         if ($value === PHP_INT_MAX) {
+             return 'ZEND_LONG_MAX';
+         }
+-        return $value . $this->getPlatform()->getIntegerLiteralSuffix();
++        return $value . $this->getTargetIntegerLiteralSuffix();
+     }
+ 
+     public function genFloatLiteral(float $value): string
+--- a/src/Optimizer/FuncCallOptimizer.php
++++ b/src/Optimizer/FuncCallOptimizer.php
+@@ -918,7 +918,7 @@
+     {
+         $arg = $expr->args[0]->value;
+         return ($arg instanceof Node\Scalar\String_)
+-            ? strlen($arg->value) . $this->getPlatform()->getIntegerLiteralSuffix()
++            ? strlen($arg->value) . $this->getTargetIntegerLiteralSuffix()
+             : false;
+     }
+ 
+@@ -942,7 +942,7 @@
+         $result = $name === 'strcasecmp'
+             ? strcasecmp($a0->value, $a1->value)
+             : strcmp($a0->value, $a1->value);
+-        return $result . $this->getPlatform()->getIntegerLiteralSuffix();
++        return $result . $this->getTargetIntegerLiteralSuffix();
+     }
+ 
+     protected function doFoldCmp3(string $name, Node\Expr\FuncCall $expr): string|false
+@@ -956,7 +956,7 @@
+         $result = $name === 'strncasecmp'
+             ? strncasecmp($a0->value, $a1->value, (int) $a2->value)
+             : strncmp($a0->value, $a1->value, (int) $a2->value);
+-        return $result . $this->getPlatform()->getIntegerLiteralSuffix();
++        return $result . $this->getTargetIntegerLiteralSuffix();
+     }
+ 
+     protected function doFoldCountLiteral(Node\Expr\FuncCall $expr): string|false
+@@ -969,7 +969,7 @@
+             if (!$this->isCountFoldableArray($arg)) {
+                 return false;
+             }
+-            return count($arg->items) . $this->getPlatform()->getIntegerLiteralSuffix();
++            return count($arg->items) . $this->getTargetIntegerLiteralSuffix();
+         }
+         return $this->genStdContainerCount($arg);
+     }
+--- a/src/Parser/StdContainerTrait.php
++++ b/src/Parser/StdContainerTrait.php
+@@ -1473,7 +1473,7 @@
+             if ($this->isStdArray($var)) {
+                 $info = $this->context->stdArrays[$var];
+                 $sizes = array_reverse($info['sizes']);
+-                return $sizes[0] . $this->getPlatform()->getIntegerLiteralSuffix();
++                return $sizes[0] . $this->getTargetIntegerLiteralSuffix();
+             }
+             if ($this->isStdVector($var)) {
+                 return $var . '_ref.size()';
+@@ -1498,7 +1498,7 @@
+                     $info = $this->context->stdArrays[$var];
+                     $outerSizes = array_reverse($info['sizes']);
+                     if ($dimLevel < count($outerSizes)) {
+-                        return $outerSizes[$dimLevel] . $this->getPlatform()->getIntegerLiteralSuffix();
++                        return $outerSizes[$dimLevel] . $this->getTargetIntegerLiteralSuffix();
+                     }
+                 }
+             }
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -54,6 +54,7 @@
+ use TypePhp\Platform\PlatformFactory;
+ use TypePhp\Platform\Ios;
+ use TypePhp\Platform\Android;
++use TypePhp\Platform\Linux;
+ use TypePhp\Platform\Wasi;
+ use TypePhp\Platform\Windows;
+ use TypePhp\Resolver\Reflection;
+@@ -291,7 +292,8 @@
+                 );
+             }
+ 
+-            $this->compilerBackend = CompilerFactory::createByName($this->cppCompiler, $this->platform);
++            $backendPlatform = $this->fullStatic ? new Linux() : $this->platform;
++            $this->compilerBackend = CompilerFactory::createByName($this->cppCompiler, $backendPlatform);
+             $backendName = $this->compilerBackend->getName();
+             if ($this->platform instanceof Wasi) {
+                 $clangVersion = getenv('TYPEPHP_WASI_CLANG_VERSION');
+@@ -837,9 +839,13 @@
+             $platform = $this->platform ?? PlatformFactory::create();
+             $this->platform = $platform;
+ 
+-            // Auto-detect the platform and compiler
+-            $result = CompilerFactory::autoDetect($this->cppCompiler, $platform);
+-            $this->platform = $result['platform'];
++            // Fully-static builds run on the host filesystem but generate and
++            // link for Linux, so the compiler backend must use target semantics.
++            $backendPlatform = $this->fullStatic ? new Linux() : $platform;
++            $result = CompilerFactory::autoDetect($this->cppCompiler, $backendPlatform);
++            if (!$this->fullStatic) {
++                $this->platform = $result['platform'];
++            }
+             $this->compilerBackend = $result['compiler'];
+ 
+             $this->climate->info(
+@@ -936,7 +942,8 @@
+             $targetFile = 'lib' . $targetFile;
+         }
+ 
+-        $extension = $this->explicitOutputExtension ?? $this->getPlatform()->getTargetExtension($this->buildMode);
++        $extension = $this->explicitOutputExtension
++            ?? ($this->fullStatic ? '' : $this->getPlatform()->getTargetExtension($this->buildMode));
+         if ($extension !== '' && !str_ends_with($targetFile, $extension)) {
+             $targetFile .= $extension;
+         }

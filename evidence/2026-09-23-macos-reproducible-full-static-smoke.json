@@ -1,0 +1,56 @@
+{
+    "schema": "webman-aot-reproducibility-evidence-v1",
+    "task": "OpenSpec 1.7 prerequisite and 5.2 partial",
+    "status": "macos-pass-windows-pending",
+    "buildHost": {
+        "os": "macOS",
+        "architecture": "arm64",
+        "containerUsed": false
+    },
+    "target": "x86_64-unknown-linux-musl",
+    "normalizedInputSha256": "190cd86783b162e1d9e7964827c331b24631aa736ee2c1313329689f600f7f1f",
+    "normalization": {
+        "typephpPatches": [
+            "toolchain/patches/typephp/0.9.2/0003-reproducible-source-identities.patch",
+            "toolchain/patches/typephp/0.9.2/0004-full-static-host-target-separation.patch"
+        ],
+        "logicalSourcePrefix": "/usr/src/webman-aot",
+        "mappedInputs": [
+            "entry script identity",
+            "stable call-site identity",
+            "runtime attribute factory identity",
+            "declaration header identity",
+            "class constant lifecycle identity",
+            "generated debug frame identity",
+            "server script fields"
+        ],
+        "fullStaticHostRpathRemoved": true,
+        "hostTargetSeparation": "Host platform remains responsible for filesystem and PHP CLI behavior; full-static code generation and compiler backend are fixed to Linux musl semantics."
+    },
+    "builds": [
+        {
+            "directory": "/private/tmp/webman-aot-repro-g",
+            "artifact": "full_static_cross_smoke",
+            "size": 162640072,
+            "sha256": "24c0796b4037069d85b785cbceb39408e9332e7ec6e84a0e8dad6df833f715e0"
+        },
+        {
+            "directory": "/private/tmp/webman-aot-repro-h",
+            "artifact": "full_static_cross_smoke",
+            "size": 162640072,
+            "sha256": "24c0796b4037069d85b785cbceb39408e9332e7ec6e84a0e8dad6df833f715e0"
+        }
+    ],
+    "assertions": {
+        "byteComparison": "cmp returned 0",
+        "elf": "Both artifacts are x86-64 static ELF files with no interpreter, dynamic segment, or DT_NEEDED entries.",
+        "linkCommand": "The full-static command contains no host rpath after the patch.",
+        "patchReplay": "Patches 0001 through 0004 applied cleanly in sequence to pristine TypePHP 0.9.2 plus PHPX 2.9.1 and produced the exact guarded file digests.",
+        "windowsReplayEntry": "tools/windows-replay.ps1 verifies or downloads every locked archive, uses only private directories, applies all four guarded patches without Git or patch, and fails if the Windows ELF differs from the Mac baseline.",
+        "linuxRuntime": "The first artifact retained the same SHA-256 inside a full x86_64 Ubuntu 24.04 QEMU guest and printed full-static-smoke-ok on three consecutive runs."
+    },
+    "remainingBoundary": [
+        "OpenSpec 1.7 still requires a real Windows x64 host to rebuild the same locked input.",
+        "OpenSpec 5.2 still requires locale, timezone, timestamp, archive ordering, and complete manifest normalization."
+    ]
+}

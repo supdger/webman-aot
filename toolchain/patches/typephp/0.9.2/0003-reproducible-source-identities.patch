@@ -1,0 +1,177 @@
+--- a/src/Build/NativeCommandOptionsTrait.php
++++ b/src/Build/NativeCommandOptionsTrait.php
+@@ -196,7 +196,7 @@
+                 . basename($this->getTargetFileName()) . '.rsp',
+         ];
+ 
+-        $rpaths = $this->isNanoMode()
++        $rpaths = ($this->isNanoMode() || $this->fullStatic)
+             ? []
+             : $this->getPlatform()->getDefaultRpaths($this->getPhpxDir(), $this->getPhpDir());
+         if (!empty($rpaths)) {
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -631,6 +631,8 @@
+     protected bool $decimalTypes = false;
+     protected bool $bigintTypes = false;
+     protected string $rootPath;
++    protected string $sourceIdentityRoot = '';
++    protected string $sourceIdentityPrefix = '';
+     protected CompilerRuntime $compilerRuntime;
+     protected string $buildDir;
+     protected string $targetName = 'app';
+@@ -1661,7 +1663,7 @@
+     {
+         $scope = implode("\0", [
+             $this->cacheSitePass,
+-            isset($this->file) ? str_replace('\\', '/', $this->file) : '',
++            isset($this->file) ? $this->getSourceIdentity($this->file) : '',
+             strtolower($this->namespace),
+             strtolower($this->class),
+             strtolower($this->function),
+@@ -1671,6 +1673,42 @@
+         $ordinal = $this->cacheSiteOrdinals[$ordinalKey] ?? 0;
+         $this->cacheSiteOrdinals[$ordinalKey] = $ordinal + 1;
+         return $this->getStableIdRegistry()->allocate($domain, $scope . "\0" . $ordinal);
++    }
++
++    protected function setSourceIdentityMapping(string $root, string $prefix): void
++    {
++        $root = rtrim(str_replace('\\', '/', realpath($root) ?: $root), '/');
++        $prefix = rtrim(str_replace('\\', '/', $prefix), '/');
++        if ($root === '' || $prefix === '') {
++            $this->error('Reproducible source paths require non-empty root and prefix values');
++        }
++        $this->sourceIdentityRoot = $root;
++        $this->sourceIdentityPrefix = $prefix;
++    }
++
++    protected function getSourceIdentity(string $path): string
++    {
++        $path = str_replace('\\', '/', $path);
++        if ($this->sourceIdentityRoot === '') {
++            return $path;
++        }
++
++        $matchesRoot = PHP_OS_FAMILY === 'Windows'
++            ? strcasecmp($path, $this->sourceIdentityRoot) === 0
++            : $path === $this->sourceIdentityRoot;
++        if ($matchesRoot) {
++            return $this->sourceIdentityPrefix;
++        }
++
++        $rootWithSeparator = $this->sourceIdentityRoot . '/';
++        $matchesChild = PHP_OS_FAMILY === 'Windows'
++            ? strncasecmp($path, $rootWithSeparator, strlen($rootWithSeparator)) === 0
++            : str_starts_with($path, $rootWithSeparator);
++        if ($matchesChild) {
++            return $this->sourceIdentityPrefix . '/' . substr($path, strlen($rootWithSeparator));
++        }
++
++        return $path;
+     }
+ 
+     /** Return the function-local late-static-bound class entry. */
+@@ -5674,10 +5712,10 @@
+         $code = '';
+         if ($this->debug) {
+             if ($stmt) {
+-                $code .= 'php::traceDebugInfo("' . $this->escapeString($this->file) . '", ' . $stmt->getLine() . ');' . PHP_EOL;
++                $code .= 'php::traceDebugInfo("' . $this->escapeString($this->getSourceIdentity($this->file)) . '", ' . $stmt->getLine() . ');' . PHP_EOL;
+             } elseif ($functionName) {
+                 $code .= 'php::enableDebugInfo();' . PHP_EOL;
+-                $code .= 'php::pushDebugFrame("' . $this->escapeString($this->file) . '", ' . $startLine . ', "' . $this->escapeString($functionName) . '");' . PHP_EOL;
++                $code .= 'php::pushDebugFrame("' . $this->escapeString($this->getSourceIdentity($this->file)) . '", ' . $startLine . ', "' . $this->escapeString($functionName) . '");' . PHP_EOL;
+                 $code .= 'ON_SCOPE_EXIT(php::popDebugFrame());' . PHP_EOL;
+             } else {
+                 $code .= 'php::enableDebugInfo();' . PHP_EOL;
+--- a/src/Preprocessor.php
++++ b/src/Preprocessor.php
+@@ -484,7 +484,7 @@
+             ));
+             $traverser->addVisitor(new ConstantExpressionValidationVisitor($this->phpVersion));
+             $traverser->addVisitor(new RuntimeAttributeFactoryLowering(
+-                $this->file,
++                $this->getSourceIdentity($this->file),
+                 fn (string $class, string $case): bool => $this->isDeclaredEnumCase($class, $case),
+             ));
+             try {
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -1740,9 +1740,10 @@
+                 $code .= $this->getIndent(2) . 'return FAILURE;' . PHP_EOL;
+                 $code .= '}' . PHP_EOL;
+             } else {
+-                // FunctionDef::sourceFile comes from loadFile()'s realpath(), so the
+-                // CLI script fields always identify main()'s canonical absolute file.
+-                $entryFile = $entryFunction->sourceFile;
++                // FunctionDef::sourceFile comes from loadFile()'s realpath().
++                // Reproducible builds replace the host path with the configured
++                // logical source identity before it reaches the generated binary.
++                $entryFile = $this->getSourceIdentity($entryFunction->sourceFile);
+                 $entryFileArg = $this->genCharPtr($entryFile, true);
+                 $entryLineOffset = max(0, $entryFunction->startLine - 1);
+                 if (count($entryFunction->argInfoList) == 2) {
+@@ -2929,7 +2930,7 @@
+         $realFile = realpath($file) ?: $file;
+         $path = $this->getRelativePath(str_replace(['.stub.php', '.php'], '', $realFile));
+         $name = $this->escapeFileName(str_replace(['/', '\\'], '_', $path));
+-        $name .= '_' . substr(hash('sha256', str_replace('\\', '/', $realFile)), 0, 10);
++        $name .= '_' . substr(hash('sha256', $this->getSourceIdentity($realFile)), 0, 10);
+         $absolute = $this->getIncludeDir() . '/php_' . $this->targetName . '_' . $name . '_decl.h';
+         return $relative ? basename($absolute) : $absolute;
+     }
+@@ -3727,7 +3728,11 @@
+                 continue;
+             }
+ 
+-            $suffix = substr(hash('sha256', $sourceFile . "\0" . $operation['key']), 0, 20);
++            $suffix = substr(
++                hash('sha256', $this->getSourceIdentity($sourceFile) . "\0" . $operation['key']),
++                0,
++                20
++            );
+             $initFunction = 'typephp_request_init_class_constant_' . $suffix;
+             $cleanFunction = 'typephp_request_clean_class_constant_' . $suffix;
+             $this->classArrayConstantLifecycleDeclarations[] =
+@@ -3996,6 +4001,21 @@
+     {
+         $cfg = $this->getProjectYamlLoader()->load($path);
+         $projectDir = dirname($path);
++
++        if (array_key_exists('reproducible-source-prefix', $cfg)) {
++            $prefix = $cfg['reproducible-source-prefix'];
++            if (!is_string($prefix)
++                || $prefix === ''
++                || $prefix === '/'
++                || $prefix[0] !== '/'
++                || str_ends_with($prefix, '/')
++                || str_contains($prefix, "\0")
++                || preg_match('~//|(?:^|/)\.{1,2}(?:/|$)~', $prefix) === 1
++            ) {
++                $this->error('`reproducible-source-prefix` must be an absolute normalized POSIX path');
++            }
++            $this->setSourceIdentityMapping($projectDir, $prefix);
++        }
+ 
+         if (array_key_exists('version', $cfg)) {
+             if (!is_string($cfg['version']) || trim($cfg['version']) === '') {
+@@ -4489,7 +4509,7 @@
+             fn (Node $node, string $message) => $this->fatalError($node, $message),
+         ));
+         $traverser->addVisitor(new RuntimeAttributeFactoryLowering(
+-            $this->file,
++            $this->getSourceIdentity($this->file),
+             fn (string $class, string $case): bool => $this->isDeclaredEnumCase($class, $case),
+         ));
+ 
+@@ -6311,7 +6331,8 @@
+          * as they are used, rather than held for the long term.
+          */
+         $indent = $this->getIndent();
+-        $cppCode = $indent . "const char *value = " . $this->genCharPtr($entryFile, true) . ';' . PHP_EOL;
++        $cppCode = $indent . "const char *value = "
++            . $this->genCharPtr($this->getSourceIdentity($entryFile), true) . ';' . PHP_EOL;
+         $cppCode .= $indent . 'php::Var &_SERVER = ' . $this->escapeGlobalVar('_SERVER') . ';' . PHP_EOL;
+         $cppCode .= $indent . '_SERVER.item("PHP_SELF", true) = value;'. PHP_EOL;
+         $cppCode .= $indent . '_SERVER.item("SCRIPT_NAME", true) = value;'. PHP_EOL;

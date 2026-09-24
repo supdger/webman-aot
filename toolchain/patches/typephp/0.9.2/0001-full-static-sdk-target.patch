@@ -1,0 +1,78 @@
+--- a/src/Build/NativeBuildConfigurationTrait.php
++++ b/src/Build/NativeBuildConfigurationTrait.php
+@@ -99,19 +99,35 @@
+     }
+ 
+     /**
+-     * The target triple used for fully-static links.
++     * Resolve the target triple from the SDK manifest instead of the build host.
+      *
+-     * libphp.a embeds musl libc, so the executable must be linked as a musl
+-     * target; the triple also drives the linker's search for musl startup files.
++     * A macOS ARM64 or Windows x64 host may consume the Linux x64 SDK, so
++     * php_uname('m') is not authoritative. The explicit target, when supplied,
++     * must agree with the locked SDK.
+      */
+     protected function getFullStaticTargetTriple(): string
+     {
+-        $arch = match (php_uname('m')) {
+-            'aarch64', 'arm64' => 'aarch64',
+-            'riscv64' => 'riscv64',
+-            default => 'x86_64',
++        $manifestPath = $this->getFullStaticSdkDir() . '/manifest.json';
++        $manifest = is_file($manifestPath)
++            ? json_decode((string) file_get_contents($manifestPath), true)
++            : null;
++        $sdkTarget = is_array($manifest) ? ($manifest['target'] ?? null) : null;
++        $target = match ($sdkTarget) {
++            'linux-x64' => 'x86_64-unknown-linux-musl',
++            'linux-arm64' => 'aarch64-unknown-linux-musl',
++            default => $this->error(
++                '--full-static SDK manifest has an unsupported target: '
++                . (is_scalar($sdkTarget) ? (string) $sdkTarget : 'missing')
++            ),
+         };
+-        return $arch . '-unknown-linux-musl';
++
++        if ($this->targetPlatform !== '' && $this->targetPlatform !== $target) {
++            $this->error(
++                "--target-platform={$this->targetPlatform} does not match "
++                . "the full-static SDK target {$target}"
++            );
++        }
++        return $target;
+     }
+ 
+     /**
+--- a/src/Build/NativeCommandOptionsTrait.php
++++ b/src/Build/NativeCommandOptionsTrait.php
+@@ -47,13 +47,17 @@
+             }
+         }
+ 
++        $targetPlatform = $this->fullStatic
++            ? $this->getFullStaticTargetTriple()
++            : $this->targetPlatform;
++
+         $values = [
+             'include_paths' => $includePaths,
+             'optimize' => $this->optimizeLevel,
+             'debug' => $this->debug,
+             'sanitize' => $this->sanitize,
+             'march' => $this->march,
+-            'target_platform' => $this->targetPlatform,
++            'target_platform' => $targetPlatform,
+             'is_zts' => $this->isPhpZts,
+             'build_mode' => $this->buildMode,
+             'enable_profiler' => $this->enableProfiler,
+--- a/src/Build/SourcePipelineTrait.php
++++ b/src/Build/SourcePipelineTrait.php
+@@ -602,6 +602,7 @@
+         // All Windows build modes depend on the PHPX import library and runtime.
+         // Other platforms only run the existing checks in embedded build mode.
+-        if (!$this->isNanoMode()
++        if (!$this->fullStatic
++            && !$this->isNanoMode()
+             && ($this->isBuildModeEmbed() || $this->getPlatform() instanceof Windows)) {
+             foreach ($this->getPlatform()->getBuildLibraryWarnings(
+                 $this->getPhpDir(),

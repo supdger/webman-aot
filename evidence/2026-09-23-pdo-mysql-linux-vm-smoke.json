@@ -1,0 +1,53 @@
+{
+    "schema": "webman-aot-runtime-evidence-v1",
+    "task": "OpenSpec 1.4",
+    "status": "pass",
+    "artifact": {
+        "fixture": "tests/fixtures/pdo-mysql-smoke-minimal/main.php",
+        "sha256": "d3ff80c32071a8e88519ba04c6f6c655e0c03e849f38e26475158e969a166bdf",
+        "size": 162640720,
+        "machine": "x86_64",
+        "linkage": "static",
+        "interpreter": false,
+        "dynamicSegment": false,
+        "neededLibraries": []
+    },
+    "staticModules": {
+        "pdo_module_entry": 1,
+        "mysqlnd_module_entry": 1,
+        "pdo_mysql_module_entry": 1
+    },
+    "runtime": {
+        "containerUsed": false,
+        "vm": "Lima 2.2.0 with QEMU 10.0.2 full-system emulation",
+        "guest": "Ubuntu 24.04",
+        "guestKernel": "6.8.0-134-generic",
+        "guestArchitecture": "x86_64",
+        "x86Execution": "native x86_64 Linux userspace and kernel in a full-system x86_64 guest",
+        "mysql": "8.0.46",
+        "databaseEndpoint": "127.0.0.1 inside the disposable VM"
+    },
+    "assertions": [
+        "A generic x86_64 full-static TypePHP artifact printed full-static-smoke-ok.",
+        "The PDO probe observed PDO, mysqlnd and pdo_mysql as statically registered.",
+        "PDO constructed a TCP connection to the isolated MySQL service.",
+        "SELECT 1 returned integer 1.",
+        "The earlier ARM64/Rosetta staged probe passed four consecutive runs.",
+        "The earlier ARM64/Rosetta uninstrumented minimal probe passed three consecutive runs.",
+        "The same uninstrumented minimal probe passed three consecutive runs in the full-system x86_64 Linux guest.",
+        "ldd reported not a dynamic executable.",
+        "readelf found neither PT_INTERP nor DT_NEEDED in the x86_64 Linux guest.",
+        "The temporary database and account were absent after cleanup."
+    ],
+    "anomaly": {
+        "observed": "The first uninstrumented VM run exited with signal 11.",
+        "followUp": "The failure did not reproduce in seven subsequent database runs across staged and uninstrumented rebuilds.",
+        "disposition": "The failure did not reproduce in the full-system x86_64 Linux replay; retain the historical observation in evidence."
+    },
+    "remainingBoundary": [
+        "The x86_64 guest is a complete non-container Linux system under QEMU, not a physical production server.",
+        "Physical and cloud-host Linux compatibility remains covered by OpenSpec group 7.",
+        "The VM database and guest are test-only and are not SaiAdmin business acceptance.",
+        "MySQL 8.4 acceptance remains OpenSpec 6.4."
+    ]
+}
