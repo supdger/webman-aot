@@ -69,7 +69,10 @@ final class GlobalLauncherTest
             $environment
         );
         $this->assert($version['exitCode'] === 0, 'PHP CLI version command failed');
-        $this->assert($version['stdout'] === "webman-aot 0.1.0-dev\n", 'PHP CLI version output drifted');
+        $this->assert(
+            rtrim($version['stdout'], "\r\n") === 'webman-aot 0.1.0-dev',
+            'PHP CLI version output drifted'
+        );
         $this->assert($version['stderr'] === '', 'PHP CLI version command wrote to stderr');
 
         $help = $this->runProcess(
@@ -108,7 +111,10 @@ final class GlobalLauncherTest
             $this->environmentWithHome($temporaryRoot)
         );
         $this->assert($result['exitCode'] === 0, 'macOS global launcher version command failed');
-        $this->assert($result['stdout'] === "webman-aot 0.1.0-dev\n", 'macOS launcher output drifted');
+        $this->assert(
+            rtrim($result['stdout'], "\r\n") === 'webman-aot 0.1.0-dev',
+            'macOS launcher output drifted'
+        );
         $this->assert($result['stderr'] === '', 'macOS launcher wrote to stderr');
     }
 
