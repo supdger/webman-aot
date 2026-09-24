@@ -55,6 +55,27 @@ final class WindowsReplayContractTest
             preg_match('/Parameter\\(Mandatory\\s*=\\s*\\$true\\).*\\$(?:Artifacts|WorkRoot)/is', $contents) !== 1,
             'Windows replay paths must default to the current user private directory'
         );
+
+        $workflowPath = $root . '/.github/workflows/windows-full-static-replay.yml';
+        $workflow = file_get_contents($workflowPath);
+        if ($workflow === false) {
+            throw new RuntimeException('unable to read Windows replay workflow');
+        }
+        foreach ([
+            'runs-on: windows-2022',
+            '.\\tools\\windows-replay.ps1',
+            'windows-replay.json',
+            'full_static_cross_smoke',
+        ] as $required) {
+            $this->assert(
+                str_contains($workflow, $required),
+                "Windows replay workflow is missing {$required}"
+            );
+        }
+        $this->assert(
+            preg_match('/\\b(?:docker|podman|winget|choco|setup-php)\\b/i', $workflow) !== 1,
+            'Windows replay workflow must use the repository-owned private toolchain'
+        );
     }
 
     private function assert(bool $condition, string $message): void

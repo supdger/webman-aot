@@ -29,3 +29,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\windows-replay.ps1
 放在 `%LOCALAPPDATA%\webman-aot`。它不调用 Docker、winget、系统 PHP 或 GUI
 安装器，并分别比较 Mac 基线的规范化输入摘要和 ELF SHA-256。只有两项都一致
 才返回成功。
+
+仓库的 `Windows full-static replay` workflow 在 Windows Server 2022 x64 原生
+runner 上执行同一脚本，用于持续验证跨宿主 SDK 与 ELF 一致性。该 workflow
+不替代后续干净实体 Windows 用户账号下的安装、构建和卸载验收。
