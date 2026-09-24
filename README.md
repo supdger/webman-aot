@@ -4,18 +4,28 @@ Webman AOT 是一个独立的全局命令行工具项目，目标是在 macOS AR
 Windows x64 主机上构建 Linux amd64 musl 全静态 Webman/SaiAdmin
 可执行文件。
 
-当前首先实施全静态 SDK 可行性门。没有通过静态链接、跨主机一致性和目标
-Linux 运行验证前，本项目不会把“生成了二进制”标记为可发布。
+全静态 SDK 可行性门和 Mac/Windows 跨主机最小构建已经通过。当前继续实现
+全局 CLI、项目发现和 SaiAdmin 适配；在业务及目标 Linux 验收完成前，本项目
+仍不会把“生成了二进制”标记为可发布。
 
 ## 开发入口
 
 ```bash
 php tools/toolchain.php self-check
 php tests/run.php
+php bin/webman-aot.php --help
 ```
 
 工具链脚本只读写本仓库的 `build/`、`dist/` 和后续定义的用户私有工具目录，
 不要求目标 Webman 项目安装 Composer 插件。
+
+发布版启动器只使用用户私有目录中的运行时和应用代码：
+
+- macOS ARM64：`~/Library/Application Support/webman-aot`
+- Windows x64：`%LOCALAPPDATA%\webman-aot`
+
+源码开发时直接运行 `php bin/webman-aot.php`；最终安装包会把私有 PHP、
+应用版本和启动器放入上述目录，不读取目标项目的 PHP 或 Composer AOT 包。
 
 ## Windows 跨主机复现
 

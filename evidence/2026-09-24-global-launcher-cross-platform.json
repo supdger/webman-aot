@@ -1,0 +1,57 @@
+{
+    "schema": "webman-aot-global-launcher-evidence-v1",
+    "task": "OpenSpec 2.1",
+    "status": "pass",
+    "sourceRevision": "e9a51e4f5997f4dad964597c91cddf3f0f130e5e",
+    "fixture": {
+        "kind": "minimal-webman",
+        "webmanRequirement": "^2.2",
+        "projectComposerAotPluginInstalled": false,
+        "webmanAotComposerPackageInstalled": false,
+        "tinywanTypePhpComposerPackageInstalled": false
+    },
+    "privateLayout": {
+        "currentApplication": "current/app",
+        "currentRuntime": "current/runtime",
+        "versionStore": "versions",
+        "toolchainStore": "toolchains",
+        "artifactCache": "artifacts",
+        "downloadCache": "cache",
+        "logs": "logs",
+        "temporaryFiles": "tmp",
+        "writesOutsideUserRoot": false
+    },
+    "macos": {
+        "host": "macOS-arm64-physical",
+        "launcher": "bin/webman-aot",
+        "privateRuntimeUsed": true,
+        "versionExitCode": 0,
+        "versionOutput": "webman-aot 0.1.0-dev",
+        "helpExitCode": 0,
+        "helpContainsUsage": true
+    },
+    "windows": {
+        "host": "windows-x86_64-physical",
+        "launcher": "bin/webman-aot.cmd",
+        "privateRuntimeUsed": true,
+        "systemPhpUsed": false,
+        "dockerUsed": false,
+        "packageManagerUsed": false,
+        "guiUsed": false,
+        "versionExitCode": 0,
+        "versionOutput": "webman-aot 0.1.0-dev",
+        "helpExitCode": 0,
+        "helpContainsUsage": true
+    },
+    "automatedChecks": {
+        "repositoryTests": "pass",
+        "phpSyntax": "pass",
+        "diffCheck": "pass"
+    },
+    "privacy": {
+        "privatePathsIncluded": false,
+        "privateAddressesIncluded": false,
+        "accountsIncluded": false,
+        "businessSourceIncluded": false
+    }
+}
