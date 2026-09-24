@@ -219,15 +219,22 @@ $llvmRoot = Join-Path $WorkRoot 'llvm'
 Write-Host 'Installing private LLVM toolchain into isolated work root ...'
 & $archives['llvm-windows-x64'] '/S' "/D=$llvmRoot"
 Assert-LastExitCode 'LLVM silent private installation'
-$compilerFile = Get-ChildItem -LiteralPath $llvmRoot -Recurse -Filter 'clang++.exe' -File |
-    Select-Object -First 1
-$llvmNmFile = Get-ChildItem -LiteralPath $llvmRoot -Recurse -Filter 'llvm-nm.exe' -File |
-    Select-Object -First 1
-if ($null -eq $compilerFile -or $null -eq $llvmNmFile) {
+$compiler = Join-Path $llvmRoot 'bin\clang++.exe'
+$llvmNm = Join-Path $llvmRoot 'bin\llvm-nm.exe'
+$llvmDeadline = [DateTime]::UtcNow.AddMinutes(3)
+while (
+    (-not (Test-Path -LiteralPath $compiler -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $llvmNm -PathType Leaf)) -and
+    [DateTime]::UtcNow -lt $llvmDeadline
+) {
+    Start-Sleep -Seconds 2
+}
+if (
+    -not (Test-Path -LiteralPath $compiler -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $llvmNm -PathType Leaf)
+) {
     throw 'locked LLVM package did not yield clang++.exe and llvm-nm.exe'
 }
-$compiler = $compilerFile.FullName
-$llvmNm = $llvmNmFile.FullName
 $compilerVersion = (& $compiler --version | Select-Object -First 1)
 Assert-LastExitCode 'LLVM version check'
 if ($compilerVersion -notmatch '19\.1\.7') {
