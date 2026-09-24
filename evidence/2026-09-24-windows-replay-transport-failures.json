@@ -22,6 +22,18 @@
             "failure": "job exceeded the 60 minute execution limit",
             "lastLoggedOperation": "downloaded alpine-gcc-x86-64",
             "artifactProduced": false
+        },
+        {
+            "host": "windows-server-2022-x86_64",
+            "containerUsed": false,
+            "sourceRevision": "8f39a2f51cc82ae48448306d0303c6d88e7e9c8c",
+            "workflowRunId": 35989087286,
+            "startedAt": "2026-09-24T10:45:39Z",
+            "completedAt": "2026-09-24T11:45:46Z",
+            "failureStage": "phpx-sdk-linux-x64-extraction",
+            "failure": "Windows tar.exe did not return while extracting the locked tar.xz before the 60 minute job limit",
+            "lastLoggedOperation": "extracting Linux x64 PHPX SDK",
+            "artifactProduced": false
         }
     ],
     "candidateRepair": {
@@ -29,7 +41,8 @@
         "boundedCurlRetries": true,
         "digestBeforePromotion": true,
         "expandArchiveRemoved": true,
-        "tarExtraction": true,
+        "typephpZipTarExtraction": true,
+        "phpxSdkSevenZipExtraction": true,
         "explicitStageLogging": true
     },
     "validation": {

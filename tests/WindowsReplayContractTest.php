@@ -38,6 +38,8 @@ final class WindowsReplayContractTest
             "'--continue-at' '-'",
             "'--retry-all-errors'",
             'TypePHP Windows archive extraction',
+            'PHPX SDK xz extraction',
+            'PHPX SDK tar extraction',
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',
@@ -69,6 +71,11 @@ final class WindowsReplayContractTest
             !str_contains($contents, 'Expand-Archive') &&
             str_contains($contents, "& tar.exe -xf \$archives['typephp-windows-x64']"),
             'Windows replay must avoid the observed Expand-Archive hang'
+        );
+        $this->assert(
+            !str_contains($contents, "& tar.exe -xf \$archives['phpx-sdk-linux-x64']") &&
+            str_contains($contents, "& \$sevenZip x '-y' \"-o\$sdkExtract\" \$archives['phpx-sdk-linux-x64']"),
+            'Windows replay must avoid the observed tar.exe hang on the PHPX SDK tar.xz'
         );
 
         $workflowPath = $root . '/.github/workflows/windows-full-static-replay.yml';

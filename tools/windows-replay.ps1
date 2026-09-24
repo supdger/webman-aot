@@ -194,9 +194,18 @@ Move-Item -LiteralPath $phpxSource -Destination $phpx
 $sdkExtract = Join-Path $WorkRoot 'sdk-extract'
 Write-Host 'Extracting Linux x64 PHPX SDK ...'
 New-Item -ItemType Directory -Path $sdkExtract | Out-Null
-& tar.exe -xf $archives['phpx-sdk-linux-x64'] -C $sdkExtract
-Assert-LastExitCode 'PHPX SDK extraction'
-$sdkSource = Get-SingleDirectory $sdkExtract 'PHPX SDK archive'
+& $sevenZip x '-y' "-o$sdkExtract" $archives['phpx-sdk-linux-x64'] | Out-Host
+Assert-LastExitCode 'PHPX SDK xz extraction'
+$sdkTar = Get-ChildItem -LiteralPath $sdkExtract -Filter '*.tar' -File |
+    Select-Object -First 1
+if ($null -eq $sdkTar) {
+    throw 'PHPX SDK xz archive did not yield a tar file'
+}
+$sdkPayload = Join-Path $WorkRoot 'sdk-payload'
+New-Item -ItemType Directory -Path $sdkPayload | Out-Null
+& $sevenZip x '-y' "-o$sdkPayload" $sdkTar.FullName | Out-Host
+Assert-LastExitCode 'PHPX SDK tar extraction'
+$sdkSource = Get-SingleDirectory $sdkPayload 'PHPX SDK archive'
 $fullStatic = Join-Path $phpx 'full-static'
 New-Item -ItemType Directory -Path $fullStatic -Force | Out-Null
 $sdk = Join-Path $fullStatic 'sdk'
