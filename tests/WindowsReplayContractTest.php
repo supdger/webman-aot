@@ -45,6 +45,8 @@ final class WindowsReplayContractTest
             '[DateTime]::UtcNow.AddMinutes(3)',
             "Join-Path \$llvmRoot 'bin\\clang++.exe'",
             "Join-Path \$llvmRoot 'bin\\llvm-nm.exe'",
+            '$llvmReady = $true',
+            "\$LASTEXITCODE -eq 0 -and \$compilerVersion -match '19\\.1\\.7'",
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',

@@ -222,23 +222,23 @@ Assert-LastExitCode 'LLVM silent private installation'
 $compiler = Join-Path $llvmRoot 'bin\clang++.exe'
 $llvmNm = Join-Path $llvmRoot 'bin\llvm-nm.exe'
 $llvmDeadline = [DateTime]::UtcNow.AddMinutes(3)
-while (
-    (-not (Test-Path -LiteralPath $compiler -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $llvmNm -PathType Leaf)) -and
-    [DateTime]::UtcNow -lt $llvmDeadline
-) {
+$compilerVersion = ''
+$llvmReady = $false
+while ([DateTime]::UtcNow -lt $llvmDeadline) {
+    if (
+        (Test-Path -LiteralPath $compiler -PathType Leaf) -and
+        (Test-Path -LiteralPath $llvmNm -PathType Leaf)
+    ) {
+        $compilerVersion = (& $compiler --version 2>$null | Select-Object -First 1)
+        if ($LASTEXITCODE -eq 0 -and $compilerVersion -match '19\.1\.7') {
+            $llvmReady = $true
+            break
+        }
+    }
     Start-Sleep -Seconds 2
 }
-if (
-    -not (Test-Path -LiteralPath $compiler -PathType Leaf) -or
-    -not (Test-Path -LiteralPath $llvmNm -PathType Leaf)
-) {
-    throw 'locked LLVM package did not yield clang++.exe and llvm-nm.exe'
-}
-$compilerVersion = (& $compiler --version | Select-Object -First 1)
-Assert-LastExitCode 'LLVM version check'
-if ($compilerVersion -notmatch '19\.1\.7') {
-    throw "unexpected LLVM version: $compilerVersion"
+if (-not $llvmReady) {
+    throw "locked LLVM package did not become executable as version 19.1.7: $compilerVersion"
 }
 
 $phpConfig = Join-Path $WorkRoot 'php-config'
