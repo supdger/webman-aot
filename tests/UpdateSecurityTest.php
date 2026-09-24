@@ -10,6 +10,15 @@ use WebmanAot\Update\VerifiedDownloader;
 
 final class UpdateSecurityTest
 {
+    private const FIXTURE_PUBLIC_KEY = <<<'PEM'
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAISrdqV8AALNvuvWHPZRc8OKfTt8aNMw1UDUp6vkDjVk=
+-----END PUBLIC KEY-----
+PEM;
+
+    private const FIXTURE_SIGNATURE =
+        'TJMQuAiHwLdOiL4gPAgYC08D8P3dcoc4tZK43f31eeOFe8WXhQLPLUoew4cbEEu7p+P32OCdy0YEptjvJ0zIDg==';
+
     public function run(): void
     {
         $directory = sys_get_temp_dir() . '/webman-aot-update-security-' . bin2hex(random_bytes(8));
@@ -17,16 +26,7 @@ final class UpdateSecurityTest
             throw new RuntimeException('unable to create update security fixture');
         }
         try {
-            $privateKey = @openssl_pkey_new([
-                'private_key_type' => OPENSSL_KEYTYPE_ED25519,
-            ]);
-            $this->assert(
-                $privateKey instanceof OpenSSLAsymmetricKey,
-                'unable to create fixture Ed25519 key'
-            );
-            $details = openssl_pkey_get_details($privateKey);
-            $this->assert(is_array($details), 'unable to read fixture Ed25519 public key');
-            $publicKeyPem = $details['key'];
+            $publicKeyPem = self::FIXTURE_PUBLIC_KEY;
             $keysPath = $directory . '/trusted-keys.json';
             $keysDocument = [
                 'schema' => 'webman-aot-trusted-update-keys-v1',
@@ -61,13 +61,6 @@ final class UpdateSecurityTest
                     ],
                 ],
             ];
-            $signed = openssl_sign(
-                $verifier->canonicalJson($payload),
-                $signature,
-                $privateKey,
-                0
-            );
-            $this->assert($signed, 'unable to sign fixture update manifest');
             $manifest = [
                 'schema' => 'webman-aot-update-manifest-v1',
                 'payload' => $payload,
@@ -75,7 +68,7 @@ final class UpdateSecurityTest
                     [
                         'keyId' => 'fixture-key',
                         'algorithm' => 'ed25519',
-                        'signature' => base64_encode($signature),
+                        'signature' => self::FIXTURE_SIGNATURE,
                     ],
                 ],
             ];
