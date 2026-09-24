@@ -9,11 +9,11 @@ use WebmanAot\Cli\ConfigurationException;
 final class TrustedKeyStore
 {
     /**
-     * @return array<string, string>
+     * @return array<string, \OpenSSLAsymmetricKey>
      */
     public function read(string $path): array
     {
-        if (!defined('SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES')) {
+        if (!extension_loaded('openssl') || !defined('OPENSSL_KEYTYPE_ED25519')) {
             throw new ConfigurationException('Ed25519 verification is unavailable');
         }
         $contents = file_get_contents($path);
@@ -41,18 +41,24 @@ final class TrustedKeyStore
                 || !is_string($entry['id'] ?? null)
                 || preg_match('/^[a-z0-9][a-z0-9._-]*$/D', $entry['id']) !== 1
                 || ($entry['algorithm'] ?? null) !== 'ed25519'
-                || !is_string($entry['publicKey'] ?? null)
+                || !is_string($entry['publicKeyPem'] ?? null)
             ) {
                 throw new ConfigurationException('trusted update key entry is invalid');
             }
-            $decoded = base64_decode($entry['publicKey'], true);
-            if (!is_string($decoded) || strlen($decoded) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
+            $publicKey = openssl_pkey_get_public($entry['publicKeyPem']);
+            $details = $publicKey instanceof \OpenSSLAsymmetricKey
+                ? openssl_pkey_get_details($publicKey)
+                : false;
+            if (!$publicKey instanceof \OpenSSLAsymmetricKey
+                || !is_array($details)
+                || ($details['type'] ?? null) !== OPENSSL_KEYTYPE_ED25519
+            ) {
                 throw new ConfigurationException("trusted update key is invalid: {$entry['id']}");
             }
             if (isset($keys[$entry['id']])) {
                 throw new ConfigurationException("duplicate trusted update key: {$entry['id']}");
             }
-            $keys[$entry['id']] = $decoded;
+            $keys[$entry['id']] = $publicKey;
         }
         if ($keys === []) {
             throw new ConfigurationException('trusted update key store is empty');

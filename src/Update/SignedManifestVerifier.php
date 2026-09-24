@@ -9,11 +9,11 @@ use WebmanAot\Cli\UnavailableException;
 final class SignedManifestVerifier
 {
     /**
-     * @param array<string, string> $trustedKeys Raw Ed25519 public keys indexed by id.
+     * @param array<string, \OpenSSLAsymmetricKey> $trustedKeys Ed25519 keys indexed by id.
      */
     public function verify(string $contents, array $trustedKeys): UpdateManifest
     {
-        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+        if (!extension_loaded('openssl') || !defined('OPENSSL_KEYTYPE_ED25519')) {
             throw new UnavailableException('Ed25519 verification is unavailable');
         }
         try {
@@ -41,14 +41,12 @@ final class SignedManifestVerifier
             }
             $publicKey = $trustedKeys[$signature['keyId']] ?? null;
             $decoded = base64_decode($signature['signature'], true);
-            if (!is_string($publicKey)
-                || strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
+            if (!$publicKey instanceof \OpenSSLAsymmetricKey
                 || !is_string($decoded)
-                || strlen($decoded) !== SODIUM_CRYPTO_SIGN_BYTES
             ) {
                 continue;
             }
-            if (sodium_crypto_sign_verify_detached($decoded, $canonical, $publicKey)) {
+            if (openssl_verify($canonical, $decoded, $publicKey, 0) === 1) {
                 $verifiedKeyId = $signature['keyId'];
                 break;
             }
