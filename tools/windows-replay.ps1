@@ -221,13 +221,15 @@ Write-Host 'Installing private LLVM toolchain into isolated work root ...'
 Assert-LastExitCode 'LLVM silent private installation'
 $compiler = Join-Path $llvmRoot 'bin\clang++.exe'
 $llvmNm = Join-Path $llvmRoot 'bin\llvm-nm.exe'
+$llvmObjcopy = Join-Path $llvmRoot 'bin\llvm-objcopy.exe'
 $llvmDeadline = [DateTime]::UtcNow.AddMinutes(3)
 $compilerVersion = ''
 $llvmReady = $false
 while ([DateTime]::UtcNow -lt $llvmDeadline) {
     if (
         (Test-Path -LiteralPath $compiler -PathType Leaf) -and
-        (Test-Path -LiteralPath $llvmNm -PathType Leaf)
+        (Test-Path -LiteralPath $llvmNm -PathType Leaf) -and
+        (Test-Path -LiteralPath $llvmObjcopy -PathType Leaf)
     ) {
         $compilerVersion = (& $compiler --version 2>$null | Select-Object -First 1)
         if ($compilerVersion -match '^clang version 19\.1\.7(?:\s|$)') {
@@ -240,6 +242,17 @@ while ([DateTime]::UtcNow -lt $llvmDeadline) {
 if (-not $llvmReady) {
     throw "locked LLVM package did not become executable as version 19.1.7: $compilerVersion"
 }
+
+Write-Host 'Stripping debug sections from the private SDK work copy ...'
+$strippedSdk = & $php (Join-Path $repository 'tools\strip-sdk-debug.php') `
+    "--sdk=$sdk" `
+    "--objcopy=$llvmObjcopy" |
+    ConvertFrom-Json
+Assert-LastExitCode 'private SDK debug stripping'
+if ($strippedSdk.sha256 -ne 'bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb') {
+    throw "stripped SDK digest mismatch: $($strippedSdk.sha256)"
+}
+$strippedSdk | ConvertTo-Json -Depth 4 | Write-Host
 
 $phpConfig = Join-Path $WorkRoot 'php-config'
 New-Item -ItemType Directory -Path $phpConfig | Out-Null
@@ -293,12 +306,12 @@ $result = [ordered] @{
     host = 'windows-x86_64'
     containerUsed = $false
     normalizedInputSha256 = $normalizedInput.sha256
-    expectedNormalizedInputSha256 = '8d139bedd3f301dbfe9fe2e43cb2e850b94a7ceaf564a2c10d0bb239009eea91'
+    expectedNormalizedInputSha256 = '279de2aac423a4825c6a1146eda8ca6c6e53cb384150a07e60d76a5ee93c359b'
     matchesMacNormalizedInput = $false
     artifact = $artifact
     artifactSize = (Get-Item -LiteralPath $artifact).Length
     artifactSha256 = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    expectedMacArtifactSha256 = 'f5f7b4040eeef20aca6564d2d889d50e9f62b97623bab3732986d8f344d5d7aa'
+    expectedMacArtifactSha256 = 'ae183e44afce417023559274d9d4e4893271aecf57707dc7d6105ac7a7160ec2'
     matchesMacArtifact = $false
 }
 $result.matchesMacNormalizedInput = (

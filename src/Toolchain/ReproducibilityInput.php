@@ -94,6 +94,8 @@ final class ReproducibilityInput
                 'gccVersion' => '12.2.1',
                 'allowMultipleDefinition' => true,
                 'stripDebug' => true,
+                'stripSdkDebug' => true,
+                'strippedSdkSha256' => 'bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb',
                 'jobCount' => 4,
             ],
         ];

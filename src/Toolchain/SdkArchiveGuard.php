@@ -8,19 +8,30 @@ final class SdkArchiveGuard
 {
     private const LIBPHP_SHA256 = 'edef07bd8e532334e02061481b4bbbd70210cd8505fe90d6bec155ea04133003';
     private const LIBPHPX_SHA256 = 'afb819aab33837f8a7e8a69e0fb5a6a16029ee6fb4ca28ed79ef5b41fb6fac74';
+    private const STRIPPED_LIBPHP_SHA256 = '182909b33512b88e22ebc67d79650f67d48003b8c8b5bbfb64a7cf7481806e15';
+    private const STRIPPED_LIBPHPX_SHA256 = '6060d1aae72b2c3f5b34e3401419e1629ece33e946218e503095f15ecb4c72ae';
     private const ALLOWED_DUPLICATE = '__get_connection';
     private const ALLOWED_DUPLICATE_COUNT = 2;
 
     /**
-     * @return array{libphpSha256: string, libphpxSha256: string, duplicateSymbol: string, definitions: int}
+     * @return array{sdkVariant: string, libphpSha256: string, libphpxSha256: string, duplicateSymbol: string, definitions: int}
      */
     public function inspect(string $sdkDirectory, string $llvmNm): array
     {
         $libphp = rtrim($sdkDirectory, '/\\') . '/lib/libphp.a';
         $libphpx = rtrim($sdkDirectory, '/\\') . '/lib/libphpx.a';
 
-        $libphpHash = $this->assertDigest($libphp, self::LIBPHP_SHA256);
-        $libphpxHash = $this->assertDigest($libphpx, self::LIBPHPX_SHA256);
+        [$libphpHash, $libphpVariant] = $this->assertDigest($libphp, [
+            'locked-original' => self::LIBPHP_SHA256,
+            'locked-debug-stripped' => self::STRIPPED_LIBPHP_SHA256,
+        ]);
+        [$libphpxHash, $libphpxVariant] = $this->assertDigest($libphpx, [
+            'locked-original' => self::LIBPHPX_SHA256,
+            'locked-debug-stripped' => self::STRIPPED_LIBPHPX_SHA256,
+        ]);
+        if ($libphpVariant !== $libphpxVariant) {
+            throw new \RuntimeException('SDK archives are in mixed original/stripped states');
+        }
         $definitions = $this->countSymbolDefinitions($llvmNm, $libphp, self::ALLOWED_DUPLICATE);
         if ($definitions !== self::ALLOWED_DUPLICATE_COUNT) {
             throw new \RuntimeException(
@@ -34,6 +45,7 @@ final class SdkArchiveGuard
         }
 
         return [
+            'sdkVariant' => $libphpVariant,
             'libphpSha256' => $libphpHash,
             'libphpxSha256' => $libphpxHash,
             'duplicateSymbol' => self::ALLOWED_DUPLICATE,
@@ -41,13 +53,22 @@ final class SdkArchiveGuard
         ];
     }
 
-    private function assertDigest(string $path, string $expected): string
+    /**
+     * @param array<string, string> $expected
+     * @return array{string, string}
+     */
+    private function assertDigest(string $path, array $expected): array
     {
         $actual = is_file($path) ? hash_file('sha256', $path) : false;
-        if (!is_string($actual) || !hash_equals($expected, $actual)) {
+        if (!is_string($actual)) {
             throw new \RuntimeException("SDK archive digest mismatch: {$path}");
         }
-        return $actual;
+        foreach ($expected as $variant => $digest) {
+            if (hash_equals($digest, $actual)) {
+                return [$actual, $variant];
+            }
+        }
+        throw new \RuntimeException("SDK archive digest mismatch: {$path}");
     }
 
     private function countSymbolDefinitions(string $llvmNm, string $archive, string $symbol): int
