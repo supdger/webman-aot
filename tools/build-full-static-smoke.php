@@ -248,6 +248,7 @@ ld-flags: >-
   --sysroot={$sysrootFlag}
   -fuse-ld=lld
   -Wl,--allow-multiple-definition
+  -Wl,--strip-debug
   -B{$gccDirectoryFlag}
   -L{$sysrootLibraryFlag}
   -L{$gccDirectoryFlag}

@@ -8,7 +8,7 @@
         "containerUsed": false
     },
     "target": "x86_64-unknown-linux-musl",
-    "normalizedInputSha256": "b941612fe0103a723671b70fddc68763e965563a4a8887e389de95ce959cb50a",
+    "normalizedInputSha256": "8d139bedd3f301dbfe9fe2e43cb2e850b94a7ceaf564a2c10d0bb239009eea91",
     "normalization": {
         "typephpPatches": [
             "toolchain/patches/typephp/0.9.2/0003-reproducible-source-identities.patch",
@@ -26,20 +26,21 @@
             "server script fields"
         ],
         "fullStaticHostRpathRemoved": true,
+        "debugSectionsStripped": true,
         "hostTargetSeparation": "Host platform remains responsible for filesystem and PHP CLI behavior; full-static code generation and compiler backend are fixed to Linux musl semantics."
     },
     "builds": [
         {
-            "directory": "/private/tmp/webman-aot-repro-i",
+            "directory": "/private/tmp/webman-aot-repro-k",
             "artifact": "full_static_cross_smoke",
-            "size": 162640072,
-            "sha256": "e00968f0a6e6e74e509d435dde6363ee74b64896398317fc14b1dd0695496889"
+            "size": 127666184,
+            "sha256": "f5f7b4040eeef20aca6564d2d889d50e9f62b97623bab3732986d8f344d5d7aa"
         },
         {
-            "directory": "/private/tmp/webman-aot-repro-j",
+            "directory": "/private/tmp/webman-aot-repro-l",
             "artifact": "full_static_cross_smoke",
-            "size": 162640072,
-            "sha256": "e00968f0a6e6e74e509d435dde6363ee74b64896398317fc14b1dd0695496889"
+            "size": 127666184,
+            "sha256": "f5f7b4040eeef20aca6564d2d889d50e9f62b97623bab3732986d8f344d5d7aa"
         }
     ],
     "assertions": {

@@ -93,6 +93,7 @@ final class ReproducibilityInput
                 'cxxStandard' => 'c++17',
                 'gccVersion' => '12.2.1',
                 'allowMultipleDefinition' => true,
+                'stripDebug' => true,
                 'jobCount' => 4,
             ],
         ];
