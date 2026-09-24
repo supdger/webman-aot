@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 require __DIR__ . '/StructureTest.php';
+require dirname(__DIR__) . '/src/Version.php';
+require dirname(__DIR__) . '/src/Platform/UserDirectoryLayout.php';
+require dirname(__DIR__) . '/src/Cli/Application.php';
+require __DIR__ . '/GlobalLauncherTest.php';
 require dirname(__DIR__) . '/src/Toolchain/LockValidator.php';
 require __DIR__ . '/ToolchainLockTest.php';
 require __DIR__ . '/TypePhpPatchManifestTest.php';
@@ -15,6 +19,7 @@ require __DIR__ . '/ElfStaticVerifierTest.php';
 try {
     $root = dirname(__DIR__);
     (new StructureTest($root))->run();
+    (new GlobalLauncherTest())->run($root);
     (new ToolchainLockTest())->run($root);
     (new TypePhpPatchManifestTest())->run($root);
     (new UnifiedPatchApplierTest())->run();
@@ -22,6 +27,7 @@ try {
     (new WindowsReplayContractTest())->run($root);
     (new ElfStaticVerifierTest())->run();
     fwrite(STDOUT, "[PASS] repository structure is independent and self-contained\n");
+    fwrite(STDOUT, "[PASS] global launcher uses the private user layout without a project plugin\n");
     fwrite(STDOUT, "[PASS] toolchain lock schema and digest guards are valid\n");
     fwrite(STDOUT, "[PASS] TypePHP patch manifest and patch set are guarded\n");
     fwrite(STDOUT, "[PASS] unified patches apply exactly and fail closed on drift\n");

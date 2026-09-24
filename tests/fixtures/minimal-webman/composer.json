@@ -1,0 +1,9 @@
+{
+    "name": "webman-aot/minimal-webman-fixture",
+    "description": "Minimal Webman fixture without an AOT Composer plugin",
+    "type": "project",
+    "require": {
+        "php": "^8.4",
+        "workerman/webman-framework": "^2.2"
+    }
+}

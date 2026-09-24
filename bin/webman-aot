@@ -1,8 +1,34 @@
-#!/usr/bin/env php
-<?php
+#!/bin/sh
 
-declare(strict_types=1);
+set -eu
 
-fwrite(STDERR, "webman-aot CLI is not implemented yet; run tools/toolchain.php self-check.\n");
-exit(64);
+platform="$(uname -s)"
+architecture="$(uname -m)"
+if [ "$platform" != "Darwin" ] || [ "$architecture" != "arm64" ]; then
+    echo "webman-aot requires macOS ARM64; detected ${platform} ${architecture}." >&2
+    exit 1
+fi
 
+if [ -n "${WEBMAN_AOT_HOME:-}" ]; then
+    aot_home="$WEBMAN_AOT_HOME"
+else
+    if [ -z "${HOME:-}" ]; then
+        echo "webman-aot cannot resolve the current user home directory." >&2
+        exit 1
+    fi
+    aot_home="$HOME/Library/Application Support/webman-aot"
+fi
+
+private_php="$aot_home/current/runtime/bin/php"
+application="$aot_home/current/app/bin/webman-aot.php"
+
+if [ ! -x "$private_php" ]; then
+    echo "webman-aot private PHP runtime is missing: $private_php" >&2
+    exit 1
+fi
+if [ ! -f "$application" ]; then
+    echo "webman-aot application is missing: $application" >&2
+    exit 1
+fi
+
+exec "$private_php" "$application" "$@"
