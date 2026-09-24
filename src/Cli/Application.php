@@ -10,6 +10,9 @@ use WebmanAot\Platform\UserDirectoryLayout;
 use WebmanAot\Toolchain\NativeDownloader;
 use WebmanAot\Toolchain\ToolchainLocator;
 use WebmanAot\Toolchain\ToolchainRepairer;
+use WebmanAot\Update\NativeCliSelfChecker;
+use WebmanAot\Update\UpdateManager;
+use WebmanAot\Update\ZipPackageExtractor;
 use WebmanAot\Version;
 
 final class Application
@@ -20,14 +23,19 @@ final class Application
     /** @var \Closure():ToolchainRepairer */
     private readonly \Closure $repairFactory;
 
+    /** @var \Closure():UpdateManager */
+    private readonly \Closure $updateFactory;
+
     /**
      * @param (\Closure():Doctor)|null $doctorFactory
      * @param (\Closure():ToolchainRepairer)|null $repairFactory
+     * @param (\Closure():UpdateManager)|null $updateFactory
      */
     public function __construct(
         private readonly UserDirectoryLayout $layout,
         ?\Closure $doctorFactory = null,
-        ?\Closure $repairFactory = null
+        ?\Closure $repairFactory = null,
+        ?\Closure $updateFactory = null
     ) {
         $this->doctorFactory = $doctorFactory ?? function (): Doctor {
             $project = getcwd();
@@ -36,10 +44,12 @@ final class Application
             }
 
             $system = new NativeSystemProbe();
+            $bundledLock = dirname(__DIR__, 2) . '/toolchain.lock.json';
+            $locator = new ToolchainLocator($this->layout);
 
             return new Doctor(
-                dirname(__DIR__, 2) . '/toolchain.lock.json',
-                (new ToolchainLocator($this->layout))->activeArtifacts($system->hostId()),
+                $locator->activeLock($system->hostId(), $bundledLock),
+                $locator->activeArtifacts($system->hostId()),
                 $project,
                 $system
             );
@@ -52,6 +62,20 @@ final class Application
                 $this->layout,
                 $system->hostId(),
                 new NativeDownloader()
+            );
+        };
+        $this->updateFactory = $updateFactory ?? function (): UpdateManager {
+            $system = new NativeSystemProbe();
+            $downloader = new NativeDownloader();
+
+            return new UpdateManager(
+                $this->layout,
+                dirname(__DIR__, 2),
+                Version::VALUE,
+                $system->hostId(),
+                $downloader,
+                new ZipPackageExtractor(),
+                new NativeCliSelfChecker($this->layout)
             );
         };
     }
@@ -72,6 +96,12 @@ final class Application
         }
         if ($command === 'doctor') {
             return 'doctor';
+        }
+        if ($command === 'self-update') {
+            return 'self-update';
+        }
+        if ($command === 'toolchain' && ($arguments[2] ?? null) === 'update') {
+            return 'toolchain-update';
         }
 
         throw new UsageException(
@@ -96,6 +126,14 @@ final class Application
             $this->runDoctor(array_slice($arguments, 2));
             return;
         }
+        if ($command === 'self-update') {
+            $this->runSelfUpdate(array_slice($arguments, 2));
+            return;
+        }
+        if ($command === 'toolchain-update') {
+            $this->runToolchainUpdate(array_slice($arguments, 3));
+            return;
+        }
 
         throw new \LogicException("unsupported resolved command: {$command}");
     }
@@ -112,6 +150,8 @@ final class Application
             '  help       Show this help',
             '  version    Show the CLI version',
             '  doctor     Check the host, project, and locked toolchain',
+            '  self-update [--rollback]  Install or roll back a verified CLI generation',
+            '  toolchain update [--rollback]  Install or roll back a verified toolchain',
             '',
             'User data:',
             '  ' . $this->layout->root(),
@@ -167,5 +207,97 @@ final class Application
         if (!$report->healthy()) {
             throw new UnavailableException('doctor found one or more failed checks');
         }
+    }
+
+    /**
+     * @param list<string> $options
+     */
+    private function runSelfUpdate(array $options): void
+    {
+        $parsed = $this->parseUpdateOptions($options);
+        $manager = ($this->updateFactory)();
+        if ($parsed['rollback']) {
+            fwrite(
+                STDOUT,
+                'CLI generation activated: ' . basename($manager->rollbackSelf()) . PHP_EOL
+            );
+            return;
+        }
+        $result = $manager->selfUpdate($parsed['manifest'], $parsed['trustedKeys']);
+        fwrite(
+            STDOUT,
+            sprintf(
+                "CLI generation activated: %s (%s)\n",
+                $result['new'],
+                $result['version']
+            )
+        );
+    }
+
+    /**
+     * @param list<string> $options
+     */
+    private function runToolchainUpdate(array $options): void
+    {
+        $parsed = $this->parseUpdateOptions($options);
+        $manager = ($this->updateFactory)();
+        if ($parsed['rollback']) {
+            fwrite(
+                STDOUT,
+                'Toolchain generation activated: '
+                . basename($manager->rollbackToolchain())
+                . PHP_EOL
+            );
+            return;
+        }
+        $result = $manager->updateToolchain($parsed['manifest'], $parsed['trustedKeys']);
+        fwrite(
+            STDOUT,
+            sprintf(
+                "Toolchain generation activated: %s (%s)\n",
+                $result['generation'],
+                $result['version']
+            )
+        );
+    }
+
+    /**
+     * @param list<string> $options
+     * @return array{rollback:bool,manifest:string,trustedKeys:string}
+     */
+    private function parseUpdateOptions(array $options): array
+    {
+        $rollback = false;
+        $manifest = getenv('WEBMAN_AOT_UPDATE_MANIFEST_URL');
+        $trustedKeys = dirname(__DIR__, 2) . '/update-trusted-keys.json';
+        foreach ($options as $option) {
+            if ($option === '--rollback') {
+                $rollback = true;
+                continue;
+            }
+            if (str_starts_with($option, '--manifest=')) {
+                $manifest = substr($option, strlen('--manifest='));
+                continue;
+            }
+            if (str_starts_with($option, '--trusted-keys=')) {
+                $trustedKeys = substr($option, strlen('--trusted-keys='));
+                continue;
+            }
+            throw new UsageException("Unknown update option: {$option}");
+        }
+        if (!$rollback && (!is_string($manifest) || $manifest === '')) {
+            throw new ConfigurationException(
+                'update manifest URL is not configured; use --manifest=<https-url>'
+            );
+        }
+        if (!$rollback && (!is_string($trustedKeys) || $trustedKeys === '')) {
+            throw new ConfigurationException('trusted update key store is not configured');
+        }
+
+        return [
+            'rollback' => $rollback,
+            'manifest' => is_string($manifest) ? $manifest : '',
+            'trustedKeys' => $trustedKeys,
+        ];
     }
 }

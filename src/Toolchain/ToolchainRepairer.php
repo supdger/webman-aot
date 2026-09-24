@@ -94,7 +94,13 @@ final class ToolchainRepairer
         $activeGeneration = $locator->activeGeneration($this->host);
         $active = $locator->activeArtifacts($this->host);
         $lockSha256 = hash('sha256', $lockContents);
-        if ($activeGeneration !== null && $this->allComponentsMatch($components, $active)) {
+        $activeManifest = $activeGeneration === null
+            ? []
+            : $this->readManifest($activeGeneration . '/manifest.json');
+        if ($activeGeneration !== null
+            && ($activeManifest['lockSha256'] ?? null) === $lockSha256
+            && $this->allComponentsMatch($components, $active)
+        ) {
             $this->removeDirectory($candidate);
 
             return [
@@ -161,6 +167,11 @@ final class ToolchainRepairer
         if (file_put_contents($candidate . '/manifest.json', $encoded . "\n", LOCK_EX) === false) {
             throw new \RuntimeException('unable to write candidate toolchain manifest');
         }
+        if (!copy($this->lockPath, $candidate . '/toolchain.lock.json')
+            || hash_file('sha256', $candidate . '/toolchain.lock.json') !== $lockSha256
+        ) {
+            throw new \RuntimeException('unable to preserve verified toolchain lock');
+        }
         $destination = $versions . '/' . $generationName;
         if (!rename($candidate, $destination)) {
             throw new \RuntimeException('unable to atomically promote candidate toolchain');
@@ -217,6 +228,24 @@ final class ToolchainRepairer
         $actual = hash_file('sha256', $path);
 
         return is_string($actual) && hash_equals($expected, $actual);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readManifest(string $path): array
+    {
+        $contents = @file_get_contents($path);
+        if (!is_string($contents)) {
+            return [];
+        }
+        try {
+            $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+
+        return is_array($manifest) ? $manifest : [];
     }
 
     private function nextGenerationName(string $versions, string $lockSha256): string

@@ -31,6 +31,7 @@ final class GlobalLauncherTest
             if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
                 $this->assertMacLauncher($root, $project, $temporaryRoot);
             }
+            $this->assertActiveGenerationBootstraps($root, $project, $temporaryRoot);
         } finally {
             $this->removeDirectory($temporaryRoot);
         }
@@ -116,6 +117,50 @@ final class GlobalLauncherTest
             'macOS launcher output drifted'
         );
         $this->assert($result['stderr'] === '', 'macOS launcher wrote to stderr');
+    }
+
+    private function assertActiveGenerationBootstraps(
+        string $root,
+        string $project,
+        string $temporaryRoot
+    ): void {
+        $generation = $temporaryRoot . '/versions/00000000000000000001-9.9.9';
+        $this->copyDirectory($root . '/src', $generation . '/app/src');
+        if (!mkdir($generation . '/app/bin', 0700, true)
+            && !is_dir($generation . '/app/bin')
+        ) {
+            throw new RuntimeException('unable to stage active CLI generation');
+        }
+        copy($root . '/bin/webman-aot.php', $generation . '/app/bin/webman-aot.php');
+        $versionPath = $generation . '/app/src/Version.php';
+        $version = file_get_contents($versionPath);
+        if (!is_string($version)) {
+            throw new RuntimeException('unable to read active CLI version fixture');
+        }
+        file_put_contents(
+            $versionPath,
+            str_replace("'0.1.0-dev'", "'9.9.9'", $version)
+        );
+        file_put_contents(
+            $generation . '/manifest.json',
+            json_encode([
+                'schema' => 'webman-aot-cli-generation-v1',
+                'generation' => basename($generation),
+                'version' => '9.9.9',
+                'metadata' => ['fixture' => true],
+            ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n"
+        );
+        $result = $this->runProcess(
+            [PHP_BINARY, $root . '/bin/webman-aot.php', '--version'],
+            $project,
+            $this->environmentWithHome($temporaryRoot)
+        );
+        $this->assert($result['exitCode'] === 0, 'active CLI generation failed to bootstrap');
+        $this->assert(
+            rtrim($result['stdout'], "\r\n") === 'webman-aot 9.9.9',
+            'launcher did not dispatch to the active CLI generation'
+        );
+        $this->assert($result['stderr'] === '', 'active CLI generation wrote to stderr');
     }
 
     /**
