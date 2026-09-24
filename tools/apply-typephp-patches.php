@@ -75,6 +75,7 @@ try {
         '0002-static-extension-registry.patch',
         '0003-reproducible-source-identities.patch',
         '0004-full-static-host-target-separation.patch',
+        '0005-windows-clang-response-paths.patch',
     ] as $patch) {
         $applier->apply($patchDirectory . '/' . $patch, $typephp);
     }
@@ -94,7 +95,7 @@ try {
             [
                 'component' => 'typephp-source',
                 'version' => '0.9.2',
-                'patches' => 4,
+                'patches' => 5,
                 'rules' => count($rules),
                 'status' => 'applied-and-verified',
             ],

@@ -3,6 +3,11 @@
     "version": "0.9.2",
     "rules": [
         {
+            "path": "src/Backend/CompilerBackend.php",
+            "beforeSha256": "3ebab0f56fc34c5264224cf7cf5ce0b5570b4b39985639470748cd690b5111d6",
+            "afterSha256": "cb62bcba129a6e5acdfa91c910889fe6e8c82c4eb92d5ccd23314d2d88e69bed"
+        },
+        {
             "path": "src/Build/NativeBuildConfigurationTrait.php",
             "beforeSha256": "fe82fa555bc5586adaafca46a02e8188ed00809a494361ce342d5737d30e20de",
             "afterSha256": "691933676e46eeca1ae0fc8778423ec50959985865062fe6d43f8504fe7a05b9"
@@ -53,5 +58,5 @@
             "afterSha256": "56390337e2e6d4ef5fac0d42aa775a088b46ac44b260e1fb1b6308ace37828f0"
         }
     ],
-    "reason": "Derive the Linux musl target from the locked SDK, register locked static PECL modules, map generated source identities to a host-independent prefix, and separate host filesystem behavior from Linux target code generation for reproducible full-static output."
+    "reason": "Derive the Linux musl target from the locked SDK, register locked static PECL modules, map generated source identities to a host-independent prefix, separate host filesystem behavior from Linux target code generation, and normalize Windows object paths for Clang response files."
 }

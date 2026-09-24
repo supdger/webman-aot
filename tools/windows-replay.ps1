@@ -293,12 +293,12 @@ $result = [ordered] @{
     host = 'windows-x86_64'
     containerUsed = $false
     normalizedInputSha256 = $normalizedInput.sha256
-    expectedNormalizedInputSha256 = '190cd86783b162e1d9e7964827c331b24631aa736ee2c1313329689f600f7f1f'
+    expectedNormalizedInputSha256 = 'b941612fe0103a723671b70fddc68763e965563a4a8887e389de95ce959cb50a'
     matchesMacNormalizedInput = $false
     artifact = $artifact
     artifactSize = (Get-Item -LiteralPath $artifact).Length
     artifactSha256 = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    expectedMacArtifactSha256 = '24c0796b4037069d85b785cbceb39408e9332e7ec6e84a0e8dad6df833f715e0'
+    expectedMacArtifactSha256 = 'e00968f0a6e6e74e509d435dde6363ee74b64896398317fc14b1dd0695496889'
     matchesMacArtifact = $false
 }
 $result.matchesMacNormalizedInput = (

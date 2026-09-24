@@ -22,7 +22,7 @@ final class ReproducibilityInputTest
             'normalized reproducibility target drifted'
         );
         $this->assert(
-            count($first['input']['patches'] ?? []) === 4,
+            count($first['input']['patches'] ?? []) === 5,
             'normalized reproducibility input must include all TypePHP patches'
         );
     }

@@ -1,0 +1,13 @@
+--- a/src/Backend/CompilerBackend.php
++++ b/src/Backend/CompilerBackend.php
+@@ -181,6 +181,10 @@
+         $this->lastResponseFile = $rspFile;
+         $lines = [];
+         foreach ($objectFiles as $file) {
++            if (PHP_OS_FAMILY === 'Windows') {
++                // Clang response files treat backslashes as escapes.
++                $file = str_replace('\\', '/', $file);
++            }
+             // Wrap paths containing spaces in double quotes; supported by both MSVC link.exe and GCC/Clang.
+             if (str_contains($file, ' ')) {
+                 $file = '"' . $file . '"';

@@ -65,6 +65,7 @@ final class ReproducibilityInput
             '0002-static-extension-registry.patch',
             '0003-reproducible-source-identities.patch',
             '0004-full-static-host-target-separation.patch',
+            '0005-windows-clang-response-paths.patch',
         ] as $patch) {
             $digest = hash_file('sha256', $patchDirectory . '/' . $patch);
             if (!is_string($digest)) {

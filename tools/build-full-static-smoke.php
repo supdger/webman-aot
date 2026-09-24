@@ -115,6 +115,8 @@ try {
     }
 
     $patchedTypePhpFiles = [
+        'src/Backend/CompilerBackend.php'
+            => 'cb62bcba129a6e5acdfa91c910889fe6e8c82c4eb92d5ccd23314d2d88e69bed',
         'src/Build/NativeBuildConfigurationTrait.php'
             => '691933676e46eeca1ae0fc8778423ec50959985865062fe6d43f8504fe7a05b9',
         'src/Build/NativeCommandOptionsTrait.php'
