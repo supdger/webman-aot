@@ -7,6 +7,9 @@ namespace WebmanAot\Cli;
 use WebmanAot\Doctor\Doctor;
 use WebmanAot\Doctor\NativeSystemProbe;
 use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAot\Toolchain\NativeDownloader;
+use WebmanAot\Toolchain\ToolchainLocator;
+use WebmanAot\Toolchain\ToolchainRepairer;
 use WebmanAot\Version;
 
 final class Application
@@ -14,12 +17,17 @@ final class Application
     /** @var \Closure():Doctor */
     private readonly \Closure $doctorFactory;
 
+    /** @var \Closure():ToolchainRepairer */
+    private readonly \Closure $repairFactory;
+
     /**
      * @param (\Closure():Doctor)|null $doctorFactory
+     * @param (\Closure():ToolchainRepairer)|null $repairFactory
      */
     public function __construct(
         private readonly UserDirectoryLayout $layout,
-        ?\Closure $doctorFactory = null
+        ?\Closure $doctorFactory = null,
+        ?\Closure $repairFactory = null
     ) {
         $this->doctorFactory = $doctorFactory ?? function (): Doctor {
             $project = getcwd();
@@ -27,11 +35,23 @@ final class Application
                 throw new ConfigurationException('cannot resolve the current project directory');
             }
 
+            $system = new NativeSystemProbe();
+
             return new Doctor(
                 dirname(__DIR__, 2) . '/toolchain.lock.json',
-                $this->layout->path('artifacts'),
+                (new ToolchainLocator($this->layout))->activeArtifacts($system->hostId()),
                 $project,
-                new NativeSystemProbe()
+                $system
+            );
+        };
+        $this->repairFactory = $repairFactory ?? function (): ToolchainRepairer {
+            $system = new NativeSystemProbe();
+
+            return new ToolchainRepairer(
+                dirname(__DIR__, 2) . '/toolchain.lock.json',
+                $this->layout,
+                $system->hostId(),
+                new NativeDownloader()
             );
         };
     }
@@ -91,7 +111,7 @@ final class Application
             'Commands:',
             '  help       Show this help',
             '  version    Show the CLI version',
-            '  doctor     Check the host, project, and locked toolchain without repairing',
+            '  doctor     Check the host, project, and locked toolchain',
             '',
             'User data:',
             '  ' . $this->layout->root(),
@@ -108,21 +128,40 @@ final class Application
     private function runDoctor(array $options): void
     {
         $json = false;
+        $repair = false;
         foreach ($options as $option) {
             if ($option === '--json' || $option === '--format=json') {
                 $json = true;
                 continue;
             }
+            if ($option === '--repair') {
+                $repair = true;
+                continue;
+            }
             throw new UsageException("Unknown doctor option: {$option}");
         }
 
+        $repairResult = $repair ? ($this->repairFactory)()->repair() : null;
         $report = ($this->doctorFactory)()->inspect();
         if ($json) {
+            $payload = $repair
+                ? [
+                    'schema' => 'webman-aot-doctor-repair-v1',
+                    'repair' => $repairResult,
+                    'doctor' => $report->toArray(),
+                ]
+                : $report->toArray();
             fwrite(STDOUT, json_encode(
-                $report->toArray(),
+                $payload,
                 JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
             ) . PHP_EOL);
         } else {
+            if (is_array($repairResult)) {
+                fwrite(
+                    STDOUT,
+                    'Toolchain generation activated: ' . $repairResult['generation'] . PHP_EOL . PHP_EOL
+                );
+            }
             fwrite(STDOUT, $report->toHuman());
         }
         if (!$report->healthy()) {

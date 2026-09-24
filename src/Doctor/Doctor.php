@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace WebmanAot\Doctor;
 
 use WebmanAot\Toolchain\LockValidator;
+use WebmanAot\Toolchain\HostComponentSelector;
 
 final class Doctor
 {
@@ -136,10 +137,11 @@ final class Doctor
      */
     private function inspectArtifacts(array $lock, string $host, array &$checks): void
     {
-        foreach ($lock['components'] ?? [] as $component) {
-            if (!is_array($component) || !$this->componentAppliesToHost($component, $host)) {
-                continue;
-            }
+        $components = (new HostComponentSelector())->select(
+            is_array($lock['components'] ?? null) ? $lock['components'] : [],
+            $host
+        );
+        foreach ($components as $component) {
             $id = (string) $component['id'];
             $urlPath = parse_url((string) $component['sourceUrl'], PHP_URL_PATH);
             $filename = is_string($urlPath) ? basename($urlPath) : '';
@@ -171,22 +173,6 @@ final class Doctor
                 ]
             );
         }
-    }
-
-    /**
-     * @param array<string, mixed> $component
-     */
-    private function componentAppliesToHost(array $component, string $host): bool
-    {
-        $id = (string) ($component['id'] ?? '');
-        if (str_contains($id, '-macos-')) {
-            return $host === 'macos-arm64';
-        }
-        if (str_contains($id, '-windows-')) {
-            return $host === 'windows-x86_64';
-        }
-
-        return true;
     }
 
     /**
