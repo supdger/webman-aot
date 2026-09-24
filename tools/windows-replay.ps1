@@ -41,7 +41,8 @@ function Invoke-VerifiedDownload([object] $Component, [string] $Path) {
         }
     }
 
-    $curl = Get-Command 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue
+    $curl = Get-Command 'curl.exe' -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
     if ($null -ne $curl) {
         & $curl.Source `
             '--fail' `

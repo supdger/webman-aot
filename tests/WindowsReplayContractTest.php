@@ -34,6 +34,7 @@ final class WindowsReplayContractTest
             'Get-FileHash',
             "GetFolderPath('LocalApplicationData')",
             "Get-Command 'curl.exe'",
+            'Select-Object -First 1',
             "'--continue-at' '-'",
             "'--retry-all-errors'",
             'TypePHP Windows archive extraction',
