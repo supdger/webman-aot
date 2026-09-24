@@ -56,6 +56,8 @@ final class StructureTest
             'src/Project/ProjectProfile.php',
             'src/Project/ProjectWorkspace.php',
             'src/Project/SourceTreeSnapshot.php',
+            'src/Project/RuntimeResourceManifest.php',
+            'src/Project/RuntimeResourcePlanner.php',
             'src/Project/WorkspaceCacheKey.php',
             'src/README.md',
             'src/Toolchain/Downloader.php',
