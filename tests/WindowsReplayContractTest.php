@@ -32,10 +32,13 @@ final class WindowsReplayContractTest
 
         foreach ([
             'Get-FileHash',
+            "GetFolderPath('LocalApplicationData')",
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
             'reproducibility-input.php',
             'build-full-static-smoke.php',
+            'expectedNormalizedInputSha256',
+            'matchesMacNormalizedInput',
             'expectedMacArtifactSha256',
         ] as $required) {
             $this->assert(
@@ -47,6 +50,10 @@ final class WindowsReplayContractTest
         $this->assert(
             preg_match('/\\b(?:docker|podman|winget|choco|Start-Process)\\b/i', $contents) !== 1,
             'Windows replay must not use a container, package manager, or GUI installer'
+        );
+        $this->assert(
+            preg_match('/Parameter\\(Mandatory\\s*=\\s*\\$true\\).*\\$(?:Artifacts|WorkRoot)/is', $contents) !== 1,
+            'Windows replay paths must default to the current user private directory'
         );
     }
 

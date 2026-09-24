@@ -17,3 +17,15 @@ php tests/run.php
 工具链脚本只读写本仓库的 `build/`、`dist/` 和后续定义的用户私有工具目录，
 不要求目标 Webman 项目安装 Composer 插件。
 
+## Windows 跨主机复现
+
+在 Windows x64 PowerShell 中检出同一提交后直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\windows-replay.ps1
+```
+
+脚本从 `toolchain.lock.json` 下载并校验锁定组件，将下载缓存和每次构建工作区
+放在 `%LOCALAPPDATA%\webman-aot`。它不调用 Docker、winget、系统 PHP 或 GUI
+安装器，并分别比较 Mac 基线的规范化输入摘要和 ELF SHA-256。只有两项都一致
+才返回成功。

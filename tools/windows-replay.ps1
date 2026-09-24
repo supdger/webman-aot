@@ -1,10 +1,8 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
-    [string] $Artifacts,
+    [string] $Artifacts = '',
 
-    [Parameter(Mandatory = $true)]
-    [string] $WorkRoot
+    [string] $WorkRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,6 +60,17 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
 }
 
 $repository = Split-Path -Parent $PSScriptRoot
+$privateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'webman-aot'
+if ([string]::IsNullOrWhiteSpace($Artifacts)) {
+    $Artifacts = Join-Path $privateRoot 'artifacts'
+}
+if ([string]::IsNullOrWhiteSpace($WorkRoot)) {
+    $runId = '{0}-{1}' -f (
+        [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'),
+        [Guid]::NewGuid().ToString('N').Substring(0, 8)
+    )
+    $WorkRoot = Join-Path (Join-Path $privateRoot 'replay') $runId
+}
 $Artifacts = [IO.Path]::GetFullPath($Artifacts)
 $WorkRoot = [IO.Path]::GetFullPath($WorkRoot)
 if (-not (Test-Path -LiteralPath $Artifacts -PathType Container)) {
@@ -201,12 +210,17 @@ $result = [ordered] @{
     host = 'windows-x86_64'
     containerUsed = $false
     normalizedInputSha256 = $normalizedInput.sha256
+    expectedNormalizedInputSha256 = '190cd86783b162e1d9e7964827c331b24631aa736ee2c1313329689f600f7f1f'
+    matchesMacNormalizedInput = $false
     artifact = $artifact
     artifactSize = (Get-Item -LiteralPath $artifact).Length
     artifactSha256 = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
     expectedMacArtifactSha256 = '24c0796b4037069d85b785cbceb39408e9332e7ec6e84a0e8dad6df833f715e0'
     matchesMacArtifact = $false
 }
+$result.matchesMacNormalizedInput = (
+    $result.normalizedInputSha256 -eq $result.expectedNormalizedInputSha256
+)
 $result.matchesMacArtifact = $result.artifactSha256 -eq $result.expectedMacArtifactSha256
 $evidence = Join-Path $WorkRoot 'windows-replay.json'
 [IO.File]::WriteAllText(
@@ -215,6 +229,9 @@ $evidence = Join-Path $WorkRoot 'windows-replay.json'
     [System.Text.UTF8Encoding]::new($false)
 )
 $result | ConvertTo-Json -Depth 8
+if (-not $result.matchesMacNormalizedInput) {
+    throw "Windows normalized input SHA-256 differs from Mac baseline; evidence: $evidence"
+}
 if (-not $result.matchesMacArtifact) {
     throw "Windows ELF SHA-256 differs from Mac baseline; evidence: $evidence"
 }
