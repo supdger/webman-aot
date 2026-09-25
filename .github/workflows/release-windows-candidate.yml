@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e28f3ccc0c1507262e9529bf5fce3f7a52242467
+          ref: 6fabac0284f85c698e054b3e6ea7a52b889e37b0
       - name: Download locked inputs and package
         shell: pwsh
         run: |
