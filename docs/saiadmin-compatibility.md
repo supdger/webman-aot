@@ -85,5 +85,5 @@ public function __construct($message, $code = 400, ?Throwable $previous = null)
 配置、模板和明确登记的第三方动态文件可以随包；自有业务 PHP 和
 已安装插件的业务 PHP 必须直接编译或由可追溯的 AOT 副本替代。
 新增插件后应重新执行构建和业务验收，不能把 ELF 生成视为功能成功。
-中立插件示例见 [`tests/fixtures/neutral-plugin`](../tests/fixtures/neutral-plugin/README.md)；
-其控制器在隔离构建中直接编译，Linux 与普通 PHP 的 HTTP 路由均已实测。
+新增插件的直接编译和 Linux / 普通 PHP HTTP 路由对照，见
+[中立插件验证记录](https://github.com/supdger/webman-aot/blob/2ce04a4c5f6be438bb2c5fb5ff43925b20ab5272/evidence/2026-09-25-neutral-plugin-full-build-runtime.json)。

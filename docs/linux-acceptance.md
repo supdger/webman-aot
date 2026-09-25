@@ -1,35 +1,8 @@
 # Linux amd64 目标机验收
 
-本轮目标机验证限于现有的 CentOS 7 虚拟机和 Alibaba Cloud Linux 3
-ECS；两者的实测范围见下文。这两台主机的记录已足够交付当前范围，
-不要求为 Alibaba Cloud Linux 4 或 Ubuntu 22.04 再找机器，也不要求
-逐机重复编译。其他系统留待后续使用者按同一流程验证，不把未测系统
-标成已支持。虚拟机、容器或另一发行版的结果不能替代某台尚未测试的
-目标机上的运行证据。
-
-已有的[四发行版容器运行记录](../evidence/2026-09-25-four-distro-docker-runtime.json)
-使用同一份预先编译的 ELF，分别确认中立 Webman 插件接口和 SaiAdmin
-验证码接口可用；没有用 Docker 编译。它只验证各镜像的用户空间，
-全部容器实际共用 Docker Desktop 的 LinuxKit 内核，且 macOS ARM64
-上的 amd64 执行为模拟运行。容器内没有隔离数据库，因此登录、
-用户信息、权限拒绝和普通 PHP 对照仍须按下面的目标机流程逐台完成。
-
-另有 [CentOS 7 虚拟机运行记录](../evidence/2026-09-25-centos7-vm-saiadmin-runtime.json)：
-相同 SaiAdmin ELF 在目标机校验了 SHA-256、x86-64 静态链接和无动态解释器，
-仅监听 `127.0.0.1` 启动后，验证码返回 HTTP 200、业务码 200；服务与隔离
-测试目录均已清理。这比容器测试多覆盖了 CentOS 7 内核上的实际运行，但
-仍是虚拟机，且未建立隔离数据库，不能计入四条业务路径全通过。
-
-另有 [Alibaba Cloud Linux 3 ECS 运行记录](../evidence/2026-09-25-alinux3-ecs-saiadmin-runtime.json)：
-同一 ELF 在 ECS 实例上通过哈希与全静态检查，回环地址启动后验证码返回
-HTTP 200、业务码 200；数据库和 Redis 临时指向不可用端口，测试进程、
-目录及临时 SSH 密钥已清理。ECS 仍是虚拟机，且没有隔离数据库或登录等
-业务验收，因此同样不能计入四条业务路径全通过。
-
-随后在该 ECS 的独立目录内完成了[一次性数据库预检](../evidence/2026-09-25-alinux3-ecs-isolated-db-preflight.json)：
-仅绑定回环地址的 MariaDB 10.5.29 已初始化，测试库和账号连接通过；数据库
-进程随后停止。AOT 产物尚未传入、业务表尚未导入，四条业务路径均未在该机
-复测，不能把这项预检记作业务验收通过。
+将已验证的整个 `dist-aot/` 目录复制到 Linux amd64 目标机后，按下面步骤
+验收。已有的构建和运行结果见[验证记录](verification.md)；它们不能代替
+你自己的服务器、数据库和业务接口验收。
 
 ## 准备边界
 
@@ -53,7 +26,7 @@ HTTP 200、业务码 200；数据库和 Redis 临时指向不可用端口，测�
 sh ./probe-static-linux.sh ./server
 ```
 
-脚本随仓库位于 [`tests/probe-static-linux.sh`](../tests/probe-static-linux.sh)，
+脚本随仓库位于 [`scripts/probe-static-linux.sh`](../scripts/probe-static-linux.sh)，
 部署验收时需与业务验收脚本一同复制到隔离测试目录。它在 Linux x86_64、
 静态 ELF 和 `ldd` 检查全部通过后才返回成功；动态系统程序应被拒绝。
 同时保存以下原始输出，便于独立复核：
@@ -74,7 +47,7 @@ ldd ./server
 
 使用隔离测试数据库的连接参数启动 `./start.sh`，确认启动日志和本地监听
 端口。再以一次性低权限 SaiAdmin 账号运行
-[`tests/accept-saiadmin-linux.sh`](../tests/accept-saiadmin-linux.sh)：
+[`scripts/accept-saiadmin-linux.sh`](../scripts/accept-saiadmin-linux.sh)：
 
 ```sh
 AOT_TEST_BASE_URL=http://127.0.0.1:8787 \

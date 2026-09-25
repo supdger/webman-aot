@@ -1,23 +1,21 @@
-# 安装与构建候选版
+# 安装与构建
 
-当前仅提供本地候选安装包，尚未发布。安装包按开发电脑系统选择：
+**目前尚无公开安装包。** [Releases](https://github.com/supdger/webman-aot/releases)
+开放下载前，下面的步骤仅供已经拿到候选包的测试者使用；GitHub 的源码 ZIP
+不含私有 PHP 运行时，不能直接安装。安装包按开发电脑系统选择：
 `macos-arm64.tar.gz` 或 `windows-x86_64.zip`；两端都只构建
 **Linux amd64 musl 全静态**目标，不生成 Windows exe。目标 Webman
 项目无需安装 Composer AOT 插件，业务 PHP 源码也无需按宿主系统分叉。
 
-当前修复后的本地候选包位于 `dist/installers/exportguard-candidate/`：
+当前修复后的候选包保存在项目维护者本地，尚未对外发布：
 
 | 包 | SHA-256 |
 | --- | --- |
 | `webman-aot-0.1.0-dev-macos-arm64.tar.gz` | `da763c86f84aa7d8493cb9692d54cba6e5ec32089c473ced6c2a30e56f7c27ad` |
 | `webman-aot-0.1.0-dev-windows-x86_64.zip` | `82c3eaf5e5844d3fc7f190863b8a36053fa0acd5ef66edd133403eac336b2f1a` |
 
-使用前核对候选包摘要；摘要不一致时不要安装。两包的修复代码与当前
-源码摘要一致；Mac 已完成修复后 SaiAdmin 全量构建和包校验，Windows
-修复后安装与 `doctor` 已通过，但未重复完成全量构建。安装器仅写入当前
+使用前核对候选包摘要；摘要不一致时不要安装。安装器仅写入当前
 用户的私有工具目录及用户命令目录，不安装 Docker 或系统级 PHP。
-`dist/installers/` 根目录及 `neutral-candidate/` 中的早期同名归档
-已被本候选取代，不要混用。
 
 ## macOS ARM64
 
@@ -66,11 +64,6 @@ PHP 不会被静默忽略，需先处理适配失败再出包。`dist-aot` 的 `
 但不会把其中已有的导出文件复制进产物；`public/storage` 中的历史上传文件
 也不会随包分发。部署时如需保留这些运行数据，应单独迁移，不能把构建包
 当作数据备份。上述目录若含 PHP 或符号链接，构建会报错而不是静默排除。
-候选包随带的许可证文件已有[清单](../evidence/2026-09-25-runtime-license-inventory.json)；
-[当前候选包的只读许可预检](../evidence/2026-09-25-exportguard-license-preflight.json)
-还记录了 Windows 运行时顶层 GPL v3 许可文本和 SBOM 中未声明许可证的
-条目；锁定的
-[TypePHP v0.9.2 源码](https://github.com/swoole/typephp/tree/v0.9.2)
-在 `composer.json` 中声明 `GPL-3.0-only`，包内许可文本与上游文本规范化
-换行后相同。它们的适用范围、再分发义务以及最终静态 ELF 的第三方许可义务
-尚未核定；公开二进制发布前须完成审查，不能把文件存在当作合规结论。
+公开二进制安装包前还需核定第三方运行时的再分发许可；当前构建和运行
+证据见[验证记录](verification.md)。这项发布审查不影响本地候选包的
+已完成测试，但不能被测试结果替代。

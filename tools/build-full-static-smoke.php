@@ -131,7 +131,7 @@ try {
     (new SdkArchiveGuard())->inspect($sdk, $llvmNm);
 
     $fixture = $options['fixture']
-        ?? dirname(__DIR__) . '/tests/fixtures/full-static-smoke/main.php';
+        ?? dirname(__DIR__) . '/toolchain/smoke/main.php';
     if (!is_file($fixture)) {
         throw new RuntimeException("smoke fixture does not exist: {$fixture}");
     }

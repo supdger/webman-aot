@@ -1,206 +1,83 @@
 # Webman AOT
 
-Webman AOT 是全局命令行工具：在 macOS ARM64 或 Windows x64 开发机上，
-将普通 Webman 或 SaiAdmin 项目编译成 Linux amd64 musl 全静态程序。
-目标项目不需要安装 AOT Composer 插件，也不需要 Docker。
+在 macOS 或 Windows 开发机上，把 Webman / SaiAdmin 项目编译成可部署到
+Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，构建时不用 Docker。
 
-## 先看这里：如何使用
+![同一份项目源码从 Mac 或 Windows 编译成 Linux 全静态发布目录](docs/assets/build-flow.svg)
 
-**目前公开仓库只有源码，没有可下载的公开安装包。** 因此现在不能仅靠
-`git clone` 或下载 GitHub 的 Source code ZIP 就获得可运行的 `webman-aot`
-命令。经过验证的 macOS/Windows 候选安装包仍在本地，公开发布前还须核定
-随包第三方软件的许可义务；[安装与构建说明](docs/install-and-build.md)
-供持有对应候选包的测试者使用。
+它会自动发现项目及已安装插件的业务 PHP、在隔离目录生成必要的 AOT 适配，
+并在发布前检查漏编译与包完整性。普通 PHP 源码保持不变；目标服务器不需要
+安装 PHP 或 Docker。
 
-安装对应开发机系统的候选包后，进入**待编译 Webman 项目的根目录**
-（有 `webman`、`composer.json` 的目录），依次执行：
+> **预览状态：安装包尚未公开发布。** 目前可以[查看和下载源码](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)，但源码 ZIP 不含私有 PHP 运行时，不能直接当作安装包使用。请勿把下面的候选包安装步骤理解成已有公开下载地址；安装包完成第三方许可核查后才会放到 [Releases](https://github.com/supdger/webman-aot/releases)。
+
+## 下载与安装
+
+选择**开发电脑**对应的安装包；两种安装包生成的目标都是 Linux amd64 程序，
+Windows 包不会生成 Windows exe。
+
+- macOS Apple Silicon：`webman-aot-0.1.0-dev-macos-arm64.tar.gz`
+- Windows x64：`webman-aot-0.1.0-dev-windows-x86_64.zip`
+
+拿到候选包后，在包含该文件的目录执行：
+
+```sh
+# macOS
+mkdir webman-aot-install
+tar -xzf webman-aot-0.1.0-dev-macos-arm64.tar.gz -C webman-aot-install
+./webman-aot-install/install.sh
+```
+
+```powershell
+# Windows PowerShell
+New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
+tar.exe -xf .\webman-aot-0.1.0-dev-windows-x86_64.zip -C .\webman-aot-install
+powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
+```
+
+重新打开终端，然后运行 `webman-aot version` 确认命令可用。安装器只写入当前
+用户目录；缺少的编译组件由下述显式修复命令下载和校验。详细说明见
+[安装与构建](docs/install-and-build.md)。
+
+## 编译 Webman / SaiAdmin
+
+进入**项目后端根目录**（有 `webman` 和 `composer.json` 的目录）：
 
 ```sh
 webman-aot doctor
-webman-aot doctor --repair  # 只在提示缺少工具链时执行；会下载到当前用户目录
-webman-aot build             # 自动识别普通 Webman / SaiAdmin
+webman-aot doctor --repair  # doctor 提示缺组件时才执行
+webman-aot build
 webman-aot verify
 ```
 
-需要明确指定 SaiAdmin 时使用 `webman-aot build --profile=saiadmin`。
-构建结果在该项目的 `dist-aot/`；将整个目录复制到 Linux amd64 目标机，
-配置该目录的外置 `.env`，在目录内执行 `./start.sh`。上线前按
-[Linux 目标机验收](docs/linux-acceptance.md)检查静态链接、启动和业务接口。
-Windows PowerShell 中使用同样的四条 `webman-aot` 命令；安装命令和已验证
-依赖版本见[安装与构建说明](docs/install-and-build.md)。
+`build` 自动识别普通 Webman 和 SaiAdmin。需要明确指定时可运行
+`webman-aot build --profile=saiadmin`。未知插件代码或依赖结构不兼容时会报错，
+不会静默跳过业务 PHP。构建结果位于当前项目的 `dist-aot/`。
 
-## 哪些文件是使用者必需的？
+已实际验证的组合是 SaiAdmin 6.1.5、Webman 2.2.4、TypePHP 0.9.2 和锁定的
+PHP 8.4 工具链；其他依赖版本和插件需要重新验证。SaiAdmin 的普通 PHP 8.4
+注意事项见[兼容与迁移](docs/saiadmin-compatibility.md)。
 
-| 内容 | 开发者维护源码仓库 | 已安装的用户工具 |
-| --- | --- | --- |
-| `bin/`、`src/`、锁文件、兼容规则和构建所需的少量 `tools/`、`toolchain/patches/` | 必需 | 必需，安装包按白名单收录 |
-| 私有 PHP 运行时和编译工具 | 不提交仓库 | 由安装包及显式的 `doctor --repair` 提供 |
-| 本仓库的 `.github/workflows/`、`tests/`、`evidence/`、开发文档 | 用于持续验证和复核 | **不需要，也不在安装包内** |
+## 部署到 Linux
 
-所以 `main` 是可维护、可复核的**开发源码仓库**，不是要求使用者克隆的安装目录。
-当前最小应用源码清单以
-[`InstallerPackager::stageApplication()`](tools/package-installers.php) 为准：
-`bin/webman-aot.php`、`src/`、两个锁文件、Webman/Workerman 兼容锁、
-TypePHP 补丁，以及准备/应用补丁所需的 5 个工具脚本；安装时再加入对应
-平台启动器、安装脚本和已锁定的私有 PHP 运行时。
-如果要分发“最小源码”，应从安装包的应用文件白名单生成独立源码归档；
-源码归档本身不含私有 PHP 和 SDK，不能冒充可直接使用的安装包。当前没有公开
-发布这类归档，不建议通过删除 `main` 的测试和 CI 来伪装精简。
+把**整个** `dist-aot/` 目录复制到 Linux amd64 服务器。在部署目录配置外置
+`.env`（数据库等环境配置不用重新编译），然后从该目录启动：
 
-## 当前验证边界
-
-全静态 SDK 可行性门和 Mac/Windows 跨主机最小 Webman 构建已经通过。
-SaiAdmin 6.1.5 在 Mac ARM64 上由全局命令完整编译、打包并通过产物校验；
-从隔离安装包重装的同一全局命令再次构建出相同 ELF SHA-256。
-同一全静态 Linux ELF 在无 PHP 的隔离 Ubuntu 24.04 x86_64 虚拟机中启动，
-验证码、登录、登录后用户信息和权限拒绝路径均通过。
-Windows x64 也从已安装的全局命令完成同版 SaiAdmin 构建，其规范化
-输入、ELF、覆盖清单、资源清单和分发文件摘要与 Mac 产物一致。目标
-两台现有目标机均已运行相同哈希的 ELF，并通过启动与验证码检查；
-数据库支持的四条业务路径是在隔离 Ubuntu 虚拟机中验收的，不能称为
-已在那两台目标机通过。其他发行版留待后续使用者验证，不作为本轮
-源码交付或重复编译的门槛。
-新增中立 Webman 插件的完整构建、Linux HTTP 路由与普通 PHP 对照也已在
-隔离试验中通过；Mac 与 Windows 从同一项目快照构建出字节相同的 ELF、
-覆盖清单和资源清单。
-目标系统的逐机检查项见 [Linux 目标机验收](docs/linux-acceptance.md)。
-最新包已排除 SaiAdmin 历史导出数据；修复后 Mac 全量构建和校验通过，
-Windows 已安装修复包但未重复完成全量构建；这次额外全量重建不作为
-交付门槛。两台目标服务器此前运行的
-是同一 SHA-256 的 ELF，启动与验证码通过，数据库相关业务路径未在
-这两台服务器验收。详见[运行数据打包修复证据](evidence/2026-09-25-runtime-export-package-fix.json)。
-
-源码、文档和证据已交付到 `main`。候选安装包目前保存在本地，
-尚未作为公开 Release 发布；公开发布还需核定随包第三方许可义务，
-不能把这项发布审查混同为构建或运行失败。
-[当前源码及 Git 历史的隐私核查](evidence/2026-09-25-source-history-privacy-audit.json)
-与[候选包隐私核查](evidence/2026-09-25-exportguard-public-audit.json)
-分别记录；两者都不等于安装包发布审查。
-本仓库原创代码与 TypePHP 补丁的许可归属见[上游归属说明](NOTICE.md)。
-
-## 仓库与安装包
-
-这个 Git 仓库供开发和复核；使用者安装的是按宿主系统选择的安装包，
-不需要克隆仓库，也不需要在业务项目安装 Composer AOT 插件。
-安装包由 `tools/package-installers.php` 明确选择运行所需的 `bin`、`src`、
-锁文件、兼容规则和少量构建工具，不包含**本仓库的** `.github/`、`tests/`、
-`evidence/` 或开发文档。Windows 包随附的第三方 PHP 运行时中仍含少量
-上游依赖自带的 `tests/`、`docs/`、`.github/` 文件；当前没有验证过
-裁剪它们对该运行时是否安全，因此不把整个安装包称为“逐文件最小”。
-
-- `.github/workflows/` 保留跨 Windows 宿主的自动复现检查。
-- `tests/` 保留兼容规则、漏编译拦截和产物校验的回归测试。
-- `evidence/` 保留已报告的构建与运行结果，不能用它代替新的运行验收。
-- `build/`、`dist/`、`vendor/`、私有配置和系统生成文件不得提交到源码仓库。
-
-新增仓库文件时先判断它属于运行时、构建工具、测试还是证据；只有安装
-确实需要的文件才加入安装包。删除测试或工具前应先确认其调用方与对应
-验收门槛，不按“终端用户不直接运行”作为删除依据。
-
-本轮结果和边界见
-[SaiAdmin 业务运行证据](evidence/2026-09-25-saiadmin-full-static-business-runtime.json)。
-新增插件验证见
-[中立插件编译与运行证据](evidence/2026-09-25-neutral-plugin-full-build-runtime.json)。
-同一现有 ELF 在四种目标发行版容器中的补充启动和接口检查见
-[容器运行证据](evidence/2026-09-25-four-distro-docker-runtime.json)；
-容器共用 Docker 宿主内核，不能替代目标机验收，构建过程也不使用 Docker。
-同一 SaiAdmin ELF 已在 [CentOS 7 虚拟机](evidence/2026-09-25-centos7-vm-saiadmin-runtime.json)
-和 [Alibaba Cloud Linux 3 ECS](evidence/2026-09-25-alinux3-ecs-saiadmin-runtime.json)
-通过全静态检查、回环地址启动与验证码接口检查；两者都不是裸机，也未完成
-数据库支持的四条业务路径。
-候选安装包的使用步骤见[安装与构建](docs/install-and-build.md)。
-与万总插件及 TypePHP 的具体复用范围见[上游复用边界](docs/upstream-reuse.md)。
-SaiAdmin 6.1.5 在普通 PHP 8.4 且 `E_ALL` 下还有一处隐式可空参数问题，
-需要按[迁移说明](docs/saiadmin-compatibility.md)处理；AOT 不改原项目源码。
-
-## 一套项目源码，两套宿主工具
-
-Mac 和 Windows 使用同一份 Webman/SaiAdmin PHP 项目、同一套兼容规则与
-锁定的 Linux amd64 musl SDK。安装包只按开发电脑的系统分别提供私有
-PHP、TypePHP 和编译工具；选择宿主工具包不要求改业务源码。适配只在
-隔离构建目录生成 AOT 副本，普通 PHP 项目保持原样。两端从干净目录
-生成的 6,554 个 C++/头文件已逐项一致；两端最终 ELF 也逐字节一致，
-相同哈希的 ELF 已通过隔离 Linux 业务验收。Mac、Windows 已安装全局命令
-均已完成完整构建和包校验；尚未实测的目标系统不能由这些结果代替。
-
-## 开发入口
-
-```bash
-php tools/toolchain.php self-check
-php tests/run.php
-php bin/webman-aot.php --help
+```sh
+cd dist-aot
+./start.sh
 ```
 
-工具链脚本只读写本仓库的 `build/`、`dist/` 和后续定义的用户私有工具目录，
-不要求目标 Webman 项目安装 Composer 插件。
+后台运行可用 `./start.sh --daemon`；停机用 `./stop.sh`。不要只复制 ELF、
+不要把开发机的私有 `.env` 或历史上传/导出数据打进发布包。上线前按
+[Linux 验收步骤](docs/linux-acceptance.md)检查静态链接、启动和业务接口。
+目标机不需要 PHP 或 Docker；“全静态”不等于所有未测试系统都已通过业务验收。
 
-发布版启动器只使用用户私有目录中的运行时和应用代码：
+## 验证记录
 
-- macOS ARM64：`~/Library/Application Support/webman-aot`
-- Windows x64：`%LOCALAPPDATA%\webman-aot`
+[查看编译、跨 Mac/Windows 一致性及 Linux 运行证据](docs/verification.md)。
+这些记录可在 GitHub 上单独查看，不包含在 `main` 的源码下载 ZIP 中。
+问题反馈请使用 [Issues](https://github.com/supdger/webman-aot/issues)。
 
-源码开发时直接运行 `php bin/webman-aot.php`；最终安装包会把私有 PHP、
-应用版本和启动器放入上述目录，不读取目标项目的 PHP 或 Composer AOT 包。
-
-每次命令运行按 `bootstrap`、`dispatch`、`execute` 记录阶段状态。用户私有
-`logs/<run-id>/` 中包含结构化 `events.jsonl` 和人类可读 `run.log`；失败时
-额外生成 `diagnostic.json`，并使用稳定退出码区分用法错误、不可用依赖、
-内部错误和配置错误。
-
-只读环境检查：
-
-```bash
-webman-aot doctor
-webman-aot doctor --json
-webman-aot doctor --repair
-```
-
-`doctor` 检查构建主机、架构、磁盘、工具链源站、当前 Webman 项目、锁定组件
-版本和归档摘要。缺失或损坏时列出具体组件并返回非零状态，不下载、不修复，
-只有显式执行 `doctor --repair` 才会下载缺失或损坏组件。修复先写入候选代次，
-完成全部摘要自检后通过目录重命名发布；失败候选会被删除，当前代次保持不变。
-
-独立产物检查：
-
-```bash
-webman-aot verify
-webman-aot verify --path=/path/to/dist-aot --json
-webman-aot verify --deployed
-```
-
-默认按原始包严格检查所有受管文件及摘要；部署后修改了外置配置或模板时，
-使用 `--deployed` 检查不可变文件，并允许 `.env`、上传和日志等运行数据。
-Mac/Windows 上会检查 ELF 静态结构、资源、权限和覆盖清单，但报告中的
-`targetLdd` 为 `not-run-on-build-host`；仍须在目标 Linux 上另行执行
-`ldd ./server` 并留存证据。隔离 Linux 虚拟机的 SaiAdmin 业务验收
-已记录在上方证据文件中；此命令本身不替代启动和业务验收。
-
-## Windows 跨主机复现
-
-在 Windows x64 PowerShell 中检出同一提交后直接运行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\windows-replay.ps1
-```
-
-只准备隔离的 PHP、TypePHP、LLVM、静态 SDK 和 musl sysroot，不运行
-跨主机 smoke 编译时，可加 `-PrepareOnly`。成功后工作区会生成
-`prepared-toolchain.json`，记录工具路径、锁摘要和 SDK 指纹。此模式仅证明
-编译工具已备齐，不证明 Webman 项目完成构建或运行。
-
-脚本从 `toolchain.lock.json` 下载并校验锁定组件，将下载缓存和每次构建工作区
-放在 `%LOCALAPPDATA%\webman-aot`。它不调用 Docker、winget、系统 PHP 或 GUI
-安装器，并分别比较 Mac 基线的规范化输入摘要和 ELF SHA-256。只有两项都一致
-才返回成功。锁定组件使用固定 partial 文件、有界网络重试和断点续传；下载
-完成后仍须通过 SHA-256 才会原子提升为可用缓存。
-
-Windows ZIP 与源码归档统一由系统自带 `tar.exe` 解包，避免 PowerShell
-`Expand-Archive` 在包含完整 Composer 依赖的 TypePHP 包上长时间挂起。
-
-仓库的 `Windows full-static replay` workflow 在 Windows Server 2022 x64 原生
-runner 上执行同一脚本，用于持续验证跨宿主 SDK 与 ELF 一致性。该 workflow
-不替代后续干净实体 Windows 用户账号下的安装、构建和卸载验收。
-修正规范化输入基线后的
-[Windows 自动复核](https://github.com/supdger/webman-aot/actions/runs/36153995918)
-在提交 `a22c97a` 上通过；它验证的是静态 smoke 产物，不是另一次 SaiAdmin
-全量构建。
+本项目原创代码使用 [MIT 许可证](LICENSE)；TypePHP 补丁及第三方组件保留
+各自许可，详见[归属说明](NOTICE.md)。

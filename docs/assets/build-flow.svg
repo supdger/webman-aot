@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 216" role="img" aria-labelledby="title desc">
+  <title id="title">Webman AOT 构建流程</title>
+  <desc id="desc">同一份 Webman 或 SaiAdmin 源码，在 macOS 或 Windows 开发机上使用 Webman AOT，生成 Linux amd64 全静态发布目录。</desc>
+  <rect width="960" height="216" rx="18" fill="#0f172a"/>
+  <rect x="24" y="28" width="256" height="160" rx="14" fill="#1e293b" stroke="#475569"/>
+  <text x="48" y="68" fill="#f8fafc" font-family="Arial, sans-serif" font-size="20" font-weight="bold">项目源码</text>
+  <text x="48" y="106" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">Webman / SaiAdmin</text>
+  <text x="48" y="142" fill="#94a3b8" font-family="Arial, sans-serif" font-size="14">同一套 PHP 代码</text>
+  <path d="M291 108h52m-11-11 11 11-11 11" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="354" y="28" width="252" height="160" rx="14" fill="#164e63" stroke="#22d3ee"/>
+  <text x="378" y="68" fill="#ecfeff" font-family="Arial, sans-serif" font-size="20" font-weight="bold">webman-aot build</text>
+  <text x="378" y="106" fill="#cffafe" font-family="Arial, sans-serif" font-size="16">Mac ARM64 / Windows x64</text>
+  <text x="378" y="142" fill="#a5f3fc" font-family="Arial, sans-serif" font-size="14">全局命令 · 无 Docker</text>
+  <path d="M617 108h52m-11-11 11 11-11 11" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="680" y="28" width="256" height="160" rx="14" fill="#14532d" stroke="#4ade80"/>
+  <text x="704" y="68" fill="#f0fdf4" font-family="Arial, sans-serif" font-size="20" font-weight="bold">dist-aot/</text>
+  <text x="704" y="106" fill="#dcfce7" font-family="Arial, sans-serif" font-size="16">Linux amd64 全静态</text>
+  <text x="704" y="142" fill="#bbf7d0" font-family="Arial, sans-serif" font-size="14">ELF + 外置配置与资源</text>
+</svg>

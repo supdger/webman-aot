@@ -91,7 +91,7 @@ final class ReproducibilityInput
             );
         }
 
-        $fixture = $root . '/tests/fixtures/full-static-smoke/main.php';
+        $fixture = $root . '/toolchain/smoke/main.php';
         $fixtureDigest = $this->hashNormalizedTextFile(
             $fixture,
             'full-static smoke fixture'
