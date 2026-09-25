@@ -23,26 +23,61 @@ final class InstallerPackager
         ) {
             throw new RuntimeException('installer runtime lock is invalid');
         }
+        $toolchainLock = $this->readJson($this->root . '/toolchain.lock.json');
+        $typePhpSource = $this->requiredOption('typephp-source-archive');
+        $typePhpComponent = null;
+        foreach ($toolchainLock['components'] ?? [] as $component) {
+            if (is_array($component) && ($component['id'] ?? null) === 'typephp-source') {
+                $typePhpComponent = $component;
+                break;
+            }
+        }
+        if (!is_array($typePhpComponent)
+            || ($typePhpComponent['sha256'] ?? null) !== $this->digest($typePhpSource)
+        ) {
+            throw new RuntimeException('TypePHP source archive does not match toolchain lock');
+        }
+        $platform = $this->options['platform'] ?? 'both';
+        if (!in_array($platform, ['both', 'macos-arm64', 'windows-x86_64'], true)) {
+            throw new InvalidArgumentException('platform must be both, macos-arm64 or windows-x86_64');
+        }
 
         $output = $this->requiredOption('output');
         $this->createDirectory($output);
         $workspace = sys_get_temp_dir() . '/webman-aot-package-' . bin2hex(random_bytes(8));
         $this->createDirectory($workspace);
         try {
-            $mac = $this->packageMac(
-                $workspace,
-                $output,
-                $this->requiredOption('mac-runtime'),
-                $this->requiredOption('mac-compiler-driver'),
-                $this->requiredOption('mac-runtime-license-dir'),
-                $lock['runtimes']['macos-arm64'] ?? null
+            $licenseDirectory = $workspace . '/typephp-license';
+            $this->createDirectory($licenseDirectory);
+            (new PharData($typePhpSource))->extractTo(
+                $licenseDirectory,
+                'typephp-0.9.2/LICENSE'
             );
-            $windows = $this->packageWindows(
-                $workspace,
-                $output,
-                $this->requiredOption('windows-runtime-archive'),
-                $lock['runtimes']['windows-x86_64'] ?? null
-            );
+            $typePhpLicense = $licenseDirectory . '/typephp-0.9.2/LICENSE';
+            if (!is_file($typePhpLicense)) {
+                throw new RuntimeException('locked TypePHP source license is missing');
+            }
+            $packages = [];
+            if ($platform !== 'windows-x86_64') {
+                $packages[] = $this->packageMac(
+                    $workspace,
+                    $output,
+                    $this->requiredOption('mac-runtime'),
+                    $this->requiredOption('mac-compiler-driver'),
+                    $this->requiredOption('mac-runtime-license-dir'),
+                    $typePhpLicense,
+                    $lock['runtimes']['macos-arm64'] ?? null
+                );
+            }
+            if ($platform !== 'macos-arm64') {
+                $packages[] = $this->packageWindows(
+                    $workspace,
+                    $output,
+                    $this->requiredOption('windows-runtime-archive'),
+                    $typePhpLicense,
+                    $lock['runtimes']['windows-x86_64'] ?? null
+                );
+            }
         } finally {
             $this->removeDirectory($workspace);
         }
@@ -50,7 +85,7 @@ final class InstallerPackager
         fwrite(STDOUT, json_encode([
             'schema' => 'webman-aot-installer-package-result-v1',
             'revision' => $this->options['revision'] ?? 'unknown',
-            'packages' => [$mac, $windows],
+            'packages' => $packages,
         ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
     }
 
@@ -64,6 +99,7 @@ final class InstallerPackager
         string $runtimePath,
         string $compilerDriverPath,
         string $runtimeLicenseDirectory,
+        string $typePhpLicense,
         ?array $runtime
     ): array {
         if (!is_array($runtime)
@@ -80,7 +116,7 @@ final class InstallerPackager
             throw new RuntimeException('macOS runtime license directory is missing or empty');
         }
         $stage = $workspace . '/macos-arm64';
-        $this->stageApplication($stage);
+        $this->stageApplication($stage, $typePhpLicense);
         $this->createDirectory($stage . '/payload/runtime/bin');
         if (!copy($runtimePath, $stage . '/payload/runtime/bin/php')) {
             throw new RuntimeException('unable to stage macOS private PHP runtime');
@@ -125,25 +161,58 @@ final class InstallerPackager
         string $workspace,
         string $output,
         string $runtimeArchive,
+        string $typePhpLicense,
         ?array $runtime
     ): array {
         if (!is_array($runtime)
             || ($runtime['archiveSha256'] ?? null) !== $this->digest($runtimeArchive)
-            || !is_string($runtime['archiveRoot'] ?? null)
+            || ($runtime['provider'] ?? null) !== 'PHP official Windows x64 runtime'
         ) {
             throw new RuntimeException('Windows runtime archive does not match installer lock');
         }
         $stage = $workspace . '/windows-x86_64';
-        $this->stageApplication($stage);
+        $this->stageApplication($stage, $typePhpLicense);
         $extract = $workspace . '/windows-runtime-extract';
-        $this->extractLockedZip($runtimeArchive, $extract, $runtime['archiveRoot']);
-        $source = $extract . '/' . $runtime['archiveRoot'];
+        $this->extractLockedZip($runtimeArchive, $extract);
+        $source = $extract;
         if (($runtime['binarySha256'] ?? null) !== $this->digest($source . '/php.exe')
             || ($runtime['phpLibrarySha256'] ?? null) !== $this->digest($source . '/php8ts.dll')
         ) {
             throw new RuntimeException('Windows private PHP runtime files do not match lock');
         }
-        $this->copyDirectory($source, $stage . '/payload/runtime');
+        $runtimeStage = $stage . '/payload/runtime';
+        $this->createDirectory($runtimeStage . '/ext');
+        foreach ([
+            'php.exe',
+            'php8ts.dll',
+            'libcrypto-3-x64.dll',
+            'libssl-3-x64.dll',
+            'license.txt',
+            'readme-redist-bins.txt',
+        ] as $file) {
+            $this->copyRequiredFile($source . '/' . $file, $runtimeStage . '/' . $file);
+        }
+        foreach ($runtime['extensions'] ?? [] as $extension) {
+            if (!is_string($extension) || preg_match('/^[a-z0-9_]+$/', $extension) !== 1) {
+                throw new RuntimeException('invalid locked Windows PHP extension');
+            }
+            $file = 'php_' . $extension . '.dll';
+            $this->copyRequiredFile($source . '/ext/' . $file, $runtimeStage . '/ext/' . $file);
+        }
+        if (file_put_contents(
+            $runtimeStage . '/php.ini',
+            "extension_dir=\"ext\"\n"
+            . implode('', array_map(
+                static fn (string $extension): string => "extension={$extension}\n",
+                $runtime['extensions']
+            ))
+        ) === false) {
+            throw new RuntimeException('unable to write Windows PHP runtime configuration');
+        }
+        $this->copyRequiredFile(
+            $source . '/extras/sbom/php.spdx.json',
+            $runtimeStage . '/upstream-php.spdx.json'
+        );
         $this->createDirectory($stage . '/payload/launcher');
         copy($this->root . '/bin/webman-aot.cmd', $stage . '/payload/launcher/webman-aot.cmd');
         copy($this->root . '/installer/windows/install.ps1', $stage . '/install.ps1');
@@ -167,7 +236,7 @@ final class InstallerPackager
         return $this->packageResult('windows-x86_64', $archive);
     }
 
-    private function stageApplication(string $stage): void
+    private function stageApplication(string $stage, string $typePhpLicense): void
     {
         $app = $stage . '/payload/app';
         $this->createDirectory($app . '/bin');
@@ -200,6 +269,12 @@ final class InstallerPackager
             throw new RuntimeException('unable to stage compatibility lock');
         }
         copy($this->root . '/LICENSE', $app . '/LICENSE');
+        copy($this->root . '/NOTICE.md', $app . '/NOTICE.md');
+        $this->createDirectory($app . '/THIRD_PARTY_LICENSES');
+        $this->copyRequiredFile(
+            $typePhpLicense,
+            $app . '/THIRD_PARTY_LICENSES/TypePHP-GPL-3.0.txt'
+        );
     }
 
     /**
@@ -230,7 +305,7 @@ final class InstallerPackager
         );
     }
 
-    private function extractLockedZip(string $archive, string $destination, string $root): void
+    private function extractLockedZip(string $archive, string $destination): void
     {
         $zip = new ZipArchive();
         if ($zip->open($archive) !== true) {
@@ -248,7 +323,6 @@ final class InstallerPackager
                     || str_starts_with($normalized, '/')
                     || preg_match('/^[A-Za-z]:/', $normalized) === 1
                     || in_array('..', $segments, true)
-                    || ($segments[0] ?? null) !== $root
                 ) {
                     throw new RuntimeException("unsafe Windows runtime archive entry: {$name}");
                 }
@@ -259,6 +333,13 @@ final class InstallerPackager
             }
         } finally {
             $zip->close();
+        }
+    }
+
+    private function copyRequiredFile(string $source, string $destination): void
+    {
+        if (!is_file($source) || is_link($source) || !copy($source, $destination)) {
+            throw new RuntimeException("unable to stage required runtime file: {$source}");
         }
     }
 

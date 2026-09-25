@@ -48,13 +48,12 @@
             ]
         },
         "windows-x86_64": {
-            "phpVersion": "8.5.10",
-            "provider": "typephp 0.9.2 private runtime",
-            "archiveUrl": "https://github.com/swoole/typephp/releases/download/v0.9.2/tpc_v0.9.2_windows_x64.zip",
-            "archiveSha256": "3000697b6996394168b5c92120f34959b488e04df3cb695fdf93684e26fa7344",
-            "archiveRoot": "tpc_v0.9.2_windows_x64",
-            "binarySha256": "0b7ba037c6c05e8475001cce4a62459c216441139452101808d0a841e37d0af3",
-            "phpLibrarySha256": "0604b923e1a1bb1d0e31cabd61c5762d5a854c3b1e3972dac89963cc15ebd625",
+            "phpVersion": "8.4.25",
+            "provider": "PHP official Windows x64 runtime",
+            "archiveUrl": "https://downloads.php.net/~windows/releases/archives/php-8.4.25-Win32-vs17-x64.zip",
+            "archiveSha256": "2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c",
+            "binarySha256": "d89c8eeeb3d1f76a9dfe2a0263312ced2e3e38b0f65cb15fa19374d372191264",
+            "phpLibrarySha256": "d309e2d04daaae1396c5a0903d1238defd6858c3ce445fba2bb1e2bd2b074b1d",
             "extensions": [
                 "openssl",
                 "zip"

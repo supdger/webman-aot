@@ -38,7 +38,10 @@ try {
     $previousHome = $env:WEBMAN_AOT_HOME
     $env:WEBMAN_AOT_HOME = $candidate
     try {
-        & (Join-Path $candidateCurrent 'runtime\php.exe') -c (Join-Path $candidateCurrent 'runtime\php.ini') (Join-Path $candidateCurrent 'app\bin\webman-aot.php') --version | Out-Null
+        & (Join-Path $candidateCurrent 'runtime\php.exe') `
+            -c (Join-Path $candidateCurrent 'runtime\php.ini') `
+            -d "extension_dir=$(Join-Path $candidateCurrent 'runtime\ext')" `
+            (Join-Path $candidateCurrent 'app\bin\webman-aot.php') --version | Out-Null
         if ($LASTEXITCODE -ne 0) {
             throw 'Candidate self-check failed.'
         }
