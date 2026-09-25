@@ -3,7 +3,7 @@ name: Windows release candidate check
 on:
   push:
     branches:
-      - release/v0.1.0
+      - release/v0.1.0-verify
 
 permissions:
   contents: read
@@ -14,6 +14,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: e28f3ccc0c1507262e9529bf5fce3f7a52242467
       - name: Download locked inputs and package
         shell: pwsh
         run: |
@@ -41,7 +43,7 @@ jobs:
             "--windows-runtime-archive=$phpZip" `
             "--typephp-source-archive=$typephpTar" `
             "--output=$outputDir" `
-            "--revision=$env:GITHUB_SHA"
+            "--revision=$(git rev-parse HEAD)"
           if ($LASTEXITCODE -ne 0) { throw 'Windows package creation failed' }
           $archive = Join-Path $outputDir 'webman-aot-0.1.0-windows-x86_64.zip'
           $installFiles = Join-Path $env:RUNNER_TEMP 'release-extract'
