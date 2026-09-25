@@ -1,0 +1,22 @@
+{
+  "schema": "webman-aot-static-linux-probe-v1",
+  "date": "2026-09-25",
+  "script": "tests/probe-static-linux.sh",
+  "environment": "isolated Ubuntu 24.04 x86_64 QEMU guest; not bare metal",
+  "acceptedElf": {
+    "sha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+    "result": "pass",
+    "file": "ELF 64-bit LSB executable, x86-64, statically linked",
+    "interpreter": "absent",
+    "dynamicSection": "absent",
+    "ldd": "not a dynamic executable"
+  },
+  "negativeControl": {
+    "input": "/bin/ls in the same guest",
+    "result": "rejected: ELF has a dynamic interpreter"
+  },
+  "limits": [
+    "This probes static ELF structure only; it does not replace service startup or business acceptance.",
+    "CentOS 7, Alibaba Cloud Linux 3/4 and Ubuntu 22.04 bare-metal checks remain unperformed."
+  ]
+}

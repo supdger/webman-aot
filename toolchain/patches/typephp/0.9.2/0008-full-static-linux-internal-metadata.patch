@@ -1,0 +1,43 @@
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -179,6 +179,11 @@
+             }
+         }
+         unset($this->internalFunctions[self::ENTRY_FUNCTION]);
++        if ($this->climate->arguments->defined('full-static')) {
++            // The Linux target has this builtin even when the Windows driver
++            // does not. Its cache lifetime must not depend on the host PHP.
++            $this->internalFunctions['sys_getloadavg'] = true;
++        }
+         $this->internalConstants = $this->loadInternalConstants();
+ 
+         // Apply this before --help/--version so informational output also
+@@ -232,5 +237,28 @@
+                 $constants[$name] = $value;
+             }
+         }
++        if ($this->climate->arguments->defined('full-static')) {
++            // These are target-Linux values, not values of the compiler host.
++            foreach ([
++                'DIRECTORY_SEPARATOR' => '/',
++                'PATH_SEPARATOR' => ':',
++                'PHP_EOL' => "\n",
++                'PHP_OS' => 'Linux',
++                'PHP_OS_FAMILY' => 'Linux',
++                'PHP_SHLIB_SUFFIX' => 'so',
++            ] as $name => $value) {
++                $constants[$name] = $value;
++            }
++            // Installation paths belong to the runtime binary. Never embed
++            // the private compiler driver's paths into target code.
++            foreach ([
++                'PHP_BINARY', 'PHP_BINDIR', 'PHP_CONFIG_FILE_PATH',
++                'PHP_CONFIG_FILE_SCAN_DIR', 'PHP_DATADIR', 'PHP_EXTENSION_DIR',
++                'PHP_LIBDIR', 'PHP_LOCALSTATEDIR', 'PHP_MANDIR', 'PHP_PREFIX',
++                'PHP_SYSCONFDIR', 'DEFAULT_INCLUDE_PATH',
++            ] as $name) {
++                unset($constants[$name]);
++            }
++        }
+         return $constants;
+     }

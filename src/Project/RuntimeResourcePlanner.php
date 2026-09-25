@@ -43,6 +43,7 @@ final class RuntimeResourcePlanner
                 ProjectDiscovery::CONFIG => 'configuration',
                 ProjectDiscovery::TEMPLATE => 'template',
                 ProjectDiscovery::STATIC_ASSET => $this->staticRole($path),
+                ProjectDiscovery::THIRD_PARTY_DYNAMIC_PHP => 'third-party-dynamic-php',
                 default => throw new ConfigurationException(
                     "runtime-approved file has unsupported category: {$path}"
                 ),
@@ -98,10 +99,10 @@ final class RuntimeResourcePlanner
             'mutable' => true,
         ];
 
-        foreach (array_merge([
-            ['path' => 'public/storage', 'role' => 'uploads'],
-            ['path' => 'runtime/logs', 'role' => 'logs'],
-        ], $writableDirectories) as $declaration) {
+        foreach (array_merge(
+            RuntimeDataPaths::writableDirectories($this->projectDirectory),
+            $writableDirectories
+        ) as $declaration) {
             $path = $this->validatePath($declaration['path'] ?? '');
             $role = $declaration['role'] ?? '';
             if (!in_array($role, ['uploads', 'logs'], true)) {

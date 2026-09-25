@@ -1,0 +1,13 @@
+name: portable-magic-dir
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/portable-magic-dir
+mode: bin
+optimize: 2
+job: 4
+debug: false

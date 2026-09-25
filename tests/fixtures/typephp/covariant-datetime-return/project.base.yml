@@ -1,0 +1,13 @@
+name: covariant-datetime-return
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/covariant-datetime-return
+mode: bin
+optimize: 2
+job: 4
+debug: false

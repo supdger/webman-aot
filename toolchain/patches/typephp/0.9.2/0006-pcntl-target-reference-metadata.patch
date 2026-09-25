@@ -1,0 +1,53 @@
+--- a/src/Generator/CallArgumentGenerator.php
++++ b/src/Generator/CallArgumentGenerator.php
+@@ -366,6 +366,10 @@
+ 
+         if ($param) {
+             return $param->isPassedByReference();
++        }
++
++        if (!$className && Reflection::getFunction($funcName) === null) {
++            return $this->isTargetPcntlReferenceArgument($funcName, $argIndex);
+         }
+ 
+         // The argument index exceeds the declared range; check whether the last
+@@ -511,7 +515,7 @@
+         } else {
+             $ref = Reflection::getFunction($funcName);
+             if (!$ref) {
+-                return false;
++                return $this->isTargetPcntlReferenceNamedArgument($funcName, $argName);
+             }
+             $params = $ref->getParameters();
+         }
+@@ -526,6 +530,30 @@
+             }
+         }
+         return $variadicParam !== null && $variadicParam->isPassedByReference();
++    }
++
++    private function isTargetPcntlReferenceArgument(string $funcName, int $index): bool
++    {
++        static $positions = [
++            'pcntl_wait' => [0, 2],
++            'pcntl_waitpid' => [1, 3],
++            'pcntl_waitid' => [2],
++            'pcntl_sigprocmask' => [2],
++        ];
++
++        return in_array($index, $positions[strtolower(ltrim($funcName, '\\'))] ?? [], true);
++    }
++
++    private function isTargetPcntlReferenceNamedArgument(string $funcName, string $name): bool
++    {
++        static $names = [
++            'pcntl_wait' => ['status', 'resource_usage'],
++            'pcntl_waitpid' => ['status', 'resource_usage'],
++            'pcntl_waitid' => ['info'],
++            'pcntl_sigprocmask' => ['old_signals'],
++        ];
++
++        return in_array($name, $names[strtolower(ltrim($funcName, '\\'))] ?? [], true);
+     }
+ 
+     protected function parseCallArgs(

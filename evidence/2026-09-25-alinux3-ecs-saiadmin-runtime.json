@@ -1,0 +1,68 @@
+{
+  "schema": "webman-aot-target-runtime-v1",
+  "date": "2026-09-25",
+  "scope": "SaiAdmin AOT runtime smoke test on an Alibaba Cloud Linux 3 x86_64 ECS instance; not bare-metal or full business acceptance",
+  "target": {
+    "osId": "alinux",
+    "versionId": "3",
+    "kernel": "Linux 5.10.134-16.3.al8.x86_64",
+    "architecture": "x86_64",
+    "virtualMachine": true
+  },
+  "artifact": {
+    "localAndTargetElfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+    "file": "ELF 64-bit LSB executable, x86-64, statically linked",
+    "readelfInterpreter": "none",
+    "ldd": "not a dynamic executable",
+    "envFileIncluded": false,
+    "symlinksIncluded": false,
+    "manifestsPresent": [
+      "manifest.json",
+      "coverage.json",
+      "resources.json"
+    ]
+  },
+  "isolation": {
+    "deployment": "Existing distribution copied to one disposable, private test directory",
+    "onlyConfigEdits": [
+      "Listen address changed in the copied config/process.php to 127.0.0.1:18787",
+      "Worker count changed in the copied config/process.php to 1"
+    ],
+    "binaryUnchangedAfterConfigEdits": true,
+    "databaseAndRedisEnvironment": "Both host addresses set to 127.0.0.1 with unavailable port 1 for the test process",
+    "databaseCreatedOrChanged": false,
+    "baotaSiteOrExistingServiceChanged": false
+  },
+  "results": {
+    "startup": "pass: Workerman 5.2.2 / bundled PHP 8.4.25 reported Start success",
+    "listener": "pass: ss showed the test service on 127.0.0.1:18787 only",
+    "captcha": {
+      "request": "GET /core/captcha from target loopback",
+      "httpStatus": 200,
+      "businessCode": 200,
+      "businessResult": 1,
+      "imagePngPresent": true,
+      "uuidPresent": true,
+      "sensitiveResponseRetained": false
+    },
+    "stop": "pass: supplied stop script reported stop success",
+    "portClosedAfterStop": true,
+    "testDirectoryRemoved": true,
+    "temporarySshKeyRevoked": true,
+    "localTemporaryPrivateKeyRemoved": true
+  },
+  "runtimeWarnings": [
+    "Carbon, Think Collection, Webman Finder and Brick Math compatibility/deprecation notices were printed during startup and stop",
+    "These notices did not prevent startup or the captcha response"
+  ],
+  "notTested": [
+    "Login, authenticated user information and permission denial: no isolated database was created on this host",
+    "Same-version ordinary PHP comparison on this host",
+    "Bare-metal Alibaba Cloud Linux 3: ECS is a virtual machine",
+    "Alibaba Cloud Linux 4 and Ubuntu 22.04 target-host acceptance"
+  ],
+  "relatedEvidence": [
+    "2026-09-25-saiadmin-full-static-business-runtime.json",
+    "2026-09-25-centos7-vm-saiadmin-runtime.json"
+  ]
+}

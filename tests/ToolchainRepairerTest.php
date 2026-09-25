@@ -6,6 +6,7 @@ use WebmanAot\Cli\UnavailableException;
 use WebmanAot\Platform\UserDirectoryLayout;
 use WebmanAot\Toolchain\Downloader;
 use WebmanAot\Toolchain\ToolchainLocator;
+use WebmanAot\Toolchain\ToolchainPreparer;
 use WebmanAot\Toolchain\ToolchainRepairer;
 
 final class ToolchainRepairerTest
@@ -105,6 +106,40 @@ final class ToolchainRepairerTest
                     === hash('sha256', $fixture['macContents']),
                 'promoted generation failed its digest contract'
             );
+            $preparer = new RepairFakePreparer();
+            $preparedRepairer = new ToolchainRepairer(
+                $fixture['lockPath'],
+                $layout,
+                'macos-arm64',
+                $replacementDownloader,
+                $preparer
+            );
+            $prepared = $preparedRepairer->repair();
+            $this->assert($prepared['changed'], 'archive-only generation was mistaken for build-ready');
+            $preparedGeneration = $locator->activeGeneration('macos-arm64');
+            $this->assert(is_string($preparedGeneration), 'prepared generation was not promoted');
+            $preparer->assertReady($preparedGeneration);
+            $this->assert(!$preparedRepairer->repair()['changed'], 'ready generation was needlessly replaced');
+
+            file_put_contents($fixture['lockPath'], " \n", FILE_APPEND);
+            $beforePreparationFailure = $this->snapshot($preparedGeneration);
+            $preparer->fail = true;
+            try {
+                $preparedRepairer->repair();
+                throw new RuntimeException('failed tool preparation unexpectedly promoted a generation');
+            } catch (RuntimeException $exception) {
+                $this->assert(
+                    str_contains($exception->getMessage(), 'injected preparation failure'),
+                    'tool preparation failure was not propagated'
+                );
+            }
+            $this->assert(
+                $locator->activeGeneration('macos-arm64') === $preparedGeneration
+                && $this->snapshot($preparedGeneration) === $beforePreparationFailure,
+                'failed preparation replaced or modified the current generation'
+            );
+            $candidates = glob($home . '/toolchains/candidates/*');
+            $this->assert(is_array($candidates) && $candidates === [], 'failed preparation candidate survived');
         } finally {
             if (is_string($previousHome)) {
                 putenv('WEBMAN_AOT_HOME=' . $previousHome);
@@ -274,5 +309,26 @@ final class RepairFakeDownloader implements Downloader
     public function downloads(): array
     {
         return $this->downloads;
+    }
+}
+
+final class RepairFakePreparer implements ToolchainPreparer
+{
+    public bool $fail = false;
+
+    public function prepare(string $candidate): void
+    {
+        if ($this->fail) {
+            throw new RuntimeException('injected preparation failure');
+        }
+        mkdir($candidate . '/prepared', 0700);
+        file_put_contents($candidate . '/prepared/ready', 'prepared');
+    }
+
+    public function assertReady(string $generation): void
+    {
+        if (!is_file($generation . '/prepared/ready')) {
+            throw new RuntimeException('prepared toolchain is missing');
+        }
     }
 }

@@ -12,7 +12,7 @@ final class WebmanWorkermanRulesTest
     public function run(): void
     {
         $rules = WebmanWorkermanRules::knownRules();
-        $this->assert(count($rules) === 17, 'unexpected known Webman/Workerman rule set');
+        $this->assert(count($rules) === 19, 'unexpected known Webman/Workerman rule set');
         $versions = [
             'workerman/webman-framework' => 'v2.2.4',
             'workerman/workerman' => 'v5.2.2',
@@ -60,6 +60,12 @@ final class WebmanWorkermanRulesTest
                 . "}\n}\n",
             'vendor/workerman/workerman/src/Worker.php' =>
                 "<?php\nclass Worker {\npublic static function run(): void {\n"
+                . "\$startFileDir = dirname(static::\$startFile);\n"
+                . "\$file = __DIR__ . \"/../../\$unique_prefix.pid\";\n"
+                . "function writeStatisticsToStatusFile() {\n"
+                . "\$loadavg = function_exists('sys_getloadavg')"
+                . " ? array_map(round(...), sys_getloadavg(), [2, 2, 2])"
+                . " : ['-', '-', '-'];\n}\n"
                 . str_repeat("set_error_handler(static fn (): bool => true);\n", 7)
                 . "set_error_handler(function (\$code, \$msg) {});\n"
                 . "array_walk(\$workers, static fn (Worker \$worker) => \$worker->stop(false));\n"

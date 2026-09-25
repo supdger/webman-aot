@@ -1,0 +1,11 @@
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -279,7 +279,7 @@
+                 $this->cppCompiler = $this->detectFullStaticCompiler();
+             }
+ 
+-            if ($this->platform instanceof Windows) {
++            if ($this->platform instanceof Windows && !$this->fullStatic) {
+                 $libInfo = $this->platform->detectPhpLibs($this->getPhpDir());
+                 $this->windowsPhpEmbedLib = $libInfo['embed'];
+                 $this->windowsPhpCoreLib = $libInfo['core'];

@@ -28,6 +28,22 @@ final class RuntimeResourcePlannerTest
                 !str_contains(json_encode($manifest->toArray(), JSON_THROW_ON_ERROR), 'private-db-password'),
                 'source .env secret leaked into runtime manifest'
             );
+            mkdir($fixture . '/plugin/saiadmin/public/export', 0700, true);
+            file_put_contents(
+                $fixture . '/plugin/saiadmin/public/export/private.xlsx',
+                "private generated export\n"
+            );
+            $saiAdminManifest = $planner->plan($discovery, $coverage);
+            $saiAdminEntries = [];
+            foreach ($saiAdminManifest->entries() as $entry) {
+                $saiAdminEntries[$entry['path']] = $entry;
+            }
+            $this->assert(
+                ($saiAdminEntries['plugin/saiadmin/public/export']['kind'] ?? null)
+                    === 'writable-directory'
+                    && !isset($saiAdminEntries['plugin/saiadmin/public/export/private.xlsx']),
+                'SaiAdmin generated exports were packaged instead of declared writable'
+            );
             $this->assertFailure(
                 fn(): RuntimeResourceManifest => $planner->plan(
                     $discovery,
@@ -68,6 +84,7 @@ final class RuntimeResourcePlannerTest
             'public/certs/root.pem' => 'certificate',
             'public/zoneinfo/Asia/Shanghai' => 'timezone',
             'support/certs/ca.crt' => 'certificate',
+            'vendor/workerman/webman-framework/src/support/view/Raw.php' => 'third-party-dynamic-php',
             '.env' => 'environment',
             'public/storage' => 'uploads',
             'runtime/exports' => 'uploads',
@@ -95,6 +112,11 @@ final class RuntimeResourcePlannerTest
                 === hash_file('sha256', $this->fixtureRoot . '/config/app.php'),
             'runtime resource source digest was not recorded'
         );
+        $this->assert(
+            ($entries['vendor/workerman/webman-framework/src/support/view/Raw.php']['mutable']
+                ?? null) === false,
+            'registered dynamic PHP must remain digest-locked'
+        );
     }
 
     private string $fixtureRoot = '';
@@ -110,6 +132,7 @@ final class RuntimeResourcePlannerTest
             'public/fonts',
             'public/certs',
             'public/zoneinfo/Asia',
+            'vendor/workerman/webman-framework/src/support/view',
         ] as $relative) {
             mkdir($directory . '/' . $relative, 0700, true);
         }
@@ -121,6 +144,7 @@ final class RuntimeResourcePlannerTest
             'public/certs/root.pem' => "certificate-fixture\n",
             'public/zoneinfo/Asia/Shanghai' => "timezone-fixture\n",
             'support/certs/ca.crt' => "ca-fixture\n",
+            'vendor/workerman/webman-framework/src/support/view/Raw.php' => "<?php class RawView {}\n",
             'app/LoginController.php' => "<?php\n",
             '.env' => "DB_PASSWORD=private-db-password\n",
         ] as $relative => $contents) {
@@ -142,6 +166,8 @@ final class RuntimeResourcePlannerTest
             'public/fonts/admin.woff2' => ProjectDiscovery::STATIC_ASSET,
             'public/certs/root.pem' => ProjectDiscovery::STATIC_ASSET,
             'public/zoneinfo/Asia/Shanghai' => ProjectDiscovery::STATIC_ASSET,
+            'vendor/workerman/webman-framework/src/support/view/Raw.php'
+                => ProjectDiscovery::THIRD_PARTY_DYNAMIC_PHP,
         ];
         $discovered = [];
         $covered = [];

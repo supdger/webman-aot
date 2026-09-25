@@ -20,6 +20,10 @@ final class ToolchainLockTest
 
         $validator = new LockValidator();
         $this->assertSame([], $validator->validate($lock), 'real lock must be valid');
+        $driverIds = array_column($lock['components'], 'id');
+        if (!in_array('php-driver-windows-x64', $driverIds, true)) {
+            throw new RuntimeException('real lock must contain the Windows PHP driver');
+        }
 
         $badDigest = $lock;
         $badDigest['components'][0]['sha256'] = 'not-a-sha256';
@@ -35,6 +39,19 @@ final class ToolchainLockTest
             'extension event references unknown provider',
             $validator->validate($badProvider),
             'unknown extension provider must fail closed'
+        );
+
+        $badDriver = $lock;
+        foreach ($badDriver['components'] as &$component) {
+            if (($component['id'] ?? null) === 'php-driver-windows-x64') {
+                $component['version'] = '8.5.10';
+            }
+        }
+        unset($component);
+        $this->assertContains(
+            'Windows PHP driver must match the locked PHP source version',
+            $validator->validate($badDriver),
+            'host driver version must match the target source version'
         );
     }
 
@@ -59,4 +76,3 @@ final class ToolchainLockTest
         }
     }
 }
-

@@ -1,0 +1,20 @@
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -1553,6 +1553,17 @@
+         if ($this->hasFunction($funcName)) {
+             return true;
+         }
++        if ($this->fullStatic) {
++            $targetFunction = strtolower(ltrim($funcName, '\\'));
++            if ($targetFunction === 'sys_getloadavg') {
++                // Linux SDK builtin even when the Windows driver lacks it.
++                return true;
++            }
++            if ($targetFunction === 'sapi_windows_vt100_support') {
++                // Windows driver builtin, but not a Linux SDK builtin.
++                return false;
++            }
++        }
+         $ref = Reflection::getFunction(ltrim($funcName, '\\'));
+         return $ref !== null && $ref->isInternal();
+     }

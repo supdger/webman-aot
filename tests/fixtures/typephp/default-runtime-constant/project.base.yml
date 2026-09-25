@@ -1,0 +1,13 @@
+name: default-runtime-constant
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/default-runtime-constant
+mode: bin
+optimize: 2
+job: 4
+debug: false

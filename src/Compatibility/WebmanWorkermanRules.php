@@ -135,6 +135,28 @@ final class WebmanWorkermanRules
                 ['pcntl_signal($signal, fn (...$__sig) => $this->safeCall($this->signalEvents[$signal], [$signal]));']
             ),
             new BoundedTextRule(
+                'workerman-worker-pid-runtime-path',
+                'workerman/workerman',
+                'vendor/workerman/workerman/src/Worker.php',
+                new VersionRange('5.2.2', '5.2.3'),
+                ['class Worker', '$startFileDir = dirname(static::$startFile);'],
+                '$file = __DIR__ . "/../../$unique_prefix.pid";',
+                '$file = getcwd() . "/vendor/workerman/$unique_prefix.pid";',
+                1,
+                ['$file = getcwd() . "/vendor/workerman/$unique_prefix.pid";']
+            ),
+            new BoundedTextRule(
+                'workerman-worker-target-loadavg-call',
+                'workerman/workerman',
+                'vendor/workerman/workerman/src/Worker.php',
+                new VersionRange('5.2.2', '5.2.3'),
+                ['class Worker', 'function writeStatisticsToStatusFile()'],
+                "array_map(round(...), sys_getloadavg(), [2, 2, 2])",
+                "array_map(round(...), call_user_func('sys_getloadavg'), [2, 2, 2])",
+                1,
+                ["array_map(round(...), call_user_func('sys_getloadavg'), [2, 2, 2])"]
+            ),
+            new BoundedTextRule(
                 'workerman-worker-error-suppressor-variadic',
                 'workerman/workerman',
                 'vendor/workerman/workerman/src/Worker.php',

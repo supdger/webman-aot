@@ -1,0 +1,49 @@
+{
+  "schema": "webman-aot-compiler-repro-v1",
+  "scope": "TypePHP 0.9.2 PCNTL output parameter code generation",
+  "fixture": "tests/fixtures/typephp/pcntl-wait-byref.php",
+  "hostComparison": {
+    "macPhpWithPcntl": "pid=-1 status=0 with no warning",
+    "privateBuildPhpWithoutPcntl": "generated php::VarList{status, ...}; output parameter passed by value",
+    "macPhpCompilerWithPcntl": "generated php::RefWrap<php::Int> and commit()"
+  },
+  "rootCause": "TypePHP asks the build-host PHP Reflection API whether a runtime function parameter is by-reference. When the host lacks PCNTL, Reflection has no signature for the Linux target's pcntl_wait function.",
+  "boundedPatch": {
+    "file": "toolchain/patches/typephp/0.9.2/0006-pcntl-target-reference-metadata.patch",
+    "functions": [
+      "pcntl_wait",
+      "pcntl_waitpid",
+      "pcntl_waitid",
+      "pcntl_sigprocmask"
+    ],
+    "behavior": "Fallback reference metadata is used only when the build host cannot reflect the function; existing reflection remains authoritative when present.",
+    "patchApplicationDigestMatched": true,
+    "patchedDryRun": "generated php::RefWrap<php::Int> and commit() under a host PHP without PCNTL",
+    "referenceMatrixFixture": "tests/fixtures/typephp/pcntl-reference-metadata.php",
+    "referenceMatrixDryRun": "positional references emitted and committed for pcntl_wait, pcntl_waitpid, pcntl_waitid, pcntl_sigprocmask; named pcntl_wait status emitted as a reference",
+    "repeatableCheck": "tools/check-typephp-pcntl-reference-codegen.php"
+  },
+  "windowsReadOnlyCheck": {
+    "realHostConnectedOverSsh": true,
+    "lockedSourceFileSha256": "6b4e41529a911c9ffef102aaf493f42096bc8bd27ef5b6ec3f55bedec8050480",
+    "hostPhpPcntlLoaded": false
+  },
+  "windowsCompilerDryRun": {
+    "host": "Windows 10 x64 physical machine over SSH",
+    "privateTestCopy": true,
+    "originalReplayUnchanged": true,
+    "patchedSourceSha256": "ff7049b24254e3788bf8dd23c349315dc4c97812b6d9ecac95bd2afa75d8b477",
+    "target": "x86_64-unknown-linux-musl",
+    "fullStaticOption": true,
+    "compilerResult": "Dry run completed: 2 C++ source files generated",
+    "generatedReferences": "pcntl_wait status and resource_usage; pcntl_waitpid status and resource_usage; pcntl_waitid info; pcntl_sigprocmask old_signals; named pcntl_wait status",
+    "generatedCommits": 7,
+    "repeatableCheckResult": "7 reference bridges and named reference passed on both Mac and Windows",
+    "elfLinked": false
+  },
+  "remaining": [
+    "Windows full-static Webman ELF build and cross-host ELF hash comparison have not yet been run.",
+    "The full-static Webman HTTP smoke passed without a PCNTL warning, but worker crash and restart behavior is not yet verified.",
+    "Upstream acceptance of the bounded TypePHP patch has not been obtained."
+  ]
+}

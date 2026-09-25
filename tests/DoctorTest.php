@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use WebmanAot\Doctor\Doctor;
 use WebmanAot\Doctor\SystemProbe;
+use WebmanAot\Toolchain\ToolchainPreparer;
 
 final class DoctorTest
 {
@@ -14,6 +15,46 @@ final class DoctorTest
         }
         $this->assertMissingAndCorruptFixtures($root);
         $this->assertEnvironmentFailures($root);
+        $this->assertPreparedReadiness($root);
+    }
+
+    private function assertPreparedReadiness(string $root): void
+    {
+        $fixture = $this->createFixture($root);
+        try {
+            $probe = new DoctorFakeSystemProbe('windows-x86_64');
+            $preparer = new DoctorFakePreparer();
+            $missing = (new Doctor(
+                $fixture . '/toolchain.lock.json',
+                $fixture . '/artifacts',
+                $fixture . '/project',
+                $probe,
+                10 * 1024 * 1024,
+                $preparer
+            ))->inspect()->toArray();
+            $this->assert(
+                !$missing['healthy']
+                && ($this->checksById($missing['checks'])['prepared-toolchain']['status'] ?? null) === 'error',
+                'archive-only toolchain was reported as build-ready'
+            );
+            $preparer->ready = true;
+            $ready = (new Doctor(
+                $fixture . '/toolchain.lock.json',
+                $fixture . '/artifacts',
+                $fixture . '/project',
+                $probe,
+                10 * 1024 * 1024,
+                $preparer,
+                $fixture
+            ))->inspect()->toArray();
+            $this->assert(
+                $ready['healthy']
+                && ($this->checksById($ready['checks'])['prepared-toolchain']['status'] ?? null) === 'ok',
+                'prepared private tools were not recognized'
+            );
+        } finally {
+            $this->removeDirectory($fixture);
+        }
     }
 
     private function assertHealthyFixture(string $root, string $host): void
@@ -38,6 +79,17 @@ final class DoctorTest
                 ? 'component:typephp-macos-arm64'
                 : 'component:typephp-windows-x64';
             $this->assert(isset($checks[$hostComponent]), "doctor omitted host component: {$hostComponent}");
+            $offline = $this->doctor(
+                $fixture,
+                new DoctorFakeSystemProbe($host, networkReachable: false)
+            )->inspect()->toArray();
+            $offlineChecks = $this->checksById($offline['checks']);
+            $this->assert(
+                $offline['healthy']
+                    && ($offlineChecks['network']['status'] ?? null) === 'ok'
+                    && str_contains($offlineChecks['network']['message'], 'not required'),
+                'complete cached toolchain should support offline builds'
+            );
         } finally {
             $this->removeDirectory($fixture);
         }
@@ -86,6 +138,7 @@ final class DoctorTest
                 1024,
                 false
             );
+            unlink($fixture . '/artifacts/php-source.tar');
             unlink($fixture . '/project/composer.lock');
             $report = $this->doctor($fixture, $probe)->inspect()->toArray();
             $checks = $this->checksById($report['checks']);
@@ -287,5 +340,22 @@ final class DoctorFakeSystemProbe implements SystemProbe
     public function canReach(string $url): bool
     {
         return $this->networkReachable;
+    }
+}
+
+final class DoctorFakePreparer implements ToolchainPreparer
+{
+    public bool $ready = false;
+
+    public function prepare(string $candidate): void
+    {
+        throw new LogicException('doctor must remain read-only');
+    }
+
+    public function assertReady(string $generation): void
+    {
+        if (!$this->ready) {
+            throw new RuntimeException('prepared toolchain is missing');
+        }
     }
 }

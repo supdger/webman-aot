@@ -1,0 +1,14 @@
+--- a/src/Parser/ConstantExpressionTrait.php
++++ b/src/Parser/ConstantExpressionTrait.php
+@@ -60,6 +60,11 @@
+             if ($this->hasConstant($name)) {
+                 return $this->getConstant($name);
+             }
+             if ($name === 'PHP_EOL') {
++                if ($this->fullStatic) {
++                    // The generated Linux binary must not inherit the build
++                    // host's newline convention.
++                    return $this->getInternalScalarConstantValue($name);
++                }
+                 return '"' . $this->escapeString(PHP_EOL) . '"';
+             }

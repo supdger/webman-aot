@@ -1,0 +1,13 @@
+name: default-new-array-argument
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/default-new-array-argument
+mode: bin
+optimize: 2
+job: 4
+debug: false

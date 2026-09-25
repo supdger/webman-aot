@@ -8,6 +8,7 @@ use WebmanAot\Cli\ConfigurationException;
 use WebmanAot\Platform\UserDirectoryLayout;
 use WebmanAot\Toolchain\Downloader;
 use WebmanAot\Toolchain\ToolchainLocator;
+use WebmanAot\Toolchain\ToolchainPreparer;
 use WebmanAot\Toolchain\ToolchainRepairer;
 
 final class UpdateManager
@@ -19,7 +20,8 @@ final class UpdateManager
         private readonly string $host,
         private readonly Downloader $downloader,
         private readonly PackageExtractor $extractor,
-        private readonly CliSelfChecker $selfChecker
+        private readonly CliSelfChecker $selfChecker,
+        private readonly ?ToolchainPreparer $toolchainPreparer = null
     ) {
     }
 
@@ -76,7 +78,8 @@ final class UpdateManager
                 $candidate,
                 $this->layout,
                 $this->host,
-                $this->downloader
+                $this->downloader,
+                $this->toolchainPreparer
             ))->repair();
         } finally {
             if (is_file($candidate)) {

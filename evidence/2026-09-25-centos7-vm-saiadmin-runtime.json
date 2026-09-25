@@ -1,0 +1,60 @@
+{
+  "schema": "webman-aot-target-runtime-v1",
+  "date": "2026-09-25",
+  "scope": "SaiAdmin AOT runtime smoke test on an isolated CentOS 7 x86_64 virtual machine; not bare-metal or full business acceptance",
+  "target": {
+    "os": "CentOS Linux release 7.9.2009 (Core)",
+    "kernel": "Linux 3.10.0-1160.95.1.el7.x86_64",
+    "architecture": "x86_64",
+    "virtualMachine": true
+  },
+  "artifact": {
+    "localAndTargetElfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+    "file": "ELF 64-bit LSB executable, x86-64, statically linked",
+    "readelfMachine": "Advanced Micro Devices X86-64",
+    "readelfInterpreter": "none",
+    "ldd": "not a dynamic executable",
+    "envFileIncluded": false
+  },
+  "isolation": {
+    "deployment": "Existing distribution copied to one disposable, private test directory",
+    "onlyConfigEdits": [
+      "Listen address changed in the copied config/process.php to 127.0.0.1:18787",
+      "Worker count changed in the copied config/process.php to 1"
+    ],
+    "binaryUnchangedAfterConfigEdits": true,
+    "databaseCreatedOrChanged": false,
+    "baotaSiteOrExistingServiceChanged": false
+  },
+  "results": {
+    "startup": "pass: Workerman 5.2.2 / bundled PHP 8.4.25 reported Start success on the CentOS 7 kernel",
+    "listener": "pass: ss showed only 127.0.0.1:18787 for the test service",
+    "captcha": {
+      "request": "GET /core/captcha from target loopback",
+      "httpStatus": 200,
+      "businessCode": 200,
+      "message": "success",
+      "imagePresent": true,
+      "uuidPresent": true,
+      "sensitiveResponseRetained": false
+    },
+    "stop": "pass: supplied stop script reported stop success",
+    "portClosedAfterStop": true,
+    "pidFileRemovedAfterStop": true,
+    "testDirectoryRemoved": true
+  },
+  "runtimeWarnings": [
+    "Existing Carbon, Think Collection, Webman Finder and Brick Math compatibility/deprecation notices were printed during startup and stop",
+    "These notices did not prevent startup or the captcha response"
+  ],
+  "notTested": [
+    "Login, authenticated user information and permission denial: no isolated database was created on this host",
+    "Same-version ordinary PHP comparison: system PHP is 8.2.27, while the AOT runtime bundles PHP 8.4.25",
+    "Bare-metal CentOS 7: this host is a virtual machine",
+    "Alibaba Cloud Linux 3/4 and Ubuntu 22.04 bare-metal business acceptance"
+  ],
+  "relatedEvidence": [
+    "2026-09-25-centos7-vm-preflight.json",
+    "2026-09-25-saiadmin-full-static-business-runtime.json"
+  ]
+}

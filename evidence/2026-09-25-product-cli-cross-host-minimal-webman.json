@@ -1,0 +1,57 @@
+{
+  "schema": "webman-aot-product-cli-cross-host-v1",
+  "date": "2026-09-25",
+  "scope": "Public minimal Webman 2.2.4 fixture without an AOT Composer plugin",
+  "hosts": ["macos-arm64", "windows-x86_64"],
+  "containerUsedForBuild": false,
+  "doctorRepair": {
+    "windows": "private generation prepared and doctor healthy on the project",
+    "macos": "isolated installer upgraded, old mismatched compiler driver rejected, private generation repaired from 20 verified archives without redownload, doctor healthy"
+  },
+  "build": {
+    "command": "webman-aot build --json",
+    "statusBothHosts": "pass",
+    "sourceTreeSha256BothHosts": "59963e6c4b15015cbca4ce914e7d46bf025dfc2f45f2b2ee8057695f6e15a31f",
+    "normalizedInputSha256BothHosts": "adb54295467a2a199c42919d286b4bc06e5c23029f10f6c3eb9c1c54154f7305",
+    "elfSha256BothHosts": "5012953c49aacf0006e376a286941d1f543ff7f59642204af76f494df0142b29",
+    "compiledUnitsBothHosts": 109,
+    "compiledDirectBothHosts": 53,
+    "compiledShadowBothHosts": 6
+  },
+  "verify": {
+    "command": "webman-aot verify --path=dist-aot --json",
+    "statusBothHosts": "pass",
+    "scope": "build-host structure and integrity",
+    "targetLdd": "not-run-on-build-host"
+  },
+  "rootCauseResolved": "The first packaged macOS CLI PHP lacked the filter extension present in the Windows TypePHP driver. Identical project inputs then produced different literal-string and persistent-function IDs. A separately locked macOS PHP 8.4.25 compiler driver with matching built-in extensions produced the identical Windows ELF SHA-256. The private CLI PHP remains separate for HTTPS and ZIP.",
+  "publicSafeCompilerDriver": {
+    "lockedSourceSha256": "dc1ad8b4109898d9db49744450403874858c23efc685b1032a50bd1e83906848",
+    "binarySha256": "f2615142c8deecdee85d2e3c4cbbf1700939d4463de5215ba8e272ee93aec14e",
+    "privateBuildPathInBinary": false,
+    "windowsElfSha256PreservedAfterPackagedUpgradeAndRepair": true
+  },
+  "normalizedMacosCliRuntime": {
+    "lockedUpstreamSha256": "aa4c28dedf407171c791929d377f612a14a33002e490b5be5e50a5a08aa3f65e",
+    "packagedBinarySha256": "8ac695c1dc6ca5042b01e85f1d57faa8d325596622401794afd520e728444265",
+    "replayWithThreeOutputNamesMatched": true,
+    "replacedTemporaryBuildPathOccurrences": 17,
+    "adHocCodeSignatureVerified": true,
+    "phpVersionAndOpensslZipChecked": true,
+    "isolatedInstallerAndDoctorHealthy": true,
+    "privateBuildPathsInStagedPayload": false,
+    "sameWindowsElfSha256AfterReinstall": true
+  },
+  "linuxRuntime": {
+    "environment": "isolated Ubuntu 24.04 x86_64 QEMU guest on macOS arm64; not a bare-metal cloud host",
+    "transfer": "product dist-aot archive copied to guest with matching SHA-256; macOS AppleDouble metadata excluded from clean replay",
+    "guestElfSha256": "5012953c49aacf0006e376a286941d1f543ff7f59642204af76f494df0142b29",
+    "guestLdd": "not a dynamic executable",
+    "start": "Workerman 5.2.2 / PHP 8.4.25: Start success",
+    "request": "GET http://127.0.0.1:18781/health",
+    "response": "HTTP 200; body ok",
+    "stop": "stop success; subsequent connection closed",
+    "guestStoppedAfterTest": true
+  },
+  "remaining": "This does not prove SaiAdmin compilation or business behavior, ordinary PHP comparison, clean-user installer acceptance, or the four bare-metal target operating systems. The macOS CLI runtime still contains public upstream runner paths; the bounded normalization and installer require clean-user acceptance before release."
+}

@@ -13,6 +13,7 @@ final class SourceTreeSnapshot
         '.webman-aot',
         'dist-aot',
         'runtime',
+        'node_modules',
     ];
 
     public function __construct(private readonly string $projectDirectory)
@@ -24,6 +25,7 @@ final class SourceTreeSnapshot
      */
     public function capture(): array
     {
+        RuntimeDataPaths::assertNoExcludedPhp($this->projectDirectory);
         $files = [];
         $directory = new \RecursiveDirectoryIterator(
             $this->projectDirectory,
@@ -34,7 +36,10 @@ final class SourceTreeSnapshot
             function (\SplFileInfo $entry): bool {
                 $relative = $this->relative($entry->getPathname());
                 $root = explode('/', $relative, 2)[0];
-                if (in_array($root, self::EXCLUDED_ROOTS, true)) {
+                if (in_array($root, self::EXCLUDED_ROOTS, true)
+                    || RuntimeDataPaths::isSourceExcluded($relative)
+                    || preg_match('/^\.env(?:\..+)?$/D', $entry->getFilename()) === 1
+                ) {
                     return false;
                 }
                 if ($entry->isLink()) {

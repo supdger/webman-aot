@@ -1,0 +1,15 @@
+name: namespaced-global-function-fallback
+
+sources:
+  - main.php
+  - helper.php
+  - consumer.php
+
+ignore:
+  - runtime
+
+output: build/namespaced-global-function-fallback
+mode: bin
+optimize: 2
+job: 4
+debug: false

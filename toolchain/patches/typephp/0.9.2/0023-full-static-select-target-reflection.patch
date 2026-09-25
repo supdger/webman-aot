@@ -1,0 +1,10 @@
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -160,5 +160,7 @@
+         parent::__construct($rootPath, $compilerRuntime);
+         $this->climate->arguments->add(Constants::COMPILER_OPTIONS);
+         $this->preprocessArgvAdvanced();
+         $this->climate->arguments->parse();
++        Reflection::setTargetLinuxFullStatic(
++            $this->climate->arguments->defined('full-static'));
+ 

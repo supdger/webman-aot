@@ -8,6 +8,7 @@ use WebmanAot\Cli\ConfigurationException;
 use WebmanAot\Project\ProfileDetector;
 use WebmanAot\Toolchain\LockValidator;
 use WebmanAot\Toolchain\HostComponentSelector;
+use WebmanAot\Toolchain\ToolchainPreparer;
 
 final class Doctor
 {
@@ -18,7 +19,9 @@ final class Doctor
         private readonly string $artifactsDirectory,
         private readonly string $projectDirectory,
         private readonly SystemProbe $system,
-        private readonly int $minimumFreeBytes = self::MINIMUM_FREE_BYTES
+        private readonly int $minimumFreeBytes = self::MINIMUM_FREE_BYTES,
+        private readonly ?ToolchainPreparer $preparer = null,
+        private readonly ?string $generation = null
     ) {
     }
 
@@ -49,12 +52,46 @@ final class Doctor
 
         $lock = $this->readLock($checks);
         if ($lock !== null) {
-            $this->inspectNetwork($lock, $checks);
             $this->inspectArtifacts($lock, $host, $checks);
+            $this->inspectNetwork($lock, $checks);
         }
+        $this->inspectPrepared($checks);
         $this->inspectProject($checks);
 
         return new DoctorReport($host, $checks);
+    }
+
+    /**
+     * @param list<array{id:string,status:string,message:string,details:array<string,mixed>}> $checks
+     */
+    private function inspectPrepared(array &$checks): void
+    {
+        if ($this->preparer === null) {
+            return;
+        }
+        if ($this->generation === null) {
+            $checks[] = $this->check(
+                'prepared-toolchain',
+                false,
+                'private compiler tools are not prepared; run doctor --repair'
+            );
+            return;
+        }
+        try {
+            $this->preparer->assertReady($this->generation);
+            $checks[] = $this->check(
+                'prepared-toolchain',
+                true,
+                'private compiler tools and static SDK are ready'
+            );
+        } catch (\Throwable $exception) {
+            $checks[] = $this->check(
+                'prepared-toolchain',
+                false,
+                'private compiler tools are incomplete; run doctor --repair',
+                ['error' => $exception->getMessage()]
+            );
+        }
     }
 
     /**
@@ -105,6 +142,24 @@ final class Doctor
      */
     private function inspectNetwork(array $lock, array &$checks): void
     {
+        $missingArtifact = false;
+        foreach ($checks as $check) {
+            if (str_starts_with($check['id'], 'component:')
+                && $check['status'] !== 'ok'
+            ) {
+                $missingArtifact = true;
+                break;
+            }
+        }
+        if (!$missingArtifact) {
+            $checks[] = $this->check(
+                'network',
+                true,
+                'network is not required; locked build artifacts are cached and verified',
+                ['checkedHosts' => [], 'unreachableHosts' => []]
+            );
+            return;
+        }
         $urls = [];
         foreach ($lock['components'] ?? [] as $component) {
             if (is_array($component) && is_string($component['sourceUrl'] ?? null)) {

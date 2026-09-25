@@ -33,6 +33,7 @@ final class InstallerPackager
                 $workspace,
                 $output,
                 $this->requiredOption('mac-runtime'),
+                $this->requiredOption('mac-compiler-driver'),
                 $this->requiredOption('mac-runtime-license-dir'),
                 $lock['runtimes']['macos-arm64'] ?? null
             );
@@ -61,11 +62,15 @@ final class InstallerPackager
         string $workspace,
         string $output,
         string $runtimePath,
+        string $compilerDriverPath,
         string $runtimeLicenseDirectory,
         ?array $runtime
     ): array {
         if (!is_array($runtime)
             || ($runtime['binarySha256'] ?? null) !== $this->digest($runtimePath)
+            || !is_array($runtime['compilerDriver'] ?? null)
+            || ($runtime['compilerDriver']['binarySha256'] ?? null)
+                !== $this->digest($compilerDriverPath)
         ) {
             throw new RuntimeException('macOS runtime does not match installer lock');
         }
@@ -80,7 +85,11 @@ final class InstallerPackager
         if (!copy($runtimePath, $stage . '/payload/runtime/bin/php')) {
             throw new RuntimeException('unable to stage macOS private PHP runtime');
         }
+        if (!copy($compilerDriverPath, $stage . '/payload/runtime/bin/php-compiler')) {
+            throw new RuntimeException('unable to stage macOS private compiler PHP');
+        }
         chmod($stage . '/payload/runtime/bin/php', 0700);
+        chmod($stage . '/payload/runtime/bin/php-compiler', 0700);
         $this->copyDirectory($runtimeLicenseDirectory, $stage . '/payload/runtime/licenses');
         $this->createDirectory($stage . '/payload/launcher');
         copy($this->root . '/bin/webman-aot', $stage . '/payload/launcher/webman-aot');
@@ -165,6 +174,31 @@ final class InstallerPackager
         copy($this->root . '/bin/webman-aot.php', $app . '/bin/webman-aot.php');
         $this->copyDirectory($this->root . '/src', $app . '/src');
         copy($this->root . '/toolchain.lock.json', $app . '/toolchain.lock.json');
+        $this->createDirectory($app . '/installer');
+        copy($this->root . '/installer/runtime.lock.json', $app . '/installer/runtime.lock.json');
+        $this->createDirectory($app . '/tools');
+        foreach ([
+            'windows-replay.ps1',
+            'macos-prepare.php',
+            'apply-typephp-patches.php',
+            'strip-sdk-debug.php',
+            'assemble-sysroot.php',
+        ] as $tool) {
+            if (!copy($this->root . '/tools/' . $tool, $app . '/tools/' . $tool)) {
+                throw new RuntimeException("unable to stage build tool: {$tool}");
+            }
+        }
+        $this->copyDirectory(
+            $this->root . '/toolchain/patches/typephp/0.9.2',
+            $app . '/toolchain/patches/typephp/0.9.2'
+        );
+        $this->createDirectory($app . '/compatibility/locks');
+        if (!copy(
+            $this->root . '/compatibility/locks/webman-workerman-2026-09-25.json',
+            $app . '/compatibility/locks/webman-workerman-2026-09-25.json'
+        )) {
+            throw new RuntimeException('unable to stage compatibility lock');
+        }
         copy($this->root . '/LICENSE', $app . '/LICENSE');
     }
 

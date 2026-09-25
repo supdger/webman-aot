@@ -2,7 +2,13 @@
 param(
     [string] $Artifacts = '',
 
-    [string] $WorkRoot = ''
+    [string] $WorkRoot = '',
+
+    [string] $LockFile = '',
+
+    [switch] $PrepareOnly,
+
+    [switch] $Offline
 )
 
 $ErrorActionPreference = 'Stop'
@@ -86,9 +92,12 @@ function Invoke-VerifiedDownload([object] $Component, [string] $Path) {
         Remove-Item -Force
 }
 
-function Resolve-LockedArchive([object] $Component, [string] $Directory) {
+function Resolve-LockedArchive([object] $Component, [string] $Directory, [bool] $Offline) {
     $path = Get-ArchivePath $Component $Directory
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        if ($Offline) {
+            throw "locked archive is missing in offline mode: $path"
+        }
         Write-Host "Downloading $($Component.id) ..."
         Invoke-VerifiedDownload $Component $path
     }
@@ -107,12 +116,25 @@ function Get-SingleDirectory([string] $Directory, [string] $Description) {
     return $directories[0].FullName
 }
 
+function Get-WorkRelativePath([string] $Root, [string] $Path) {
+    $prefix = $Root.TrimEnd('\', '/') + '\'
+    if (-not $Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "prepared tool path escaped the work root: $Path"
+    }
+    return $Path.Substring($prefix.Length).Replace('\', '/')
+}
+
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
     [Environment]::Is64BitOperatingSystem -ne $true) {
     throw 'windows-replay.ps1 requires a Windows x64 host'
 }
 
 $repository = Split-Path -Parent $PSScriptRoot
+$defaultLock = Join-Path $repository 'toolchain.lock.json'
+if ([string]::IsNullOrWhiteSpace($LockFile)) {
+    $LockFile = $defaultLock
+}
+$LockFile = [IO.Path]::GetFullPath($LockFile)
 $systemTar = Join-Path $env:SystemRoot 'System32\tar.exe'
 if (-not (Test-Path -LiteralPath $systemTar -PathType Leaf)) {
     throw "Windows system tar is unavailable: $systemTar"
@@ -141,11 +163,12 @@ if (Test-Path -LiteralPath $WorkRoot) {
     New-Item -ItemType Directory -Path $WorkRoot | Out-Null
 }
 
-$lock = Get-Content -LiteralPath (Join-Path $repository 'toolchain.lock.json') -Raw |
+$lock = Get-Content -LiteralPath $LockFile -Raw |
     ConvertFrom-Json
 $componentIds = @(
     'typephp-source',
     'typephp-windows-x64',
+    'php-driver-windows-x64',
     'phpx-source',
     'phpx-sdk-linux-x64',
     'llvm-windows-x64',
@@ -159,7 +182,7 @@ $archives = @{}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 foreach ($id in $componentIds) {
     $component = Get-LockedComponent $lock $id
-    $archives[$id] = Resolve-LockedArchive $component $Artifacts
+    $archives[$id] = Resolve-LockedArchive $component $Artifacts $Offline
 }
 
 $hostExtract = Join-Path $WorkRoot 'typephp-host'
@@ -168,12 +191,26 @@ New-Item -ItemType Directory -Path $hostExtract | Out-Null
 & $systemTar -xf $archives['typephp-windows-x64'] -C $hostExtract
 Assert-LastExitCode 'TypePHP Windows archive extraction'
 $hostRoot = Get-SingleDirectory $hostExtract 'TypePHP Windows archive'
-$php = Join-Path $hostRoot 'php.exe'
 $sevenZip = Join-Path $hostRoot 'PhpManager\private\bin\7za-x64.exe'
-foreach ($required in @($php, $sevenZip)) {
+foreach ($required in @($sevenZip)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "official TypePHP Windows package is incomplete: $required"
     }
+}
+
+$driverRoot = Join-Path $WorkRoot 'php-driver'
+Write-Host 'Extracting locked PHP 8.4.25 Windows driver ...'
+New-Item -ItemType Directory -Path $driverRoot | Out-Null
+& $systemTar -xf $archives['php-driver-windows-x64'] -C $driverRoot
+Assert-LastExitCode 'PHP Windows driver extraction'
+$php = Join-Path $driverRoot 'php.exe'
+if (-not (Test-Path -LiteralPath $php -PathType Leaf)) {
+    throw "locked PHP Windows driver is incomplete: $php"
+}
+$driverVersion = (& $php -n -r 'echo PHP_VERSION;')
+Assert-LastExitCode 'PHP Windows driver version'
+if ($driverVersion -ne '8.4.25') {
+    throw "locked PHP Windows driver has unexpected version: $driverVersion"
 }
 
 $sourceExtract = Join-Path $WorkRoot 'typephp-source'
@@ -215,32 +252,33 @@ New-Item -ItemType Directory -Path $fullStatic -Force | Out-Null
 $sdk = Join-Path $fullStatic 'sdk'
 Move-Item -LiteralPath $sdkSource -Destination $sdk
 
-$llvmRoot = Join-Path $WorkRoot 'llvm'
-Write-Host 'Installing private LLVM toolchain into isolated work root ...'
-& $archives['llvm-windows-x64'] '/S' "/D=$llvmRoot"
-Assert-LastExitCode 'LLVM silent private installation'
+$llvmExtract = Join-Path $WorkRoot 'llvm-extract'
+Write-Host 'Extracting portable LLVM toolchain into isolated work root ...'
+New-Item -ItemType Directory -Path $llvmExtract | Out-Null
+& $sevenZip x '-y' "-o$llvmExtract" $archives['llvm-windows-x64'] | Out-Host
+Assert-LastExitCode 'LLVM xz extraction'
+$llvmTar = Get-ChildItem -LiteralPath $llvmExtract -Filter '*.tar' -File |
+    Select-Object -First 1
+if ($null -eq $llvmTar) {
+    throw 'LLVM xz archive did not yield a tar file'
+}
+$llvmPayload = Join-Path $WorkRoot 'llvm-payload'
+New-Item -ItemType Directory -Path $llvmPayload | Out-Null
+& $sevenZip x '-y' "-o$llvmPayload" $llvmTar.FullName | Out-Host
+Assert-LastExitCode 'LLVM tar extraction'
+$llvmRoot = Get-SingleDirectory $llvmPayload 'LLVM archive'
 $compiler = Join-Path $llvmRoot 'bin\clang++.exe'
 $llvmNm = Join-Path $llvmRoot 'bin\llvm-nm.exe'
 $llvmObjcopy = Join-Path $llvmRoot 'bin\llvm-objcopy.exe'
-$llvmDeadline = [DateTime]::UtcNow.AddMinutes(3)
 $compilerVersion = ''
-$llvmReady = $false
-while ([DateTime]::UtcNow -lt $llvmDeadline) {
-    if (
-        (Test-Path -LiteralPath $compiler -PathType Leaf) -and
-        (Test-Path -LiteralPath $llvmNm -PathType Leaf) -and
-        (Test-Path -LiteralPath $llvmObjcopy -PathType Leaf)
-    ) {
-        $compilerVersion = (& $compiler --version 2>$null | Select-Object -First 1)
-        if ($compilerVersion -match '^clang version 19\.1\.7(?:\s|$)') {
-            $llvmReady = $true
-            break
-        }
+foreach ($required in @($compiler, $llvmNm, $llvmObjcopy)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+        throw "locked LLVM archive is incomplete: $required"
     }
-    Start-Sleep -Seconds 2
 }
-if (-not $llvmReady) {
-    throw "locked LLVM package did not become executable as version 19.1.7: $compilerVersion"
+$compilerVersion = (& $compiler --version 2>$null | Select-Object -First 1)
+if ($compilerVersion -notmatch '^clang version 19\.1\.7(?:\s|$)') {
+    throw "locked LLVM archive has unexpected compiler version: $compilerVersion"
 }
 
 Write-Host 'Stripping debug sections from the private SDK work copy ...'
@@ -256,18 +294,10 @@ $strippedSdk | ConvertTo-Json -Depth 4 | Write-Host
 
 $phpConfig = Join-Path $WorkRoot 'php-config'
 New-Item -ItemType Directory -Path $phpConfig | Out-Null
-$phpIni = Get-Content -LiteralPath (Join-Path $hostRoot 'php.ini') -Raw
-$absoluteExtensionDirectory = (Join-Path $hostRoot 'ext').Replace('\', '/')
-$phpIni = $phpIni -replace 'extension_dir = "\./ext/"', "extension_dir = `"$absoluteExtensionDirectory/`""
-[IO.File]::WriteAllText(
-    (Join-Path $phpConfig 'php.ini'),
-    $phpIni,
-    [System.Text.UTF8Encoding]::new($false)
-)
-$env:PHP_HOME = $hostRoot
+$env:PHP_HOME = $driverRoot
 $env:PHPX_HOME = $phpx
 $env:PHPRC = $phpConfig
-$env:PATH = "$hostRoot;$(Split-Path -Parent $compiler);$env:PATH"
+$env:PATH = "$driverRoot;$(Split-Path -Parent $compiler);$env:PATH"
 
 Write-Host 'Applying guarded TypePHP/PHPX patches ...'
 & $php (Join-Path $repository 'tools\apply-typephp-patches.php') `
@@ -280,8 +310,33 @@ Write-Host 'Assembling locked Linux x86-64 musl sysroot ...'
 & $php (Join-Path $repository 'tools\assemble-sysroot.php') `
     "--artifacts=$Artifacts" `
     "--output=$sysroot" `
-    "--tar=$systemTar"
+    "--tar=$systemTar" `
+    "--lock=$LockFile"
 Assert-LastExitCode 'musl sysroot assembly'
+
+if ($PrepareOnly) {
+    $prepared = [ordered] @{
+        schema = 'webman-aot-prepared-toolchain-v1'
+        host = 'windows-x86_64'
+        lockSha256 = (Get-FileHash -LiteralPath $LockFile -Algorithm SHA256).Hash.ToLowerInvariant()
+        php = (Get-WorkRelativePath $WorkRoot $php)
+        typephp = (Get-WorkRelativePath $WorkRoot $typephpRoot)
+        phpx = (Get-WorkRelativePath $WorkRoot $phpx)
+        compiler = (Get-WorkRelativePath $WorkRoot $compiler)
+        objcopy = (Get-WorkRelativePath $WorkRoot $llvmObjcopy)
+        sysroot = (Get-WorkRelativePath $WorkRoot $sysroot)
+        phprc = (Get-WorkRelativePath $WorkRoot $phpConfig)
+        sdkSha256 = $strippedSdk.sha256
+    }
+    $preparedPath = Join-Path $WorkRoot 'prepared-toolchain.json'
+    [IO.File]::WriteAllText(
+        $preparedPath,
+        ($prepared | ConvertTo-Json -Depth 8),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $prepared | ConvertTo-Json -Depth 8
+    return
+}
 
 Write-Host 'Calculating normalized reproducibility input ...'
 $normalizedInput = & $php (Join-Path $repository 'tools\reproducibility-input.php') |
@@ -306,12 +361,12 @@ $result = [ordered] @{
     host = 'windows-x86_64'
     containerUsed = $false
     normalizedInputSha256 = $normalizedInput.sha256
-    expectedNormalizedInputSha256 = '579b865e9fab8b916d74aef2f9d55a7edea46108a490af568e1e4d0cf82c88b4'
+    expectedNormalizedInputSha256 = 'e7c2cca6179ac519966a6b9732701dc593676245560711624ecf89b9756e6a8f'
     matchesMacNormalizedInput = $false
     artifact = $artifact
     artifactSize = (Get-Item -LiteralPath $artifact).Length
     artifactSha256 = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    expectedMacArtifactSha256 = 'e7f63178b53b4ce82f934965a190bb5dd851f5ff646ec22230bdc8a2809e0017'
+    expectedMacArtifactSha256 = '24f0e8efe9b02c4552567aa1ab9aec926dca9e155d3dfd42a672c655e614f5bc'
     matchesMacArtifact = $false
 }
 $result.matchesMacNormalizedInput = (

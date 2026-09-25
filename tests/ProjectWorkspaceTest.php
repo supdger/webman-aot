@@ -40,10 +40,11 @@ final class ProjectWorkspaceTest
             ]]);
             $toolchain = str_repeat('1', 64);
             $rules = str_repeat('2', 64);
+            $compilerPatch = str_repeat('4', 64);
             $keyFactory = new WorkspaceCacheKey();
-            $key = $keyFactory->create($profile, $ledger, $toolchain, $rules);
+            $key = $keyFactory->create($profile, $ledger, $toolchain, $rules, $compilerPatch);
             $this->assert(
-                $key === $keyFactory->create($profile, $ledger, $toolchain, $rules),
+                $key === $keyFactory->create($profile, $ledger, $toolchain, $rules, $compilerPatch),
                 'workspace cache key is not deterministic'
             );
             $changedLedger = new CoverageLedger([[
@@ -56,8 +57,12 @@ final class ProjectWorkspaceTest
                 'reason' => null,
             ]]);
             $this->assert(
-                $key !== $keyFactory->create($profile, $changedLedger, $toolchain, $rules),
+                $key !== $keyFactory->create($profile, $changedLedger, $toolchain, $rules, $compilerPatch),
                 'workspace cache key ignored a source digest change'
+            );
+            $this->assert(
+                $key !== $keyFactory->create($profile, $ledger, $toolchain, $rules, str_repeat('5', 64)),
+                'workspace cache key ignored a compiler patch change'
             );
 
             $workspace = new ProjectWorkspace($fixture);

@@ -6,12 +6,15 @@ namespace WebmanAot\Toolchain;
 
 final class ElfStaticVerifier
 {
+    private const ELF_EXECUTABLE = 2;
+    private const ELF_SHARED_OBJECT = 3;
     private const ELF_MACHINE_X86_64 = 62;
+    private const PROGRAM_LOAD = 1;
     private const PROGRAM_DYNAMIC = 2;
     private const PROGRAM_INTERPRETER = 3;
 
     /**
-     * @return array{machine: string, interpreter: bool, dynamicSegment: bool, neededLibraries: list<string>}
+     * @return array{machine: string, interpreter: bool, dynamicSegment: bool, loadSegment: bool, neededLibraries: list<string>}
      */
     public function inspect(string $path): array
     {
@@ -29,6 +32,14 @@ final class ElfStaticVerifier
                 throw new \RuntimeException('only little-endian ELF64 artifacts are supported');
             }
 
+            $type = $this->uint16($header, 16);
+            if ($type !== self::ELF_EXECUTABLE && $type !== self::ELF_SHARED_OBJECT) {
+                throw new \RuntimeException("expected an executable ELF type 2 or 3, got {$type}");
+            }
+            if ($this->uint32($header, 20) !== 1) {
+                throw new \RuntimeException('ELF header version is invalid');
+            }
+
             $machine = $this->uint16($header, 18);
             if ($machine !== self::ELF_MACHINE_X86_64) {
                 throw new \RuntimeException("expected x86_64 ELF machine 62, got {$machine}");
@@ -37,12 +48,16 @@ final class ElfStaticVerifier
             $programOffset = $this->uint64($header, 32);
             $programEntrySize = $this->uint16($header, 54);
             $programCount = $this->uint16($header, 56);
+            if ($programCount === 0) {
+                throw new \RuntimeException('ELF has no program headers');
+            }
             if ($programEntrySize < 56) {
                 throw new \RuntimeException('ELF program header entry is too small');
             }
 
             $hasInterpreter = false;
             $hasDynamicSegment = false;
+            $hasLoadSegment = false;
             for ($index = 0; $index < $programCount; $index++) {
                 $entry = $this->readAt(
                     $handle,
@@ -50,14 +65,15 @@ final class ElfStaticVerifier
                     $programEntrySize
                 );
                 $type = $this->uint32($entry, 0);
+                $hasLoadSegment = $hasLoadSegment || $type === self::PROGRAM_LOAD;
                 $hasInterpreter = $hasInterpreter || $type === self::PROGRAM_INTERPRETER;
                 $hasDynamicSegment = $hasDynamicSegment || $type === self::PROGRAM_DYNAMIC;
             }
-
             return [
                 'machine' => 'x86_64',
                 'interpreter' => $hasInterpreter,
                 'dynamicSegment' => $hasDynamicSegment,
+                'loadSegment' => $hasLoadSegment,
                 'neededLibraries' => [],
             ];
         } finally {
@@ -75,6 +91,9 @@ final class ElfStaticVerifier
             throw new \RuntimeException(
                 'ELF contains a PT_DYNAMIC segment; DT_NEEDED must be inspected and the artifact is not fully static'
             );
+        }
+        if (!$result['loadSegment']) {
+            throw new \RuntimeException('ELF has no PT_LOAD program header');
         }
     }
 

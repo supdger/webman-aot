@@ -19,7 +19,7 @@ final class Runtime
     {
         $logger = RunLogger::open($this->layout);
         $pipeline = new StagePipeline($logger, new DiagnosticBundleWriter($logger));
-        $application = new Application($this->layout);
+        $application = new Application($this->layout, logger: $logger);
         $command = $arguments[1] ?? 'help';
         $resolved = '';
 

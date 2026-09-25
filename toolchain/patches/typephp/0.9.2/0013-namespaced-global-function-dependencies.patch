@@ -1,0 +1,18 @@
+--- a/src/Preprocessor.php
++++ b/src/Preprocessor.php
+@@ -1159,6 +1159,15 @@
+             if (!$this->isInternalFunction($funcName)) {
+                 $this->symbolCallInFile[$this->file][] = $this->getFunctionDependencySymbol($funcName);
+             }
++            $shortName = $node->name->toString();
++            if (!$node->name instanceof Node\Name\FullyQualified
++                && !str_contains($shortName, '\\')
++                && $this->namespace !== ''
++                && !isset($this->useFunctions[strtolower($shortName)])
++                && !$this->isInternalFunction($shortName)
++            ) {
++                $this->symbolCallInFile[$this->file][] = $this->getFunctionDependencySymbol(strtolower($shortName));
++            }
+         } elseif ($node instanceof Node\Expr\ConstFetch) {
+             $resolvedName = $node->name->getAttribute('resolvedName')
+                 ?? $node->name->getAttribute('namespacedName')

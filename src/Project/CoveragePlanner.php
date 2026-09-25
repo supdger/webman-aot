@@ -57,12 +57,20 @@ final class CoveragePlanner
                 );
             }
             if ($file['category'] === ProjectDiscovery::INSTALL_ONLY) {
+                $webmanScaffold = str_starts_with(
+                    $path,
+                    'vendor/workerman/webman-framework/src/'
+                );
                 $ledger[] = $this->record(
                     $file,
                     $sourceSha256,
                     CoverageLedger::INSTALL_ONLY,
-                    'install.webman-plugin.v1',
-                    'installation and migration code is excluded from the running application'
+                    $webmanScaffold
+                        ? 'install.webman-framework-scaffold.v1'
+                        : 'install.webman-plugin.v1',
+                    $webmanScaffold
+                        ? 'Composer installer and launcher source templates are not runtime inputs'
+                        : 'installation and migration code is excluded from the running application'
                 );
                 continue;
             }
@@ -73,6 +81,16 @@ final class CoveragePlanner
                     CoverageLedger::INSTALL_ONLY,
                     'source.metadata.v1',
                     'known source metadata and documentation are not runtime inputs'
+                );
+                continue;
+            }
+            if ($file['category'] === ProjectDiscovery::THIRD_PARTY_DYNAMIC_PHP) {
+                $ledger[] = $this->record(
+                    $file,
+                    $sourceSha256,
+                    CoverageLedger::RUNTIME_APPROVED,
+                    'runtime.third-party-dynamic.v1',
+                    'digest-locked third-party view adapter uses runtime template behavior'
                 );
                 continue;
             }

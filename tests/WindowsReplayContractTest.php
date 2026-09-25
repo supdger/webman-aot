@@ -41,17 +41,19 @@ final class WindowsReplayContractTest
             'TypePHP Windows archive extraction',
             'PHPX SDK xz extraction',
             'PHPX SDK tar extraction',
-            'LLVM silent private installation',
-            '[DateTime]::UtcNow.AddMinutes(3)',
+            'LLVM xz extraction',
+            'LLVM tar extraction',
             "Join-Path \$llvmRoot 'bin\\clang++.exe'",
             "Join-Path \$llvmRoot 'bin\\llvm-nm.exe'",
             "Join-Path \$llvmRoot 'bin\\llvm-objcopy.exe'",
-            '$llvmReady = $true',
-            "\$compilerVersion -match '^clang version 19\\.1\\.7(?:\\s|\$)'",
+            "\$compilerVersion -notmatch '^clang version 19\\.1\\.7(?:\\s|\$)'",
             'strip-sdk-debug.php',
             'private SDK debug stripping',
             'apply-typephp-patches.php',
             'assemble-sysroot.php',
+            'Get-WorkRelativePath $WorkRoot $compiler',
+            'locked archive is missing in offline mode',
+            '$LockFile = [IO.Path]::GetFullPath($LockFile)',
             'reproducibility-input.php',
             'build-full-static-smoke.php',
             'expectedNormalizedInputSha256',
@@ -88,9 +90,20 @@ final class WindowsReplayContractTest
             'Windows replay must avoid the observed tar.exe hang on the PHPX SDK tar.xz'
         );
         $this->assert(
-            !str_contains($contents, "& \$sevenZip x '-y' \"-o\$llvmRoot\" \$archives['llvm-windows-x64']") &&
-            str_contains($contents, "& \$archives['llvm-windows-x64'] '/S' \"/D=\$llvmRoot\""),
-            'Windows replay must run the locked LLVM installer silently into the isolated work root'
+            str_contains($contents, "& \$sevenZip x '-y' \"-o\$llvmExtract\" \$archives['llvm-windows-x64']") &&
+            str_contains($contents, "& \$sevenZip x '-y' \"-o\$llvmPayload\" \$llvmTar.FullName") &&
+            !str_contains($contents, "& \$archives['llvm-windows-x64'] '/S'"),
+            'Windows replay must extract the locked portable LLVM archive without an installer'
+        );
+        $prepareStart = strpos($contents, 'if ($PrepareOnly) {');
+        $smokeStart = strpos($contents, "Write-Host 'Calculating normalized reproducibility input ...'");
+        $this->assert(
+            $prepareStart !== false &&
+            $smokeStart !== false &&
+            $prepareStart < $smokeStart &&
+            str_contains($contents, "'prepared-toolchain.json'") &&
+            str_contains($contents, "'webman-aot-prepared-toolchain-v1'"),
+            'Windows preparation must produce a private tool manifest without requiring smoke fixtures'
         );
 
         $workflowPath = $root . '/.github/workflows/windows-full-static-replay.yml';

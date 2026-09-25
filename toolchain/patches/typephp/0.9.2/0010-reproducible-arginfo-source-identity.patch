@@ -1,0 +1,22 @@
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -1732,4 +1732,9 @@
+         return $path;
+     }
+ 
++    public function getSourceIdentityForStub(string $path): string
++    {
++        return $this->getSourceIdentity($path);
++    }
++
+     /** Return the function-local late-static-bound class entry. */
+--- a/src/gen_stub.php
++++ b/src/gen_stub.php
+@@ -5044,6 +5044,6 @@
+         $nodeTraverser->addVisitor(new TypePhp\Transform\Visitor(sourceFile: $sourceFile));
+         $nodeTraverser->addVisitor(new TypePhp\Transform\ConstantExpressionValidationVisitor($phpVersion));
+         $nodeTraverser->addVisitor(new TypePhp\Transform\RuntimeAttributeFactoryLowering(
+-            $sourceFile,
++            getTranslator()->getSourceIdentityForStub($sourceFile),
+             static fn (string $class, string $case): bool => getTranslator()->isDeclaredEnumCase($class, $case),
+         ));

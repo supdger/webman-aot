@@ -1,0 +1,13 @@
+name: foreach-attribute-int-probe
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/foreach-attribute-int-probe
+mode: bin
+optimize: 2
+job: 4
+debug: false

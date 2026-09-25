@@ -1,0 +1,66 @@
+--- a/src/Parser/AssignOpTrait.php
++++ b/src/Parser/AssignOpTrait.php
+@@ -1735,11 +1735,22 @@
+         } elseif ($this->isStaticPropertyFetch($expr->expr)) {
+             $rightExpr = $tmpVar . ' = ' . $this->emitStaticPropertyFetchRef($expr->expr, $expr);
+         } elseif ($this->isArrayDimFetch($expr->expr)) {
+-            $array = $this->parseWritableIdentifier($expr->expr->var);
+             if ($expr->expr->dim == null) {
+                 $this->fatalError($expr, 'Cannot assign reference to array dim fetch without dim');
+             }
+-            $rightExpr = $tmpVar . ' = ' . $array . '.itemRef(' . $this->parseIdentifier($expr->expr->dim) . ')';
++            if ($this->isVarExpr($expr->expr->var) && $expr->expr->var->name === 'GLOBALS') {
++                $slot = $this->getStaticGlobalsSlot($expr->expr);
++                if ($slot !== null) {
++                    $this->parseGlobalsArrayDimFetch($expr->expr);
++                    $rightExpr = $tmpVar . ' = ' . $this->escapeGlobalVar($slot) . '.toReference()';
++                } else {
++                    $this->fatalError($expr, 'Cannot bind reference to dynamic $GLOBALS key');
++                }
++            } else {
++                $array = $this->parseWritableIdentifier($expr->expr->var);
++                $rightExpr = $tmpVar . ' = ' . $array . '.itemRef('
++                    . $this->parseIdentifier($expr->expr->dim) . ')';
++            }
+         } else {
+             $this->fatalError($expr, 'Cannot assign reference to ' . $this->parseIdentifier($expr->expr));
+         }
+--- a/src/Preprocessor.php
++++ b/src/Preprocessor.php
+@@ -1494,7 +1494,8 @@
+         if ($param->default === null) {
+             return;
+         }
+-        $arrayInitPlan = $param->default instanceof Node\Expr\Array_
++        $arrayInitPlan = ($param->default instanceof Node\Expr\Array_
++            || $param->default instanceof Node\Expr\New_)
+             ? $this->withoutLocalClassEntryHoisting(
+                 fn (): ArrayInitPlan => $this->buildLiteralArrayInitPlan($param->default),
+             )
+@@ -2184,7 +2185,7 @@
+         );
+     }
+ 
+-    protected function buildLiteralArrayInitPlan(Node\Expr\Array_ $defaultNode): ArrayInitPlan
++    protected function buildLiteralArrayInitPlan(NodeAbstract $defaultNode): ArrayInitPlan
+     {
+         $localVarCount = count($this->context->localVars);
+         $beforeStmtCount = count($this->context->beforeStmtLines);
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -1464,6 +1464,15 @@
+         $code .= "// native/import stub callbacks \n";
+         $code .= $stubWrapperCode;
+ 
++        // Default helpers live at global scope, while generated constants are
++        // defined later inside the project namespace. Their declarations must
++        // be visible before a helper refers to a default constant.
++        $code .= 'namespace ' . $projectNamespace . ' {' . PHP_EOL;
++        foreach ($this->constants as $name => $const) {
++            $code .= 'extern ' . $const->type . ' ' . $name . ';' . PHP_EOL;
++        }
++        $code .= '}  // namespace ' . $projectNamespace . PHP_EOL . PHP_EOL;
++
+         $code .= "// default argument values \n";
+         $code .= $this->genDefaultArgumentHelperDefinitions();
+ 

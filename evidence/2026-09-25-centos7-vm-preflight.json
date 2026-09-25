@@ -1,0 +1,58 @@
+{
+  "schema": "webman-aot-target-preflight-v1",
+  "date": "2026-09-25",
+  "scope": "Read-only preflight of a CentOS 7 virtual machine; not AOT runtime or bare-metal business acceptance",
+  "target": {
+    "os": "CentOS Linux release 7.9.2009 (Core)",
+    "kernel": "Linux 3.10.0-1160.95.1.el7.x86_64",
+    "architecture": "x86_64",
+    "virtualMachine": true,
+    "availableDisk": {
+      "root": "32G available on XFS",
+      "home": "approximately 2.0T available on XFS"
+    },
+    "testPort": "18787 was not listening when checked",
+    "testDirectory": "Proposed isolated test directory did not exist when checked",
+    "availableProbeTools": [
+      "file",
+      "readelf",
+      "ldd",
+      "sha256sum",
+      "curl",
+      "perl",
+      "awk",
+      "grep"
+    ],
+    "missingProbeTools": [
+      "jq"
+    ],
+    "php": "System PHP 8.2.27 NTS; no PHP 8.4 installation found in inspected BaoTa PHP directories"
+  },
+  "candidate": {
+    "saiAdminElfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+    "sha256Location": "Local candidate; not yet verified on target",
+    "envFilePresentInCandidateDistribution": false
+  },
+  "operations": {
+    "uploaded": false,
+    "started": false,
+    "databaseChanged": false,
+    "webServerChanged": false,
+    "targetFilesChanged": false
+  },
+  "acceptance": {
+    "staticLinkAndArchitecture": "not run on target",
+    "startup": "not run on target",
+    "captcha": "not run on target",
+    "login": "not run on target",
+    "userInfo": "not run on target",
+    "permissionDenial": "not run on target",
+    "ordinaryPhpComparison": "not run on target",
+    "cleanup": "not applicable; no test resources created"
+  },
+  "limits": [
+    "The target is a virtual machine, so its results cannot fulfill a bare-metal acceptance requirement.",
+    "System PHP 8.2 cannot provide a same-version ordinary PHP comparison for a PHP 8.4 build.",
+    "No successful AOT runtime or business-path result is claimed by this preflight."
+  ]
+}

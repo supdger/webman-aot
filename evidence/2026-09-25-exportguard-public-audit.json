@@ -1,0 +1,36 @@
+{
+  "schema": "webman-aot-candidate-public-audit-v1",
+  "date": "2026-09-25",
+  "candidateDirectory": "dist/installers/exportguard-candidate",
+  "archives": {
+    "macosArm64Sha256": "da763c86f84aa7d8493cb9692d54cba6e5ec32089c473ced6c2a30e56f7c27ad",
+    "windowsX64Sha256": "82c3eaf5e5844d3fc7f190863b8a36053fa0acd5ef66edd133403eac336b2f1a",
+    "archiveIntegrity": "pass for both"
+  },
+  "secretScan": {
+    "tool": "gitleaks dir, default rules, redacted report, 20 MB maximum file size, archive contents extracted before scanning",
+    "currentProjectTree": {
+      "scannedBytes": 1083553,
+      "findings": 0,
+      "limit": "Installer archives larger than 20 MB were skipped in the tree scan and scanned separately after extraction."
+    },
+    "extractedMacPayload": {
+      "scannedBytes": 564174,
+      "findings": 0
+    },
+    "extractedWindowsPayload": {
+      "scannedBytes": 21439683,
+      "findings": 4,
+      "classification": "Four generic-api-key matches are false positives in the bundled upstream xxhash.h SIMD implementation; the matched token is the local C variable data_key, not a credential.",
+      "largeBinaryFilesSkipped": [
+        "payload/runtime/icudt77.dll",
+        "payload/runtime/tpc.exe"
+      ]
+    }
+  },
+  "releaseBoundary": [
+    "A targeted secret scan is not a comprehensive security or privacy audit.",
+    "Third-party runtime and static ELF license obligations are not yet fully reviewed.",
+    "Candidates remain local and unpublished."
+  ]
+}

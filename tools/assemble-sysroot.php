@@ -39,9 +39,10 @@ try {
     $artifacts = rtrim($options['artifacts'] ?? '', '/\\');
     $output = rtrim($options['output'] ?? '', '/\\');
     $tar = $options['tar'] ?? 'tar';
+    $lockPath = $options['lock'] ?? dirname(__DIR__) . '/toolchain.lock.json';
     if ($artifacts === '' || $output === '') {
         throw new InvalidArgumentException(
-            'Usage: php tools/assemble-sysroot.php --artifacts=<download-dir> --output=<empty-dir> [--tar=<tar>]'
+            'Usage: php tools/assemble-sysroot.php --artifacts=<download-dir> --output=<empty-dir> [--tar=<tar>] [--lock=<toolchain-lock>]'
         );
     }
     if (!is_dir($artifacts)) {
@@ -55,7 +56,7 @@ try {
     }
 
     $lock = json_decode(
-        (string) file_get_contents(dirname(__DIR__) . '/toolchain.lock.json'),
+        (string) file_get_contents($lockPath),
         true,
         flags: JSON_THROW_ON_ERROR
     );

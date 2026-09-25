@@ -1,0 +1,93 @@
+{
+  "schema": "webman-aot-installer-candidate-v1",
+  "date": "2026-09-25",
+  "status": "superseded-not-for-distribution",
+  "supersededReason": "SaiAdmin runtime export directory was incorrectly copied as a static resource; nine pre-existing private export files entered both test distributions. Fixed candidates exclude the data and are verified separately.",
+  "source": {
+    "baseCommit": "c8e8b91",
+    "revisionLabel": "c8e8b91+dirty-20260925",
+    "state": "uncommitted worktree; not a reproducible release tag"
+  },
+  "candidateArchives": {
+    "macosArm64": {
+      "name": "webman-aot-0.1.0-dev-macos-arm64.tar.gz",
+      "bytes": 8532103,
+      "sha256": "1de98bd7d50527992b0c5cae93f7a32bfc80d46e9b009c53728f3560c3cda979",
+      "payloadManifestEntriesVerified": 127,
+      "payloadManifestEntriesTotal": 127
+    },
+    "windowsX64": {
+      "name": "webman-aot-0.1.0-dev-windows-x86_64.zip",
+      "bytes": 61192709,
+      "sha256": "c2002944b01859704c1e329ad3f48270744e97b603d650a44a815990acefd276",
+      "payloadManifestEntriesVerified": 1404,
+      "payloadManifestEntriesTotal": 1404,
+      "physicalWindowsInstall": "pass: isolated directory, no persistent PATH or execution-policy change"
+    }
+  },
+  "isolatedMacInstall": {
+    "installedIntoTemporaryUserPrivateDirectory": true,
+    "userHomeOrPathChanged": false,
+    "version": "webman-aot 0.1.0-dev",
+    "installedElfVerifierMatchesCurrentSourceSha256": "f7e94a833391358086c987df82f39091535e9068257b8bb1ee96e6f65320e1e3",
+    "existingSaiAdminDistributionVerify": {
+      "exitCode": 0,
+      "files": 107,
+      "compiledDirect": 185,
+      "compiledShadow": 26,
+      "staticStructure": "pass",
+      "targetLdd": "not-run-on-build-host"
+    }
+  },
+  "isolatedWindowsInstall": {
+    "host": "physical Windows x64",
+    "remoteArchiveSha256": "c2002944b01859704c1e329ad3f48270744e97b603d650a44a815990acefd276",
+    "installedIntoTemporaryDirectory": true,
+    "originalWindowsProjectOverwritten": false,
+    "persistentPathChanged": false,
+    "persistentExecutionPolicyChanged": false,
+    "installerExitCode": 0,
+    "version": "webman-aot 0.1.0-dev",
+    "firstRunToolchainRepair": {
+      "lockedComponentsDownloadedAndVerified": 21,
+      "generation": "00000000000000000001-a567f94acb34",
+      "lockSha256": "a567f94acb3453cd743f50068f74e04372be5117d650262695582a6a3d53eda6",
+      "preparedToolchain": "ok",
+      "note": "Repair from a non-Webman directory completed, then doctor returned 69 solely because project detection correctly failed there."
+    },
+    "doctorFromWebmanProject": {
+      "exitCode": 0,
+      "profile": "webman",
+      "webmanVersion": "v2.2.4",
+      "preparedToolchain": "ok"
+    }
+  },
+  "installedCliCrossHostBuild": {
+    "project": "public minimal Webman 2.2.4 fixture; no AOT Composer plugin",
+    "sourceSha256BothHosts": "59963e6c4b15015cbca4ce914e7d46bf025dfc2f45f2b2ee8057695f6e15a31f",
+    "normalizedInputSha256BothHosts": "f8c19ea678f8e3b6c053718f7cf67207d5699ef2f7ca6535fcf5171ff04c9ebc",
+    "elfSha256BothHosts": "5012953c49aacf0006e376a286941d1f543ff7f59642204af76f494df0142b29",
+    "compiledUnitsBothHosts": 109,
+    "compiledDirectBothHosts": 53,
+    "compiledShadowBothHosts": 6,
+    "independentVerifyExitCodeBothHosts": 0,
+    "staticStructureBothHosts": "pass",
+    "targetLddBothHosts": "not-run-on-build-host"
+  },
+  "currentSourceTests": {
+    "command": "php tests/run.php",
+    "passedGroups": 44,
+    "failedGroups": 0
+  },
+  "targetedPublicPayloadAudit": {
+    "scope": "extracted app payloads in both current-source candidate archives",
+    "knownPrivateProjectNamePathAndServerAddressMatches": 0,
+    "limit": "Targeted known-marker scan, not comprehensive secret scanning or publication approval"
+  },
+  "limits": [
+    "The two archives are local candidates outside the repository, not published releases.",
+    "The full cross-host rebuild here covers a minimal Webman project, not SaiAdmin.",
+    "Build-host verification does not prove target-host startup or business acceptance.",
+    "The Windows installer and toolchain were left in a named temporary validation directory for audit and must be cleaned up after remaining checks."
+  ]
+}

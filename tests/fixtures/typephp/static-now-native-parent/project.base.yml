@@ -1,0 +1,13 @@
+name: static-now-native-parent
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/static-now-native-parent
+mode: bin
+optimize: 2
+job: 4
+debug: false

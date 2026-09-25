@@ -1,0 +1,13 @@
+name: magic-proxy-to-array
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/magic-proxy-to-array
+mode: bin
+optimize: 2
+job: 4
+debug: false

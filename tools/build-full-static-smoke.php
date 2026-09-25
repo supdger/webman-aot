@@ -5,9 +5,12 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/src/Toolchain/ElfStaticVerifier.php';
 require dirname(__DIR__) . '/src/Toolchain/SdkArchiveGuard.php';
+require dirname(__DIR__) . '/src/Cli/ConfigurationException.php';
+require dirname(__DIR__) . '/src/Toolchain/TypePhpPatchSourceVerifier.php';
 
 use WebmanAot\Toolchain\ElfStaticVerifier;
 use WebmanAot\Toolchain\SdkArchiveGuard;
+use WebmanAot\Toolchain\TypePhpPatchSourceVerifier;
 
 /**
  * @return array<string, string>
@@ -114,40 +117,10 @@ try {
         throw new RuntimeException("unable to create output directory: {$output}");
     }
 
-    $patchedTypePhpFiles = [
-        'src/Backend/CompilerBackend.php'
-            => 'cb62bcba129a6e5acdfa91c910889fe6e8c82c4eb92d5ccd23314d2d88e69bed',
-        'src/Build/NativeBuildConfigurationTrait.php'
-            => '691933676e46eeca1ae0fc8778423ec50959985865062fe6d43f8504fe7a05b9',
-        'src/Build/NativeCommandOptionsTrait.php'
-            => '7aa0c5c7205d270098df1dda36879d19f854eb015e5a887f1f269d166d7e7ed4',
-        'src/Build/SourcePipelineTrait.php'
-            => '95d9f4511f7337d9049bc919337118ccd6379cab2e92aecfff95a3a31d108807',
-        'src/CompilerBase.php'
-            => '619138a59e32dd62dc694c16895ad9abac11063b703d91d408e1f44ed3eee1bb',
-        'src/Generator/Utils.php'
-            => 'ae93dfb8e0b316404ebe4b7f1cad2be0e9ad4929ac6abcda1478a5cbaa7ca382',
-        'src/Optimizer/FuncCallOptimizer.php'
-            => '007205885631988f0589cb5d10dea7b1911820ccb316332a2ac95a3f620f21be',
-        'src/Parser/StdContainerTrait.php'
-            => 'e539a13eab2881a22f0e1bf1c2c2c5651962b86c4eeedf657906b7b438c77ddc',
-        'src/Preprocessor.php'
-            => '0bf8d2c1f3a14c985e919c90f76d3bf3d2386a3750a08e31233412c94d29db9e',
-        'src/Translator.php'
-            => '728da536d766a890ee1b48508444961c041357893d5f7d8ce46cddea41d202fd',
-    ];
-    foreach ($patchedTypePhpFiles as $relativePath => $expectedDigest) {
-        $actualDigest = hash_file('sha256', $typephp . '/' . $relativePath);
-        if (!is_string($actualDigest) || !hash_equals($expectedDigest, $actualDigest)) {
-            throw new RuntimeException("TypePHP cross-target patch is missing or drifted: {$relativePath}");
-        }
-    }
-    $runtimeDigest = hash_file('sha256', $phpx . '/src/misc/typephp_runtime.cc');
-    if (!is_string($runtimeDigest)
-        || !hash_equals('56390337e2e6d4ef5fac0d42aa775a088b46ac44b260e1fb1b6308ace37828f0', $runtimeDigest)
-    ) {
-        throw new RuntimeException('PHPX static-extension registry patch is missing or drifted');
-    }
+    (new TypePhpPatchSourceVerifier())->verify(
+        $typephp,
+        dirname(__DIR__) . '/toolchain/patches/typephp/0.9.2/manifest.json'
+    );
 
     $installedSdk = realpath($phpx . '/full-static/sdk');
     if ($installedSdk === false || realpath($sdk) !== $installedSdk) {

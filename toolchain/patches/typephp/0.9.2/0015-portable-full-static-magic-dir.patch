@@ -1,0 +1,33 @@
+--- a/src/Parser/ConstantExpressionTrait.php
++++ b/src/Parser/ConstantExpressionTrait.php
+@@ -145,8 +145,30 @@
+         }
+         switch ($expr->getType()) {
+             case 'Scalar_MagicConst_Dir':
++                if ($this->fullStatic && $this->sourceIdentityRoot !== '') {
++                    $identity = $this->getSourceIdentity($this->dir);
++                    if ($identity === $this->sourceIdentityPrefix
++                        || str_starts_with($identity, $this->sourceIdentityPrefix . '/')
++                    ) {
++                        $suffix = substr($identity, strlen($this->sourceIdentityPrefix));
++                        return 'php::concat(php::call(php::Str{ZEND_STRL("getcwd")}, php::VarList{}), '
++                            . $this->getLiteralString($suffix) . ')';
++                    }
++                    $this->error('Full-static __DIR__ is outside the reproducible project root');
++                }
+                 return '"' . $this->escapeString($this->dir) . '"';
+             case 'Scalar_MagicConst_File':
++                if ($this->fullStatic && $this->sourceIdentityRoot !== '') {
++                    $identity = $this->getSourceIdentity($this->file);
++                    if ($identity === $this->sourceIdentityPrefix
++                        || str_starts_with($identity, $this->sourceIdentityPrefix . '/')
++                    ) {
++                        $suffix = substr($identity, strlen($this->sourceIdentityPrefix));
++                        return 'php::concat(php::call(php::Str{ZEND_STRL("getcwd")}, php::VarList{}), '
++                            . $this->getLiteralString($suffix) . ')';
++                    }
++                    $this->error('Full-static __FILE__ is outside the reproducible project root');
++                }
+                 return '"' . $this->escapeString($this->file) . '"';
+             case 'Scalar_MagicConst_Line':
+                 return (string) $expr->getStartLine();

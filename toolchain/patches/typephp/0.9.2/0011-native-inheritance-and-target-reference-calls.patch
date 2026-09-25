@@ -1,0 +1,152 @@
+--- a/src/Parser/MethodCallTrait.php
++++ b/src/Parser/MethodCallTrait.php
+@@ -785,6 +785,14 @@
+             if ($keywordType !== null
+                 && isset(self::KEYWORD_METHOD_MAP[$methodName])
+                 && !$expr->getAttribute('nativeKeywordCall', false)
++                && !($expr->args !== []
++                    && !isset(self::KEYWORD_METHOD_WITH_ARGUMENTS[$methodName])
++                    && $class === ''
++                    && $this->detectClassOfExpr($expr->var) === '')
++                && !($class !== ''
++                    && $this->hasClass($class)
++                    && $this->getClass($class)->hasMethod('__call')
++                    && !$this->getClass($class)->hasMethod($methodName))
+             ) {
+                 if ($this->isVarExpr($expr->var)) {
+                     $this->assertStdContainerDoesNotEscapeNativeObjects($expr, $object);
+@@ -1182,6 +1190,13 @@
+         }
+ 
+         $class = $this->getFullClassName();
++        $methodClass = $this->classDef;
++        while (!$methodClass->hasMethod($method)) {
++            if (!$methodClass->extends || !$this->hasClass($methodClass->extends)) {
++                return null;
++            }
++            $methodClass = $this->getClass($methodClass->extends);
++        }
+         try {
+             $nativeFunc = $this->getNativeMethod($expr, $class, $method);
+         } catch (DynamicCall) {
+--- a/src/TypeSystem/NativeTypeCompatibilityTrait.php
++++ b/src/TypeSystem/NativeTypeCompatibilityTrait.php
+@@ -139,7 +139,7 @@
+                 // however, $expected must also be a built-in class/interface,
+                 // otherwise runtime reflection cannot cross into the external user
+                 // class namespace.
+-                return $internal && is_subclass_of($class, $expected);
++                return $internal && (strcasecmp($class, $expected) === 0 || is_subclass_of($class, $expected));
+             }
+             $classDef = $this->getClass($class);
+         }
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -3244,6 +3244,7 @@
+ 
+         $classDef = $this->getClass($class);
+         $methodDef = null;
++        $hasMagicCall = $classDef->hasMethod('__call');
+         // Search recursively: if the method is not defined in the child class,
+         // try to find it in the parent class.
+         while (true) {
+@@ -3254,6 +3255,9 @@
+                 if (!$this->hasClass($classDef->extends)) {
+                     if ($classDef->inheritedFromInternalClass) {
+                         if (!Reflection::hasMethod($classDef->extends, $method) and !Reflection::hasMethod($classDef->extends, $method . '__call')) {
++                            if ($hasMagicCall) {
++                                return false;
++                            }
+                             $this->fatalError($expr, 'Class `' . $classDef->getNamespacedName() . '` inherits from a internal class, but the class `' .
+                                 $classDef->extends . '` does not have a `' . $method . '` method or a `__call` magic method');
+                         } else {
+@@ -3264,6 +3268,7 @@
+                     return false;
+                 }
+                 $classDef = $this->getClass($classDef->extends);
++                $hasMagicCall = $hasMagicCall || $classDef->hasMethod('__call');
+             } else {
+                 $methodDef = $classDef->getMethod($method);
+                 break;
+--- a/src/Generator/CallArgumentGenerator.php
++++ b/src/Generator/CallArgumentGenerator.php
+@@ -369,7 +369,7 @@
+         }
+ 
+         if (!$className && Reflection::getFunction($funcName) === null) {
+-            return $this->isTargetPcntlReferenceArgument($funcName, $argIndex);
++            return $this->isTargetReferenceArgument($funcName, $argIndex);
+         }
+ 
+         // The argument index exceeds the declared range; check whether the last
+@@ -515,7 +515,7 @@
+         } else {
+             $ref = Reflection::getFunction($funcName);
+             if (!$ref) {
+-                return $this->isTargetPcntlReferenceNamedArgument($funcName, $argName);
++                return $this->isTargetReferenceNamedArgument($funcName, $argName);
+             }
+             $params = $ref->getParameters();
+         }
+@@ -532,25 +532,59 @@
+         return $variadicParam !== null && $variadicParam->isPassedByReference();
+     }
+ 
+-    private function isTargetPcntlReferenceArgument(string $funcName, int $index): bool
++    private function isTargetReferenceArgument(string $funcName, int $index): bool
+     {
+         static $positions = [
+             'pcntl_wait' => [0, 2],
+             'pcntl_waitpid' => [1, 3],
+             'pcntl_waitid' => [2],
+             'pcntl_sigprocmask' => [2],
++            'openssl_x509_export' => [1],
++            'openssl_pkcs12_export' => [1],
++            'openssl_pkcs12_read' => [1],
++            'openssl_csr_export' => [1],
++            'openssl_csr_new' => [1],
++            'openssl_pkey_export' => [1],
++            'openssl_pkcs7_read' => [1],
++            'openssl_cms_read' => [1],
++            'openssl_private_encrypt' => [1],
++            'openssl_private_decrypt' => [1],
++            'openssl_public_encrypt' => [1],
++            'openssl_public_decrypt' => [1],
++            'openssl_sign' => [1],
++            'openssl_seal' => [1, 2, 5],
++            'openssl_open' => [1],
++            'openssl_encrypt' => [5],
++            'openssl_random_pseudo_bytes' => [1],
+         ];
+ 
+         return in_array($index, $positions[strtolower(ltrim($funcName, '\\'))] ?? [], true);
+     }
+ 
+-    private function isTargetPcntlReferenceNamedArgument(string $funcName, string $name): bool
++    private function isTargetReferenceNamedArgument(string $funcName, string $name): bool
+     {
+         static $names = [
+             'pcntl_wait' => ['status', 'resource_usage'],
+             'pcntl_waitpid' => ['status', 'resource_usage'],
+             'pcntl_waitid' => ['info'],
+             'pcntl_sigprocmask' => ['old_signals'],
++            'openssl_x509_export' => ['output'],
++            'openssl_pkcs12_export' => ['output'],
++            'openssl_pkcs12_read' => ['certificates'],
++            'openssl_csr_export' => ['output'],
++            'openssl_csr_new' => ['private_key'],
++            'openssl_pkey_export' => ['output'],
++            'openssl_pkcs7_read' => ['certificates'],
++            'openssl_cms_read' => ['certificates'],
++            'openssl_private_encrypt' => ['encrypted_data'],
++            'openssl_private_decrypt' => ['decrypted_data'],
++            'openssl_public_encrypt' => ['encrypted_data'],
++            'openssl_public_decrypt' => ['decrypted_data'],
++            'openssl_sign' => ['signature'],
++            'openssl_seal' => ['sealed_data', 'encrypted_keys', 'iv'],
++            'openssl_open' => ['output'],
++            'openssl_encrypt' => ['tag'],
++            'openssl_random_pseudo_bytes' => ['strong_result'],
+         ];
+ 
+         return in_array($name, $names[strtolower(ltrim($funcName, '\\'))] ?? [], true);

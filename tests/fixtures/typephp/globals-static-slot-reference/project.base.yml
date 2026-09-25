@@ -1,0 +1,13 @@
+name: globals-static-slot-reference
+
+sources:
+  - main.php
+
+ignore:
+  - runtime
+
+output: build/globals-static-slot-reference
+mode: bin
+optimize: 2
+job: 4
+debug: false

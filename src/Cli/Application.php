@@ -7,9 +7,15 @@ namespace WebmanAot\Cli;
 use WebmanAot\Doctor\Doctor;
 use WebmanAot\Doctor\NativeSystemProbe;
 use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAot\Project\DistributionVerifier;
+use WebmanAot\Project\ProjectBuilder;
 use WebmanAot\Toolchain\NativeDownloader;
+use WebmanAot\Toolchain\MacosToolchainPreparer;
+use WebmanAot\Toolchain\PreparedToolchain;
 use WebmanAot\Toolchain\ToolchainLocator;
+use WebmanAot\Toolchain\ToolchainPreparer;
 use WebmanAot\Toolchain\ToolchainRepairer;
+use WebmanAot\Toolchain\WindowsToolchainPreparer;
 use WebmanAot\Update\NativeCliSelfChecker;
 use WebmanAot\Update\UpdateManager;
 use WebmanAot\Update\ZipPackageExtractor;
@@ -26,16 +32,22 @@ final class Application
     /** @var \Closure():UpdateManager */
     private readonly \Closure $updateFactory;
 
+    /** @var \Closure():DistributionVerifier */
+    private readonly \Closure $verifierFactory;
+
     /**
      * @param (\Closure():Doctor)|null $doctorFactory
      * @param (\Closure():ToolchainRepairer)|null $repairFactory
      * @param (\Closure():UpdateManager)|null $updateFactory
+     * @param (\Closure():DistributionVerifier)|null $verifierFactory
      */
     public function __construct(
         private readonly UserDirectoryLayout $layout,
         ?\Closure $doctorFactory = null,
         ?\Closure $repairFactory = null,
-        ?\Closure $updateFactory = null
+        ?\Closure $updateFactory = null,
+        ?\Closure $verifierFactory = null,
+        private readonly ?RunLogger $logger = null
     ) {
         $this->doctorFactory = $doctorFactory ?? function (): Doctor {
             $project = getcwd();
@@ -51,7 +63,10 @@ final class Application
                 $locator->activeLock($system->hostId(), $bundledLock),
                 $locator->activeArtifacts($system->hostId()),
                 $project,
-                $system
+                $system,
+                Doctor::MINIMUM_FREE_BYTES,
+                $this->nativePreparer($system->hostId()),
+                $locator->activeGeneration($system->hostId())
             );
         };
         $this->repairFactory = $repairFactory ?? function (): ToolchainRepairer {
@@ -61,7 +76,8 @@ final class Application
                 dirname(__DIR__, 2) . '/toolchain.lock.json',
                 $this->layout,
                 $system->hostId(),
-                new NativeDownloader()
+                new NativeDownloader(),
+                $this->nativePreparer($system->hostId())
             );
         };
         $this->updateFactory = $updateFactory ?? function (): UpdateManager {
@@ -75,9 +91,29 @@ final class Application
                 $system->hostId(),
                 $downloader,
                 new ZipPackageExtractor(),
-                new NativeCliSelfChecker($this->layout)
+                new NativeCliSelfChecker($this->layout),
+                $this->nativePreparer($system->hostId())
             );
         };
+        $this->verifierFactory = $verifierFactory
+            ?? static fn (): DistributionVerifier => new DistributionVerifier();
+    }
+
+    private function nativePreparer(string $host): ?ToolchainPreparer
+    {
+        if ($host === 'macos-arm64') {
+            return new MacosToolchainPreparer(
+                dirname(__DIR__, 2) . '/tools/macos-prepare.php',
+                $this->layout->root()
+            );
+        }
+        if ($host !== 'windows-x86_64') {
+            return null;
+        }
+        return new WindowsToolchainPreparer(
+            dirname(__DIR__, 2) . '/tools/windows-replay.ps1',
+            $this->layout->root()
+        );
     }
 
     /**
@@ -96,6 +132,12 @@ final class Application
         }
         if ($command === 'doctor') {
             return 'doctor';
+        }
+        if ($command === 'build') {
+            return 'build';
+        }
+        if ($command === 'verify') {
+            return 'verify';
         }
         if ($command === 'self-update') {
             return 'self-update';
@@ -126,6 +168,14 @@ final class Application
             $this->runDoctor(array_slice($arguments, 2));
             return;
         }
+        if ($command === 'build') {
+            $this->runBuild(array_slice($arguments, 2));
+            return;
+        }
+        if ($command === 'verify') {
+            $this->runVerify(array_slice($arguments, 2));
+            return;
+        }
         if ($command === 'self-update') {
             $this->runSelfUpdate(array_slice($arguments, 2));
             return;
@@ -150,6 +200,8 @@ final class Application
             '  help       Show this help',
             '  version    Show the CLI version',
             '  doctor     Check the host, project, and locked toolchain',
+            '  build      Compile and verify a Linux amd64 musl distribution',
+            '  verify     Independently check dist-aot (use --deployed after editing external resources)',
             '  self-update [--rollback]  Install or roll back a verified CLI generation',
             '  toolchain update [--rollback]  Install or roll back a verified toolchain',
             '',
@@ -160,6 +212,121 @@ final class Application
         ];
 
         fwrite(STDOUT, implode(PHP_EOL, $lines) . PHP_EOL);
+    }
+
+    /**
+     * @param list<string> $options
+     */
+    private function runBuild(array $options): void
+    {
+        $explicitProfile = null;
+        $json = false;
+        foreach ($options as $option) {
+            if ($option === '--json' || $option === '--format=json') {
+                $json = true;
+                continue;
+            }
+            if (str_starts_with($option, '--profile=') && $explicitProfile === null) {
+                $explicitProfile = substr($option, strlen('--profile='));
+                continue;
+            }
+            throw new UsageException("Unknown build option: {$option}");
+        }
+        if ($explicitProfile === '') {
+            throw new UsageException('build --profile requires webman or saiadmin');
+        }
+        $project = getcwd();
+        if (!is_string($project) || $project === '') {
+            throw new ConfigurationException('cannot resolve the current project directory');
+        }
+        $doctor = ($this->doctorFactory)()->inspect();
+        if (!$doctor->healthy()) {
+            throw new UnavailableException('build doctor failed; run webman-aot doctor for details');
+        }
+        $host = (new NativeSystemProbe())->hostId();
+        $locator = new ToolchainLocator($this->layout);
+        $generation = $locator->activeGeneration($host);
+        if ($generation === null) {
+            throw new UnavailableException('private toolchain is missing; run webman-aot doctor --repair');
+        }
+        $lockFile = $generation . '/toolchain.lock.json';
+        $tools = (new PreparedToolchain())->load(
+            $generation . '/prepared/prepared-toolchain.json',
+            $this->layout->root(),
+            $lockFile,
+            $host
+        );
+        $archive = $this->generatorArchive($lockFile, $generation . '/artifacts');
+        $cache = $this->layout->path('cache') . '/upstream-generator';
+        if (is_link($cache)
+            || (!is_dir($cache) && !mkdir($cache, 0700, true) && !is_dir($cache))
+        ) {
+            throw new ConfigurationException('private upstream generator cache is unsafe');
+        }
+        $result = (new ProjectBuilder())->build(
+            $project,
+            $archive,
+            $cache,
+            dirname(__DIR__, 2) . '/compatibility/locks/webman-workerman-2026-09-25.json',
+            $lockFile,
+            dirname(__DIR__, 2) . '/toolchain/patches/typephp/0.9.2/manifest.json',
+            $tools,
+            $host,
+            function (string $stage): void {
+                $this->logger?->event('info', 'build-stage', $stage, "build entered {$stage}");
+                fwrite(STDERR, "[build] {$stage}\n");
+            },
+            $explicitProfile
+        );
+        if ($json) {
+            fwrite(
+                STDOUT,
+                json_encode(
+                    $result,
+                    JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT
+                        | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                ) . PHP_EOL
+            );
+            return;
+        }
+        fwrite(
+            STDOUT,
+            sprintf(
+                "Built %s: %s (%s)\n",
+                $result['profile'],
+                $result['distribution']['path'],
+                $result['elfSha256']
+            )
+        );
+    }
+
+    private function generatorArchive(string $lockFile, string $artifacts): string
+    {
+        $contents = file_get_contents($lockFile);
+        if (!is_string($contents)) {
+            throw new ConfigurationException('active toolchain lock is missing');
+        }
+        $lock = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        foreach ($lock['components'] ?? [] as $component) {
+            if (!is_array($component)
+                || ($component['id'] ?? null) !== 'webman-typephp-generator-source'
+            ) {
+                continue;
+            }
+            $urlPath = parse_url((string) ($component['sourceUrl'] ?? ''), PHP_URL_PATH);
+            $filename = is_string($urlPath) ? basename($urlPath) : '';
+            $path = $artifacts . '/' . $filename;
+            $actual = is_file($path) && !is_link($path)
+                ? hash_file('sha256', $path)
+                : false;
+            if ($filename === '' || !is_string($actual)
+                || !hash_equals((string) ($component['sha256'] ?? ''), $actual)
+            ) {
+                throw new UnavailableException('locked upstream generator archive is missing or corrupt');
+            }
+            return $path;
+        }
+        throw new ConfigurationException('toolchain lock lacks the upstream generator archive');
     }
 
     /**
@@ -207,6 +374,79 @@ final class Application
         if (!$report->healthy()) {
             throw new UnavailableException('doctor found one or more failed checks');
         }
+    }
+
+    /**
+     * @param list<string> $options
+     */
+    private function runVerify(array $options): void
+    {
+        $path = null;
+        $deployed = false;
+        $json = false;
+        foreach ($options as $option) {
+            if ($option === '--deployed') {
+                $deployed = true;
+                continue;
+            }
+            if ($option === '--json' || $option === '--format=json') {
+                $json = true;
+                continue;
+            }
+            if (str_starts_with($option, '--path=') && $path === null) {
+                $path = substr($option, strlen('--path='));
+                if ($path === '') {
+                    throw new UsageException('verify --path requires a directory');
+                }
+                continue;
+            }
+            throw new UsageException("Unknown verify option: {$option}");
+        }
+        if ($path === null) {
+            $project = getcwd();
+            if (!is_string($project) || $project === '') {
+                throw new ConfigurationException('cannot resolve the current project directory');
+            }
+            $path = $project . '/dist-aot';
+        }
+        $verified = ($this->verifierFactory)()->verify(
+            $path,
+            strictMutable: !$deployed
+        );
+        $report = [
+            'schema' => 'webman-aot-verify-report-v1',
+            'path' => realpath($path),
+            'mode' => $deployed ? 'deployed' : 'package',
+            'scope' => $verified['ldd'] === 'static'
+                ? 'target-static-and-integrity'
+                : 'build-host-structure-and-integrity',
+            'staticStructure' => 'pass',
+            'targetLdd' => $verified['ldd'],
+            'files' => $verified['files'],
+            'compiledDirect' => $verified['compiledDirect'],
+            'compiledShadow' => $verified['compiledShadow'],
+        ];
+        if ($json) {
+            fwrite(
+                STDOUT,
+                json_encode(
+                    $report,
+                    JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT
+                        | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                ) . PHP_EOL
+            );
+            return;
+        }
+        fwrite(
+            STDOUT,
+            sprintf(
+                "Checked %d managed files; business PHP: %d direct, %d AOT shadows; target ldd: %s\n",
+                $verified['files'],
+                $verified['compiledDirect'],
+                $verified['compiledShadow'],
+                $verified['ldd']
+            )
+        );
     }
 
     /**

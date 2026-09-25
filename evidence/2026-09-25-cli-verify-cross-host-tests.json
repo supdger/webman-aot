@@ -1,0 +1,37 @@
+{
+  "schema": "webman-aot-cli-verify-cross-host-tests-v1",
+  "date": "2026-09-25",
+  "status": "source-test-pass",
+  "scope": "Current global CLI verify, distribution assembly and compiler-path tests on macOS ARM64 and a physical Windows x64 host; not a new TypePHP build or Linux runtime acceptance",
+  "transport": "Direct authenticated SSH to the user's Windows host; isolated source copy under the current user's private validation directory",
+  "source": {
+    "macArchiveSha256": "821dd33496b9389dc02a7f7a023b31c1b839c5137e273798b49e3da137de1360",
+    "windowsArchiveSha256": "821dd33496b9389dc02a7f7a023b31c1b839c5137e273798b49e3da137de1360",
+    "subsequentMacWindowsMatchedOverrides": {
+      "src/Project/DistributionAssembler.php": "27fa065e22427448cb86f9adf8fe34218642ef95c9b8a819d9ab7fdf9fc5707f",
+      "tests/DistributionAssemblerTest.php": "0f7d294aaf6e4de0af44f018e00123d79cb42a75499604c4db3c3899c4f93642",
+      "src/Toolchain/TypePhpProjectCompiler.php": "9a3178ed22121a9be7d6d521fe3c41c33c241c10c118630377bae79075438017"
+    }
+  },
+  "windows": {
+    "php": "Private locked PHP 8.4.25 ZTS driver with OpenSSL and Zip extensions explicitly enabled",
+    "testCommand": "php -n -d extension_dir=<private-driver-ext> -d extension=php_openssl.dll -d extension=php_zip.dll tests/run.php",
+    "passedTestGroups": 36,
+    "result": "exit 0"
+  },
+  "macos": {
+    "passedTestGroups": 36,
+    "result": "exit 0"
+  },
+  "failuresResolvedDuringReplay": [
+    "Windows path ownership comparison rejected slash/backslash-equivalent mirror paths.",
+    "Compiler private-path scan missed the mixed-separator path spelling supplied to the compiler.",
+    "The isolated test archive had to be created without macOS metadata files; no existing Windows project was overwritten."
+  ],
+  "limits": [
+    "The verify command checks ELF structure and package integrity on Mac/Windows; target Linux ldd and runtime checks remain separate.",
+    "No fresh Windows TypePHP application compile was performed in this replay.",
+    "The private toolchain archive downloader does not yet materialize a build-ready SDK for the global build command.",
+    "No SaiAdmin or bare-metal business acceptance is claimed."
+  ]
+}

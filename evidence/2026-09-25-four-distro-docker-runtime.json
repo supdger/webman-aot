@@ -1,0 +1,111 @@
+{
+  "schema": "webman-aot-four-distro-docker-runtime-v1",
+  "date": "2026-09-25",
+  "scope": "Supplemental runtime smoke test in Linux amd64 containers on a macOS ARM64 Docker Desktop host; not a build path or bare-metal acceptance",
+  "artifact": {
+    "source": "Previously built neutral Webman plugin distribution",
+    "elfSha256": "39717ecf62518010e55f1f634949a0b0b341c07a7c9339c5c342dc1ca9263caa",
+    "rebuiltForThisTest": false,
+    "containerSetup": "Read-only bind mount of the existing distribution, copied into each disposable container; only the copied config/process.php listen address changed from 127.0.0.1:18781 to 0.0.0.0:18781 for loopback-only Docker port forwarding"
+  },
+  "host": {
+    "dockerServer": "29.0.1",
+    "dockerArchitecture": "linux/aarch64",
+    "containerPlatform": "linux/amd64",
+    "reportedKernel": "Linux/6.12.54-linuxkit",
+    "portBinding": "127.0.0.1:18781:18781"
+  },
+  "results": [
+    {
+      "image": "ubuntu:22.04",
+      "digest": "sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02",
+      "architecture": "linux/amd64",
+      "startup": "Start success",
+      "health": "HTTP 200, body ok",
+      "neutralPlugin": "HTTP 200, body neutral-ok",
+      "containerStopped": true
+    },
+    {
+      "image": "centos:7",
+      "digest": "sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4",
+      "architecture": "linux/amd64",
+      "startup": "Start success",
+      "health": "HTTP 200, body ok",
+      "neutralPlugin": "HTTP 200, body neutral-ok",
+      "containerStopped": true
+    },
+    {
+      "image": "alibaba-cloud-linux-3-registry.cn-hangzhou.cr.aliyuncs.com/alinux3/alinux3:latest",
+      "digest": "sha256:fd25a109fcbd1ff33692ac32e1890c986fe7b4b656ab54a27a69aba04b8360c7",
+      "architecture": "linux/amd64",
+      "startup": "Start success",
+      "health": "HTTP 200, body ok",
+      "neutralPlugin": "HTTP 200, body neutral-ok",
+      "containerStopped": true
+    },
+    {
+      "image": "alibaba-cloud-linux-4-registry.cn-hangzhou.cr.aliyuncs.com/alinux4/alinux4:latest",
+      "digest": "sha256:87143e49580a7309bbc04c528f35274ead263b47c0c7c66d047e076797b851e9",
+      "architecture": "linux/amd64",
+      "startup": "Start success",
+      "health": "HTTP 200, body ok",
+      "neutralPlugin": "HTTP 200, body neutral-ok",
+      "containerStopped": true
+    }
+  ],
+  "saiAdmin": {
+    "elfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+    "rebuiltForThisTest": false,
+    "isolation": "Each disposable container used --network none, with no external database or port publishing. Only its copied config/process.php worker count changed from cpu_count() * 4 to 1.",
+    "centos7": {
+      "startup": "Start success",
+      "captcha": "GET /core/captcha: HTTP 200; JSON code 200, message success, data keys image/result/uuid",
+      "containerStopped": true
+    },
+    "ubuntu2204": {
+      "startup": "Start success",
+      "captcha": "GET /core/captcha: JSON code 200, message success, data keys image/result/uuid",
+      "containerStopped": true
+    },
+    "alibabaCloudLinux3": {
+      "startup": "Start success",
+      "captcha": "GET /core/captcha: JSON code 200, message success, data keys image/result/uuid",
+      "containerStopped": true
+    },
+    "alibabaCloudLinux4": {
+      "startup": "Start success",
+      "captcha": "GET /core/captcha: JSON code 200, message success, data keys image/result/uuid",
+      "containerStopped": true
+    },
+    "runtimeNotices": "Existing PHP deprecation notices from Carbon, Think Collection, Webman Finder and Brick Math appeared during startup; they did not prevent startup or the captcha response."
+  },
+  "cleanup": {
+    "namedTestContainerIds": [
+      "1884ac2257f0c21a7d452c979289e2699ddb706f6ab3e35e00d078d080e457a3",
+      "f0e9903b67f14ac6f64a654e6e437f1c8d28ec94ea6d4e09d49f693a2d73424f",
+      "37d46558e5259446c448ff97368f223d0721378c739cffec6d099be2fe1e2ad4",
+      "bb0af4ddc0f2eec04d5e598eb39e51bdf8eb8a2f950602b268afe0120d895c96",
+      "60c017e875683a0fdeca6cab56372fd8fd5e37a98c9373f0cb889ff80cb998fb",
+      "495210875fa53824c0a61de59ec40ba800318db9f8421162e172010b1c6b81bc",
+      "4fb2beb7d46df249b2a5faf81d7ce4fb672edb3f8fd02eb34b07b2186a96e88e",
+      "6e0a702d0d442fa786370dc36470639704d4bec9e51d174603a865c47cc894bc"
+    ],
+    "testContainers": "All named and anonymous --rm containers were stopped or exited; docker ps -a returned no containers before and after image removal.",
+    "newTestImagesDeleted": [
+      "sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02",
+      "sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4",
+      "sha256:fd25a109fcbd1ff33692ac32e1890c986fe7b4b656ab54a27a69aba04b8360c7",
+      "sha256:87143e49580a7309bbc04c528f35274ead263b47c0c7c66d047e076797b851e9"
+    ],
+    "newVolumes": 0,
+    "newNetworks": 0,
+    "dockerDesktop": "Left running because absence of dependencies from other tasks was not established."
+  },
+  "limits": [
+    "All containers share Docker Desktop's LinuxKit kernel, not each distribution's bare-metal kernel.",
+    "amd64 execution on the macOS ARM64 host is emulated.",
+    "SaiAdmin login, user information, permission denial and ordinary-PHP comparison were not tested in this matrix because no isolated database was provisioned for this test.",
+    "CentOS 7 official container image is historical and end-of-life; this smoke test does not establish maintained-server support.",
+    "Required CentOS 7, Alibaba Cloud Linux 3/4, and Ubuntu 22.04 bare-metal acceptance remains open."
+  ]
+}

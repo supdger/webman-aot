@@ -19,7 +19,8 @@ final class UpstreamGeneratorBoundary
         string $generatorSha256,
         array $packages,
         array $expected,
-        \Closure $generate
+        \Closure $generate,
+        bool $saiAdminGenerated = false
     ): array {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror) || !$this->isBuildMirror($mirror) || $expected === []) {
@@ -86,6 +87,13 @@ final class UpstreamGeneratorBoundary
                 $actual[$relative] = true;
             }
         }
+        if ($saiAdminGenerated) {
+            $this->includeSaiAdminGenerated($mirror, $expected, $actual);
+            $targets = [];
+            foreach ($expected as $entry) {
+                $targets[$entry['shadow']] = true;
+            }
+        }
         $extra = array_diff_key($actual, $targets);
         if ($extra !== []) {
             throw new ConfigurationException(
@@ -136,6 +144,114 @@ final class UpstreamGeneratorBoundary
             ];
         }
         return $manifest;
+    }
+
+    /**
+     * The pinned upstream generator owns SaiAdmin's larger compatibility matrix.
+     * Its declared source-to-shadow maps and business coverage manifest must
+     * account for every generated file; no inferred filename or wildcard is
+     * accepted. Project-specific hashes are captured after generation.
+     *
+     * @param array<string,array{shadow:string,sourceSha256:string,shadowSha256:string}> $expected
+     * @param array<string,true> $actual
+     */
+    private function includeSaiAdminGenerated(string $mirror, array &$expected, array $actual): void
+    {
+        $generator = \Tinywan\Typephp\Compiler\ProjectGenerator::class;
+        $maps = [
+            'GUARDED_SOURCES',
+            'NULLABLE_STATIC_SOURCES',
+            'STRAY_BOOTSTRAP_SOURCES',
+            'PRELOAD_HINT_SOURCES',
+            'VARIADIC_HANDLER_SOURCES',
+            'SWITCH_TERMINAL_SOURCES',
+            'REF_CAPTURE_SOURCES',
+        ];
+        $declared = [];
+        foreach ($maps as $name) {
+            $rules = constant($generator . '::' . $name);
+            if (!is_array($rules)) {
+                throw new ConfigurationException("upstream SaiAdmin mapping is invalid: {$name}");
+            }
+            foreach ($rules as $source => $specification) {
+                $shadow = is_array($specification) ? ($specification[0] ?? null) : $specification;
+                $this->addSaiAdminDeclaration($declared, $source, $shadow);
+            }
+        }
+        $coveragePath = $mirror . '/.typephp/build/source-coverage.json';
+        $coverageContents = is_file($coveragePath) && !is_link($coveragePath)
+            ? file_get_contents($coveragePath)
+            : false;
+        if (!is_string($coverageContents)) {
+            throw new ConfigurationException('SaiAdmin generated business coverage is missing');
+        }
+        try {
+            $coverage = json_decode($coverageContents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new ConfigurationException(
+                'SaiAdmin generated business coverage is invalid',
+                previous: $exception
+            );
+        }
+        if (!is_array($coverage)
+            || ($coverage['profile'] ?? null) !== 'saiadmin'
+            || !is_array($coverage['files'] ?? null)
+        ) {
+            throw new ConfigurationException('SaiAdmin generated business coverage shape drifted');
+        }
+        foreach ($coverage['files'] as $entry) {
+            if (!is_array($entry) || ($entry['mode'] ?? null) !== 'generated') {
+                continue;
+            }
+            $source = $entry['path'] ?? null;
+            if (!is_string($source)
+                || !preg_match('~^(app|support|plugin/[A-Za-z0-9_-]+)/(?:[A-Za-z0-9_./-]+)\.php$~D', $source)
+            ) {
+                throw new ConfigurationException('SaiAdmin business shadow has an unsafe source');
+            }
+            $this->addSaiAdminDeclaration($declared, $source, $entry['compiled_path'] ?? null);
+        }
+        $compilerInputs = $this->readCompilerInputs($mirror);
+        foreach ($actual as $shadow => $_) {
+            $source = $declared[$shadow] ?? null;
+            if (is_string($source) && isset($expected[$source])) {
+                if ($expected[$source]['shadow'] !== $shadow) {
+                    throw new ConfigurationException(
+                        "SaiAdmin generated mapping conflicts with locked shadow: {$source}"
+                    );
+                }
+                continue;
+            }
+            if (!is_string($source)
+                || !isset($compilerInputs['sources'][$shadow])
+                || !isset($compilerInputs['ignore'][$source])
+            ) {
+                throw new ConfigurationException("undeclared SaiAdmin AOT replacement: {$shadow}");
+            }
+            $this->assertRelativePhp($source, 'source');
+            $this->assertRelativePhp($shadow, 'shadow');
+            $expected[$source] = [
+                'shadow' => $shadow,
+                'sourceSha256' => $this->digestFile($this->inside($mirror, $source), $source),
+                'shadowSha256' => $this->digestFile($this->inside($mirror, $shadow), $shadow),
+            ];
+        }
+    }
+
+    /** @param array<string,string> $declared */
+    private function addSaiAdminDeclaration(array &$declared, mixed $source, mixed $shadow): void
+    {
+        if (!is_string($source) || !is_string($shadow)) {
+            throw new ConfigurationException('upstream SaiAdmin source mapping is invalid');
+        }
+        $this->assertRelativePhp($source, 'source');
+        $this->assertRelativePhp($shadow, 'shadow');
+        if (!str_starts_with($shadow, '.typephp/build/')
+            || (isset($declared[$shadow]) && $declared[$shadow] !== $source)
+        ) {
+            throw new ConfigurationException("upstream SaiAdmin shadow mapping drifted: {$shadow}");
+        }
+        $declared[$shadow] = $source;
     }
 
     /**

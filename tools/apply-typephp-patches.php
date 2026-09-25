@@ -76,6 +76,24 @@ try {
         '0003-reproducible-source-identities.patch',
         '0004-full-static-host-target-separation.patch',
         '0005-windows-clang-response-paths.patch',
+        '0006-pcntl-target-reference-metadata.patch',
+        '0007-full-static-skip-host-php-import-libs.patch',
+        '0008-full-static-linux-internal-metadata.patch',
+        '0009-full-static-linux-builtin-lifetime.patch',
+        '0010-reproducible-arginfo-source-identity.patch',
+        '0011-native-inheritance-and-target-reference-calls.patch',
+        '0012-loop-probe-defers-unknown-foreach-vars.patch',
+        '0013-namespaced-global-function-dependencies.patch',
+        '0014-default-helpers-and-globals-reference.patch',
+        '0015-portable-full-static-magic-dir.patch',
+        '0016-embedded-anonymous-class-valid-php.patch',
+        '0017-full-static-anonymous-source-embedding.patch',
+        '0018-full-static-target-php-eol.patch',
+        '0019-full-static-target-internal-functions.patch',
+        '0020-full-static-target-constants-and-host-functions.patch',
+        '0021-portable-source-scan-order.patch',
+        '0022-full-static-hide-host-only-reflection.patch',
+        '0023-full-static-select-target-reflection.patch',
     ] as $patch) {
         $applier->apply($patchDirectory . '/' . $patch, $typephp);
     }
@@ -95,7 +113,7 @@ try {
             [
                 'component' => 'typephp-source',
                 'version' => '0.9.2',
-                'patches' => 5,
+                'patches' => 23,
                 'rules' => count($rules),
                 'status' => 'applied-and-verified',
             ],

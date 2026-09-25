@@ -1,0 +1,34 @@
+{
+  "schema": "webman-aot-alinux3-isolated-db-preflight-v1",
+  "date": "2026-09-25",
+  "hostClass": "Alibaba Cloud Linux 3 x86_64 ECS",
+  "database": {
+    "engine": "MariaDB 10.5.29",
+    "installation": "signed distribution RPMs extracted into a task-owned private directory; no system database package or service installed",
+    "bindAddress": "127.0.0.1",
+    "port": 13306,
+    "isolatedDatabaseAndAccountCreated": true,
+    "testAccountTcpLogin": "pass",
+    "applicationSchemaImported": false,
+    "shutdownVerified": true
+  },
+  "hostPreflight": {
+    "availableMemory": "2.1 GiB",
+    "availableDisk": "38 GiB"
+  },
+  "artifactTransfer": {
+    "workbenchSsmFileManager": "unsupported",
+    "ecsConsoleUpload": "available, not yet authorized for private artifact",
+    "packageUploaded": false
+  },
+  "businessAcceptance": {
+    "captcha": "not run with database",
+    "login": "not run",
+    "userInfo": "not run",
+    "permissionDenied": "not run"
+  },
+  "cleanup": {
+    "databaseProcessStopped": true,
+    "temporaryPrivateDirectoryRetainedForResumption": true
+  }
+}

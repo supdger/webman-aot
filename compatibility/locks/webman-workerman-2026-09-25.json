@@ -28,6 +28,75 @@
     "profileSha256": "e7614758435ed7c0336e63642d757a62eb6574dbd9bc1bcf799827216da6c175",
     "mainStubSha256": "179bd48dcbcbe81accc456c8cb57a3c0a478b02ea774f6c7d2587f7025e9c56e"
   },
+  "entrypointMapping": {
+    "source": "vendor/workerman/webman-framework/src/support/bootstrap.php",
+    "sourceSha256": "0c71c1e472e9c7873f2560b9345350347638c78116aee18c69a9f47c9b59229f",
+    "replacement": "main.php",
+    "replacementSha256": "179bd48dcbcbe81accc456c8cb57a3c0a478b02ea774f6c7d2587f7025e9c56e",
+    "policy": "upstream.webman-bootstrap-entrypoint.v1"
+  },
+  "dynamicPhp": {
+    "vendor/workerman/webman-framework/src/support/view/Blade.php": "e546e508971f41eb583d2a282d05b8ba35f9b7cf2a60cd658645512b846c7239",
+    "vendor/workerman/webman-framework/src/support/view/Raw.php": "fcb2e1e604c4dd56cfe3a878fff38b34a46cf718da43d91d244ee6141aa95e4c",
+    "vendor/workerman/webman-framework/src/support/view/ThinkPHP.php": "c07a8300089838416c97f88424a43fbd894be252933e0cdd9e78fead47728e53",
+    "vendor/workerman/webman-framework/src/support/view/Twig.php": "a8d4b47f638942bd6fb8537b2841c523986e648d330cc9299394811bd4cef922"
+  },
+  "installOnly": {
+    "vendor/workerman/webman-framework/src/support/Plugin.php": {
+      "sourceSha256": "902dabf8ecbcf47ebc8696d39ae904d3fa631ad5a1baa812bb4a9e72825c3fa6",
+      "policy": "webman.composer-installer.v1"
+    }
+  },
+  "optionalAdaptations": {
+    "monolog/monolog": {
+      "path": "vendor/monolog/monolog/src/Monolog/Processor/WebProcessor.php",
+      "version": "2.11.1",
+      "reference": "bf2403f591c5a431b6e0e1170cbadd3d64499564",
+      "sourceSha256": "731ed1b263428ebba3ddd194a5f41e01e6c3ce8b8a22bd8c67e7f96776bd5ac5",
+      "adaptedSha256": "c1d20d1ebfcaf657e6668c0ea3d9ac7750ffd782c0d4ec1d3450f2df63d6aa62",
+      "rule": "monolog.web-processor-global-reference.v1"
+    },
+    "symfony/native-intl-polyfill": {
+      "rule": "symfony.native-intl-polyfill.v1",
+      "packages": {
+        "symfony/polyfill-intl-grapheme": {
+          "version": "v1.41.0",
+          "reference": "bb899c1db0aa8127dc3afe8cda4a67eb24915f8d",
+          "bootstrapSha256": "e51c7890e24f9104a86421b570fafc170d3c9a9237b60bda1938b384b0a19a00"
+        },
+        "symfony/polyfill-intl-idn": {
+          "version": "v1.42.0",
+          "reference": "51b5ff5ba85452b31ec6f55490b08148612339d9",
+          "bootstrapSha256": "235b2ec58965606763d4939d9adecf447064056589ccf14840a8401685a89a85"
+        },
+        "symfony/polyfill-intl-normalizer": {
+          "version": "v1.42.0",
+          "reference": "aa20edea75bd9c48cfecc8360922e5a6e5c44502",
+          "bootstrapSha256": "94fdd20bc0e35705fec054797d1a7f3f0f13cde9832782033eb2508fac7d6a0d"
+        }
+      },
+      "shadows": {
+        "grapheme": {"sourceSha256": "edca87b203d993d0c68164e015f1aa35c7e9f5bda1b41e18f57f05a3239d63e1"},
+        "idn": {"sourceSha256": "2ceb55fec004a138f57780825ef5c9b35d35820a1d32a9bfd94ae42fb85ee057"},
+        "normalizer": {"sourceSha256": "f967d0c8dc18119eae82319c16a1d89c8c3d3e342298e1c4e0e0f638951f0194"}
+      },
+      "adaptedGraphemeSha256": "6904b982be5c476b50c81ea8f5fc8e5218bc268041461ee3ec7f3f670778c7d0"
+    }
+  },
+  "runtimeResources": {
+    "webman/captcha": {
+      "version": "v1.0.5",
+      "reference": "0b2645b813466e4e70bff311511364080bad2ec5",
+      "builderSha256": "306dabba038981082886a335571abdffa996406870db09606486a0794c63ef41",
+      "fonts": {
+        "captcha0.ttf": "da4281dc7db17a3dfce64a62ced92875c5895340055ec8ba24a3914eb97b349d",
+        "captcha1.ttf": "31a52ab4b2f576f99cfe52d758214458aa1206739a26c3a75f16000160f60ec9",
+        "captcha2.ttf": "e27b479dfd595696bbd72c7167447e3f27ebf7d171ebc9b753151afe54d17031",
+        "captcha3.ttf": "e337ada1698a32481459f918e164e57f6b8a4ea8499fd6ebed0b0fbc6288f91c",
+        "captcha4.ttf": "62523df9964670f58702447cea589158de9d7fbbfdfd34e7007f19c2120bf4c1"
+      }
+    }
+  },
   "mappings": {
     "vendor/nikic/fast-route/src/functions.php": {
       "shadow": ".typephp/build/fast-route-functions.php",
@@ -46,8 +115,8 @@
     },
     "vendor/workerman/coroutine/src/Barrier/Swoole.php": {
       "shadow": ".typephp/build/coroutine-barrier-swoole.php",
-      "sourceSha256": "540f9a7e8a8b0fd50e7e9852efe2d4ef56a573a94bbbced26742ccb5cab71514",
-      "shadowSha256": "1437a58df7e126732c4d416e08efacfe43592a16422b8c0a013dce67d9913fe6"
+      "sourceSha256": "3727fdfd479a1d500ac40cef692cd47888b7ad432fb67ea6e3f456f3414dca1d",
+      "shadowSha256": "a9c11963bef0a41770877d15197516968cdc7fec7c56607d88747153cf8fe0be"
     },
     "vendor/workerman/coroutine/src/Barrier/Fiber.php": {
       "shadow": ".typephp/build/coroutine-barrier-fiber.php",
@@ -157,7 +226,8 @@
     "vendor/workerman/workerman/src/Worker.php": {
       "shadow": ".typephp/build/workerman-worker.php",
       "sourceSha256": "70c34def8cf717851dec463e1b8f488caf80a045e1f1d9cdd9b847d4bef31d75",
-      "shadowSha256": "37e364bec170a998311b0d1f649b3cf2c0721d44d8a39abb94c4bf51d8dffd74"
+      "shadowSha256": "37e364bec170a998311b0d1f649b3cf2c0721d44d8a39abb94c4bf51d8dffd74",
+      "adaptedShadowSha256": "fbfa3cec5dd2dd7f5cc1209d0061219834e3bcd447ba440e75d8168fa36dfc0d"
     }
   }
 }

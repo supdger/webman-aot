@@ -10,30 +10,52 @@ final class ElfStaticVerifierTest
     {
         $verifier = new ElfStaticVerifier();
         $static = $this->fixture([1, 7]);
+        $staticPie = $this->fixture([1], 3);
         $dynamic = $this->fixture([1, 3]);
+        $dynamicSegment = $this->fixture([1, 2]);
+        $empty = $this->fixture([]);
+        $unloadable = $this->fixture([7]);
+        $relocatable = $this->fixture([1], 1);
 
         try {
             $verifier->assertFullyStaticX86_64($static);
-
-            $failed = false;
-            try {
-                $verifier->assertFullyStaticX86_64($dynamic);
-            } catch (RuntimeException $exception) {
-                $failed = str_contains($exception->getMessage(), 'PT_INTERP');
-            }
-            if (!$failed) {
-                throw new RuntimeException('PT_INTERP fixture must fail closed');
-            }
+            $verifier->assertFullyStaticX86_64($staticPie);
+            $this->assertRejected($verifier, $dynamic, 'PT_INTERP');
+            $this->assertRejected($verifier, $dynamicSegment, 'PT_DYNAMIC');
+            $this->assertRejected($verifier, $empty, 'no program headers');
+            $this->assertRejected($verifier, $unloadable, 'no PT_LOAD');
+            $this->assertRejected($verifier, $relocatable, 'executable ELF type');
         } finally {
             @unlink($static);
+            @unlink($staticPie);
             @unlink($dynamic);
+            @unlink($dynamicSegment);
+            @unlink($empty);
+            @unlink($unloadable);
+            @unlink($relocatable);
         }
+    }
+
+    private function assertRejected(
+        ElfStaticVerifier $verifier,
+        string $path,
+        string $expected
+    ): void {
+        try {
+            $verifier->assertFullyStaticX86_64($path);
+        } catch (RuntimeException $exception) {
+            if (str_contains($exception->getMessage(), $expected)) {
+                return;
+            }
+            throw $exception;
+        }
+        throw new RuntimeException("ELF fixture must reject {$expected}");
     }
 
     /**
      * @param list<int> $programTypes
      */
-    private function fixture(array $programTypes): string
+    private function fixture(array $programTypes, int $elfType = 2): string
     {
         $path = tempnam(sys_get_temp_dir(), 'webman-aot-elf-');
         if ($path === false) {
@@ -41,7 +63,7 @@ final class ElfStaticVerifierTest
         }
 
         $header = "\x7fELF\x02\x01\x01" . str_repeat("\0", 9);
-        $header .= pack('v', 2);
+        $header .= pack('v', $elfType);
         $header .= pack('v', 62);
         $header .= pack('V', 1);
         $header .= pack('V2', 0, 0);

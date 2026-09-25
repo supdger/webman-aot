@@ -1,0 +1,57 @@
+{
+  "schema": "webman-aot-runtime-data-package-fix-v1",
+  "date": "2026-09-25",
+  "scope": "SaiAdmin 6.1.5 runtime export data exclusion in the Linux amd64 musl distribution",
+  "cause": "plugin/saiadmin/public/export was treated as a static resource, copying nine pre-existing private spreadsheet exports into both earlier test distributions",
+  "supersededCandidate": "2026-09-25-current-source-installer-candidate.json",
+  "fix": {
+    "source": "src/Project/RuntimeDataPaths.php",
+    "behavior": "Exclude runtime export and storage contents from source snapshot, mirror and resource package; retain an empty writable export directory; reject PHP and symlinks inside excluded directories"
+  },
+  "fixedInstallerArchives": {
+    "directory": "dist/installers/exportguard-candidate",
+    "macosArm64Sha256": "da763c86f84aa7d8493cb9692d54cba6e5ec32089c473ced6c2a30e56f7c27ad",
+    "windowsX64Sha256": "82c3eaf5e5844d3fc7f190863b8a36053fa0acd5ef66edd133403eac336b2f1a",
+    "archiveIntegrity": "both pass after copying into the project distribution directory",
+    "runtimeDataPathsPhpSha256InSourceAndBothArchives": "2650a54ed4d2a6944e69472ec4493f8791e6d955897e9fd39828ed1e1379fee8",
+    "repositoryDocumentationShippedInInstaller": false,
+    "status": "local test archives, not published"
+  },
+  "verification": {
+    "testGroupsPassed": 44,
+    "testGroupsFailed": 0,
+    "macInstalledCliSaiAdminBuild": {
+      "compiledUnits": 2076,
+      "compiledDirect": 185,
+      "compiledShadow": 26,
+      "sourceSha256": "442963860b6f7e783e0341c638e7013f78675ce099246361e24dac5201915e73",
+      "normalizedInputSha256": "c341864285f54bbefdfa5bd48402fca28eda7ecbbff197aa4807a3984ae0bf10",
+      "elfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+      "sameElfAsPriorCrossHostAndServerRuntime": true,
+      "distributionFiles": 98,
+      "historicalExportFilesIncluded": 0,
+      "emptyWritableExportDirectoryPresent": true,
+      "independentPackageVerify": "pass"
+    },
+    "windowsInstalledCli": {
+      "fixedArchiveSha256MatchedAfterTransfer": true,
+      "isolatedInstall": "pass",
+      "doctorInSaiAdminProject": "pass",
+      "redundantFullRebuild": "not required or counted as a delivery gate: the previously compared Mac and Windows ELF hashes match the repaired Mac ELF; the repair only changes runtime resource copying",
+      "isolatedTestDirectoryCleanup": "pass: D:/aot-installer-verify-20260925 removed and Test-Path returned false; original D:/htdocs projects untouched"
+    },
+    "priorMacWindowsSaiAdminBuild": {
+      "sameElfSha256": "53dc4044a4f8e06f2e988552be9b8aa3dd1b87d53cd519e11a593ac826400f44",
+      "note": "Both prior packages had the runtime export leak and are not distribution candidates."
+    },
+    "targetHostsForSameElf": [
+      "CentOS 7.9 x86_64 VM: static ELF, startup and captcha pass",
+      "Alibaba Cloud Linux 3 x86_64 ECS: static ELF, startup and captcha pass"
+    ]
+  },
+  "limits": [
+    "No claim is made that the repaired Windows installer independently produced a second post-fix distribution; its installed code hash and doctor were checked.",
+    "Target hosts did not run login, authenticated user information or permission-denial paths against an isolated database.",
+    "The candidate is uncommitted and unpublished; license review remains open."
+  ]
+}

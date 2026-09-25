@@ -1,0 +1,28 @@
+--- a/src/Resolver/Reflection.php
++++ b/src/Resolver/Reflection.php
+@@ -15,4 +15,10 @@
+     private static array $functions = [];
+     private static array $classes = [];
+     private static array $interfaces = [];
++    private static bool $targetLinuxFullStatic = false;
++
++    public static function setTargetLinuxFullStatic(bool $enabled): void
++    {
++        self::$targetLinuxFullStatic = $enabled;
++    }
+ 
+@@ -73,3 +79,14 @@
+     public static function getFunction(string $fn): ?\ReflectionFunction
+     {
++        if (self::$targetLinuxFullStatic
++            && in_array(strtolower(ltrim($fn, '\\')), [
++                'sapi_windows_vt100_support',
++                'sapi_windows_cp_get',
++                'sapi_windows_cp_set',
++                'sapi_windows_cp_conv',
++            ], true)) {
++            // These host functions are absent from the locked Linux target.
++            return null;
++        }
++
+         if (!isset(self::$functions[$fn])) {

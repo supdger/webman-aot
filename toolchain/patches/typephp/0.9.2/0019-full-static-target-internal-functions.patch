@@ -1,0 +1,16 @@
+--- a/src/CompilerBase.php
++++ b/src/CompilerBase.php
+@@ -1559,7 +1559,12 @@
+                 // Linux SDK builtin even when the Windows driver lacks it.
+                 return true;
+             }
+-            if ($targetFunction === 'sapi_windows_vt100_support') {
++            if (in_array($targetFunction, [
++                'sapi_windows_vt100_support',
++                'sapi_windows_cp_get',
++                'sapi_windows_cp_set',
++                'sapi_windows_cp_conv',
++            ], true)) {
+                 // Windows driver builtin, but not a Linux SDK builtin.
+                 return false;
+             }

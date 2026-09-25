@@ -1,0 +1,12 @@
+--- a/src/Build/SourcePipelineTrait.php
++++ b/src/Build/SourcePipelineTrait.php
+@@ -268,6 +268,8 @@
+     protected function canEmbedAnonymousClassOpcode(): bool
+     {
+-        return $this->isBuildModeBin() && !$this->isNanoMode()
++        // Full-static Linux output must not depend on whether the build-host
++        // PHP happens to have OPcache or on host-specific opcode file paths.
++        return !$this->fullStatic && $this->isBuildModeBin() && !$this->isNanoMode()
+             && !$this->isIosTarget() && !$this->isAndroidTarget() && !$this->isWasiTarget()
+             && $this->probeOpcodeBuildExtensionArgs() !== null;
+     }

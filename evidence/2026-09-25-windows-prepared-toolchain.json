@@ -1,0 +1,32 @@
+{
+    "schema": "webman-aot-windows-prepared-toolchain-evidence-v1",
+    "host": "windows-x86_64",
+    "connection": "direct SSH from macOS to Windows",
+    "containerUsed": false,
+    "projectModified": false,
+    "sourceScriptSha256": "cafdbdff2617f3b5dbd71f7e28deb6d18b9dc4f39de4a6be375ce1a0d2534d13",
+    "toolchainLockSha256": "32a733adad9f8e5b82e8c8fa6a90730989a28717f70b7eed91b5c9f711a1e7d8",
+    "sdkSha256": "bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb",
+    "typephpPatchStatus": "applied-and-verified",
+    "typephpPatches": 10,
+    "typephpRules": 13,
+    "muslSysrootAssembled": true,
+    "preparedToolchainManifestPresent": true,
+    "preparedToolchainAdmission": {
+        "result": "passed",
+        "checks": [
+            "manifest is inside the user-private directory",
+            "host and lock digest match",
+            "PHP, TypePHP, PHPX, LLVM and sysroot paths resolve privately",
+            "static SDK fingerprint matches"
+        ]
+    },
+    "preparedToolchainNegativeTests": {
+        "hostDrift": "passed",
+        "lockDrift": "passed",
+        "pathEscape": "passed",
+        "sdkTampering": "passed"
+    },
+    "prepareOnlyExitCode": 0,
+    "scope": "Windows private toolchain preparation only; no Webman project build or runtime acceptance"
+}

@@ -14,7 +14,8 @@ final class ToolchainRepairer
         private readonly string $lockPath,
         private readonly UserDirectoryLayout $layout,
         private readonly string $host,
-        private readonly Downloader $downloader
+        private readonly Downloader $downloader,
+        private readonly ?ToolchainPreparer $preparer = null
     ) {
     }
 
@@ -97,9 +98,19 @@ final class ToolchainRepairer
         $activeManifest = $activeGeneration === null
             ? []
             : $this->readManifest($activeGeneration . '/manifest.json');
+        $activeReady = false;
+        if ($activeGeneration !== null && $this->preparer !== null) {
+            try {
+                $this->preparer->assertReady($activeGeneration);
+                $activeReady = true;
+            } catch (\Throwable) {
+                $activeReady = false;
+            }
+        }
         if ($activeGeneration !== null
             && ($activeManifest['lockSha256'] ?? null) === $lockSha256
             && $this->allComponentsMatch($components, $active)
+            && ($this->preparer === null || $activeReady)
         ) {
             $this->removeDirectory($candidate);
 
@@ -172,9 +183,22 @@ final class ToolchainRepairer
         ) {
             throw new \RuntimeException('unable to preserve verified toolchain lock');
         }
+        $this->preparer?->prepare($candidate);
+        $this->preparer?->assertReady($candidate);
         $destination = $versions . '/' . $generationName;
         if (!rename($candidate, $destination)) {
             throw new \RuntimeException('unable to atomically promote candidate toolchain');
+        }
+        try {
+            $this->preparer?->assertReady($destination);
+        } catch (\Throwable $exception) {
+            if (!rename($destination, $candidate)) {
+                throw new \RuntimeException(
+                    'prepared toolchain failed after promotion and rollback failed',
+                    previous: $exception
+                );
+            }
+            throw $exception;
         }
 
         return [

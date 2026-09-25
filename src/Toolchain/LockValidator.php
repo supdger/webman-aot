@@ -78,6 +78,26 @@ final class LockValidator
             }
         }
 
+        $phpSource = null;
+        $windowsDriver = null;
+        foreach ($components as $component) {
+            if (!is_array($component)) {
+                continue;
+            }
+            if (($component['id'] ?? null) === 'php-source') {
+                $phpSource = $component;
+            }
+            if (($component['id'] ?? null) === 'php-driver-windows-x64') {
+                $windowsDriver = $component;
+            }
+        }
+        if (is_array($windowsDriver)
+            && (($windowsDriver['kind'] ?? null) !== 'host-tool'
+                || ($windowsDriver['version'] ?? null) !== ($phpSource['version'] ?? null))
+        ) {
+            $errors[] = 'Windows PHP driver must match the locked PHP source version';
+        }
+
         $embeddedIds = [];
         $embeddedLibraries = $lock['embeddedLibraries'] ?? null;
         if (!is_array($embeddedLibraries)) {
@@ -142,4 +162,3 @@ final class LockValidator
         return $errors;
     }
 }
-

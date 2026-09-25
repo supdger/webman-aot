@@ -11,6 +11,7 @@ final class ProjectDiscoveryTest
     {
         $this->assertWebmanAndNeutralPluginDiscovery();
         $this->assertSaiAdminCoreDiscovery();
+        $this->assertPinnedDynamicDiscovery();
     }
 
     private function assertWebmanAndNeutralPluginDiscovery(): void
@@ -20,6 +21,10 @@ final class ProjectDiscoveryTest
             $profile = (new ProfileDetector($fixture))->detect();
             $before = (new ProjectDiscovery($fixture))->discover($profile);
             $this->assert(
+                !in_array('public/storage/upload.txt', $before->paths(ProjectDiscovery::STATIC_ASSET), true),
+                'private uploads were discovered as static assets'
+            );
+            $this->assert(
                 $before->paths(ProjectDiscovery::BUSINESS_PHP) === [
                     'app/Controller/HealthController.php',
                     'app/Service/config/RuntimeConfig.php',
@@ -28,6 +33,15 @@ final class ProjectDiscoveryTest
                     'vendor/workerman/webman-framework/src/View/Renderer.php',
                 ],
                 'base Webman PHP discovery drifted'
+            );
+            $this->assert(
+                $before->paths(ProjectDiscovery::INSTALL_ONLY) === [
+                    'vendor/workerman/webman-framework/src/Install.php',
+                    'vendor/workerman/webman-framework/src/start.php',
+                    'vendor/workerman/webman-framework/src/support/Plugin.php',
+                    'vendor/workerman/webman-framework/src/windows.php',
+                ],
+                'Webman Composer installer was not classified as install-only'
             );
 
             $this->addNeutralPlugin($fixture);
@@ -103,19 +117,94 @@ final class ProjectDiscoveryTest
             );
             $this->assert(
                 ($files['vendor/saithink/saiadmin/src/orm/Model.php']['owner'] ?? null)
-                    === 'saiadmin-core',
-                'SaiAdmin package core PHP was not discovered'
+                    === 'saiadmin-core'
+                && ($files['vendor/saithink/saiadmin/src/orm/Model.php']['category'] ?? null)
+                    === ProjectDiscovery::INSTALL_ONLY,
+                'SaiAdmin ORM installation template was not classified'
             );
             $this->assert(
                 ($files['vendor/saithink/saiadmin/src/plugin/saiadmin/basic/BaseController.php']['owner']
-                    ?? null) === 'saiadmin-core',
-                'SaiAdmin packaged plugin PHP was not discovered'
+                    ?? null) === 'saiadmin-core'
+                && ($files['vendor/saithink/saiadmin/src/plugin/saiadmin/basic/BaseController.php']['category']
+                    ?? null) === ProjectDiscovery::INSTALL_ONLY,
+                'SaiAdmin duplicate installation copy was not classified'
             );
             $this->assert(
                 ($files['plugin/saiadmin/db/migrations/Version.php']['category'] ?? null)
                     === ProjectDiscovery::INSTALL_ONLY,
                 'SaiAdmin migration PHP was not classified as install-only'
             );
+            $this->assert(
+                !isset($files['plugin/saiadmin/public/export/private.xlsx'])
+                    && ($files['plugin/saiadmin/public/template/template.xlsx']['category'] ?? null)
+                        === ProjectDiscovery::STATIC_ASSET,
+                'SaiAdmin generated exports were included or static templates were omitted'
+            );
+            $this->write(
+                $fixture . '/plugin/saiadmin/public/export/Business.php',
+                "<?php class Business {}\n"
+            );
+            try {
+                (new ProjectDiscovery($fixture))->discover($profile);
+            } catch (\WebmanAot\Cli\ConfigurationException $exception) {
+                $this->assert(
+                    str_contains($exception->getMessage(), 'cannot be silently excluded'),
+                    'unexpected excluded business PHP failure'
+                );
+                return;
+            }
+            throw new RuntimeException('PHP under writable export directory was silently omitted');
+        } finally {
+            $this->removeDirectory($fixture);
+        }
+    }
+
+    private function assertPinnedDynamicDiscovery(): void
+    {
+        $fixture = $this->fixture(false);
+        $relative = 'vendor/workerman/webman-framework/src/support/view/Raw.php';
+        $path = $fixture . '/' . $relative;
+        try {
+            mkdir(dirname($path), 0700, true);
+            $this->write($path, "<?php class RawView {}\n");
+            $profile = (new ProfileDetector($fixture))->detect();
+            $unregistered = (new ProjectDiscovery($fixture))->discover($profile);
+            $this->assert(
+                in_array($relative, $unregistered->paths(ProjectDiscovery::BUSINESS_PHP), true),
+                'unregistered third-party PHP escaped business coverage'
+            );
+            $registration = [$relative => (string) hash_file('sha256', $path)];
+            $registered = (new ProjectDiscovery($fixture, $registration))->discover($profile);
+            $this->assert(
+                $registered->paths(ProjectDiscovery::THIRD_PARTY_DYNAMIC_PHP) === [$relative],
+                'registered third-party dynamic PHP was not classified'
+            );
+            $missingRejected = false;
+            try {
+                (new ProjectDiscovery(
+                    $fixture,
+                    ['vendor/workerman/webman-framework/src/support/view/Missing.php'
+                        => str_repeat('a', 64)]
+                ))->discover($profile);
+            } catch (\WebmanAot\Cli\ConfigurationException $exception) {
+                $missingRejected = true;
+                $this->assert(
+                    str_contains($exception->getMessage(), 'dynamic PHP is missing'),
+                    'unexpected missing third-party dynamic error'
+                );
+            }
+            $this->assert($missingRejected, 'missing registered dynamic PHP was accepted');
+            $this->write($path, "<?php class DriftedView {}\n");
+            try {
+                (new ProjectDiscovery($fixture, $registration))->discover($profile);
+            } catch (\WebmanAot\Cli\ConfigurationException $exception) {
+                $this->assert(
+                    str_contains($exception->getMessage(), 'dynamic PHP drifted'),
+                    'unexpected third-party dynamic drift error'
+                );
+                return;
+            }
+            throw new RuntimeException('third-party dynamic PHP drift was accepted');
         } finally {
             $this->removeDirectory($fixture);
         }
@@ -130,7 +219,9 @@ final class ProjectDiscoveryTest
             'support',
             'config',
             'public',
+            'public/storage',
             'vendor/workerman/webman-framework/src',
+            'vendor/workerman/webman-framework/src/support',
             'vendor/workerman/webman-framework/src/View',
         ];
         if ($saiAdmin) {
@@ -139,10 +230,14 @@ final class ProjectDiscoveryTest
                 'plugin/saiadmin/app/controller',
                 'plugin/saiadmin/config',
                 'plugin/saiadmin/basic',
+                'plugin/saiadmin/command',
                 'plugin/saiadmin/db/migrations',
+                'plugin/saiadmin/public/export',
+                'plugin/saiadmin/public/template',
                 'vendor/saithink/saiadmin/src/orm',
                 'vendor/saithink/saiadmin/src/plugin/saiadmin/app',
-                'vendor/saithink/saiadmin/src/plugin/saiadmin/basic'
+                'vendor/saithink/saiadmin/src/plugin/saiadmin/basic',
+                'vendor/saithink/saiadmin/src/plugin/saiadmin/command'
             );
         }
         foreach ($directories as $relative) {
@@ -172,11 +267,16 @@ final class ProjectDiscoveryTest
             'support/bootstrap.php',
             'config/app.php',
             'vendor/workerman/webman-framework/src/App.php',
+            'vendor/workerman/webman-framework/src/Install.php',
+            'vendor/workerman/webman-framework/src/start.php',
+            'vendor/workerman/webman-framework/src/support/Plugin.php',
             'vendor/workerman/webman-framework/src/View/Renderer.php',
+            'vendor/workerman/webman-framework/src/windows.php',
         ] as $relative) {
             $this->write($directory . '/' . $relative, "<?php\n");
         }
         $this->write($directory . '/public/index.html', "<html></html>\n");
+        $this->write($directory . '/public/storage/upload.txt', "private upload\n");
 
         if ($saiAdmin) {
             foreach ([
@@ -189,6 +289,26 @@ final class ProjectDiscoveryTest
             ] as $relative) {
                 $this->write($directory . '/' . $relative, "<?php\n");
             }
+            $this->write(
+                $directory . '/vendor/saithink/saiadmin/src/Install.php',
+                "<?php\n'plugin/saiadmin' => 'plugin/saiadmin'; copy_dir(\$source, \$dest);\n"
+            );
+            $this->write(
+                $directory . '/vendor/saithink/saiadmin/src/plugin/saiadmin/command/SaiOrm.php',
+                "<?php\nvendor/saithink/saiadmin/src/orm/; copyDirectory(\$source, \$dest);\n"
+            );
+            $this->write(
+                $directory . '/plugin/saiadmin/command/SaiOrm.php',
+                "<?php\nvendor/saithink/saiadmin/src/orm/; copyDirectory(\$source, \$dest);\n"
+            );
+            $this->write(
+                $directory . '/plugin/saiadmin/public/export/private.xlsx',
+                "private generated export\n"
+            );
+            $this->write(
+                $directory . '/plugin/saiadmin/public/template/template.xlsx',
+                "static export template\n"
+            );
         }
 
         return $directory;

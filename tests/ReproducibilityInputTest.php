@@ -22,7 +22,7 @@ final class ReproducibilityInputTest
             'normalized reproducibility target drifted'
         );
         $this->assert(
-            count($first['input']['patches'] ?? []) === 5,
+            count($first['input']['patches'] ?? []) === 23,
             'normalized reproducibility input must include all TypePHP patches'
         );
         $this->assertLineEndingsDoNotChangeInput($root, $first);
@@ -42,6 +42,24 @@ final class ReproducibilityInputTest
             $patchRelativeDirectory . '/0003-reproducible-source-identities.patch',
             $patchRelativeDirectory . '/0004-full-static-host-target-separation.patch',
             $patchRelativeDirectory . '/0005-windows-clang-response-paths.patch',
+            $patchRelativeDirectory . '/0006-pcntl-target-reference-metadata.patch',
+            $patchRelativeDirectory . '/0007-full-static-skip-host-php-import-libs.patch',
+            $patchRelativeDirectory . '/0008-full-static-linux-internal-metadata.patch',
+            $patchRelativeDirectory . '/0009-full-static-linux-builtin-lifetime.patch',
+            $patchRelativeDirectory . '/0010-reproducible-arginfo-source-identity.patch',
+            $patchRelativeDirectory . '/0011-native-inheritance-and-target-reference-calls.patch',
+            $patchRelativeDirectory . '/0012-loop-probe-defers-unknown-foreach-vars.patch',
+            $patchRelativeDirectory . '/0013-namespaced-global-function-dependencies.patch',
+            $patchRelativeDirectory . '/0014-default-helpers-and-globals-reference.patch',
+            $patchRelativeDirectory . '/0015-portable-full-static-magic-dir.patch',
+            $patchRelativeDirectory . '/0016-embedded-anonymous-class-valid-php.patch',
+            $patchRelativeDirectory . '/0017-full-static-anonymous-source-embedding.patch',
+            $patchRelativeDirectory . '/0018-full-static-target-php-eol.patch',
+            $patchRelativeDirectory . '/0019-full-static-target-internal-functions.patch',
+            $patchRelativeDirectory . '/0020-full-static-target-constants-and-host-functions.patch',
+            $patchRelativeDirectory . '/0021-portable-source-scan-order.patch',
+            $patchRelativeDirectory . '/0022-full-static-hide-host-only-reflection.patch',
+            $patchRelativeDirectory . '/0023-full-static-select-target-reflection.patch',
             $fixtureRelativePath,
         ];
 

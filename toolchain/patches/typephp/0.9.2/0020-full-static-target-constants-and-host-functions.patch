@@ -1,0 +1,45 @@
+--- a/src/Translator.php
++++ b/src/Translator.php
+@@ -182,5 +182,13 @@
+         if ($this->climate->arguments->defined('full-static')) {
+             // The Linux target has this builtin even when the Windows driver
+             // does not. Its cache lifetime must not depend on the host PHP.
+             $this->internalFunctions['sys_getloadavg'] = true;
++            foreach ([
++                'sapi_windows_vt100_support',
++                'sapi_windows_cp_get',
++                'sapi_windows_cp_set',
++                'sapi_windows_cp_conv',
++            ] as $name) {
++                unset($this->internalFunctions[$name]);
++            }
+         }
+@@ -243,10 +251,28 @@
+                 'DIRECTORY_SEPARATOR' => '/',
+                 'PATH_SEPARATOR' => ':',
+                 'PHP_EOL' => "\n",
++                'PHP_MAXPATHLEN' => 4096,
+                 'PHP_OS' => 'Linux',
+                 'PHP_OS_FAMILY' => 'Linux',
+                 'PHP_SHLIB_SUFFIX' => 'so',
+             ] as $name => $value) {
+                 $constants[$name] = $value;
+             }
++            // Token IDs belong to the target PHP parser, not to tokenizer on
++            // the host. The header is part of the locked full-static SDK.
++            $parserHeader = $this->getPhpxDir()
++                . '/full-static/sdk/include/php/Zend/zend_language_parser.h';
++            $parserSource = @file_get_contents($parserHeader);
++            if (!is_string($parserSource)
++                || preg_match_all('/^\s*(T_[A-Z0-9_]+)\s*=\s*(\d+),/m', $parserSource, $targetTokens) < 100) {
++                throw new \RuntimeException('Missing or invalid target PHP token definitions: ' . $parserHeader);
++            }
++            foreach (array_keys($constants) as $name) {
++                if (str_starts_with($name, 'T_')) {
++                    unset($constants[$name]);
++                }
++            }
++            foreach ($targetTokens[1] as $index => $name) {
++                $constants[$name] = (int) $targetTokens[2][$index];
++            }
+             // Installation paths belong to the runtime binary. Never embed
