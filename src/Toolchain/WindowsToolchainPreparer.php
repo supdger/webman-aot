@@ -44,6 +44,18 @@ final class WindowsToolchainPreparer implements ToolchainPreparer
         if (!is_file($powershell)) {
             throw new UnavailableException('Windows system PowerShell is unavailable');
         }
+        $systemModules = rtrim($systemRoot, '/\\')
+            . '/System32/WindowsPowerShell/v1.0/Modules';
+        if (!is_dir($systemModules)) {
+            throw new UnavailableException('Windows system PowerShell modules are unavailable');
+        }
+        $environment = getenv();
+        if (!is_array($environment)) {
+            throw new UnavailableException('Windows environment is unavailable');
+        }
+        $modulePath = getenv('PSModulePath');
+        $environment['PSModulePath'] = $systemModules
+            . (is_string($modulePath) && $modulePath !== '' ? ';' . $modulePath : '');
         $command = [
             $powershell,
             '-NoProfile',
@@ -65,7 +77,8 @@ final class WindowsToolchainPreparer implements ToolchainPreparer
             $command,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
-            dirname($this->script)
+            dirname($this->script),
+            $environment
         );
         if (!is_resource($process)) {
             throw new UnavailableException('unable to start private Windows toolchain preparation');
