@@ -34,7 +34,8 @@ Webman 项目，请返回[首页的安装路线](../README.md#第-1-步下载并
    编译结果摘要。
 3. 上述 Mac CLI 构建的第三方许可文件目录（例如
    `static-php-cli` 构建结果中的 `buildroot/source-licenses/`）。
-   目录不能是空的；随包分发前还要单独确认许可义务。
+   目录不能是空的；打包脚本还会从同一份锁定的 PHP 源码归档提取
+   `libmbfl` 和 `libbcmath` 的 LGPL-2.1 文本。
 
 另需准备两项跨平台输入：
 
@@ -74,6 +75,7 @@ php tools/package-installers.php \
   --mac-runtime=<规范化后的Mac-PHP文件> \
   --mac-compiler-driver=<Mac编译驱动文件> \
   --mac-runtime-license-dir=<Mac许可文件目录> \
+  --php-source-archive=<php-8.4.25.tar.xz路径> \
   --windows-runtime-archive=<PHP官方Windows原始ZIP> \
   --typephp-source-archive=<TypePHP-v0.9.2源码归档> \
   --output=dist/installers \

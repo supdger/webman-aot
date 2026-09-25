@@ -65,6 +65,7 @@ final class InstallerPackager
                     $this->requiredOption('mac-runtime'),
                     $this->requiredOption('mac-compiler-driver'),
                     $this->requiredOption('mac-runtime-license-dir'),
+                    $this->requiredOption('php-source-archive'),
                     $typePhpLicense,
                     $lock['runtimes']['macos-arm64'] ?? null
                 );
@@ -99,6 +100,7 @@ final class InstallerPackager
         string $runtimePath,
         string $compilerDriverPath,
         string $runtimeLicenseDirectory,
+        string $phpSourceArchive,
         string $typePhpLicense,
         ?array $runtime
     ): array {
@@ -107,6 +109,8 @@ final class InstallerPackager
             || !is_array($runtime['compilerDriver'] ?? null)
             || ($runtime['compilerDriver']['binarySha256'] ?? null)
                 !== $this->digest($compilerDriverPath)
+            || ($runtime['compilerDriver']['sourceSha256'] ?? null)
+                !== $this->digest($phpSourceArchive)
         ) {
             throw new RuntimeException('macOS runtime does not match installer lock');
         }
@@ -127,6 +131,17 @@ final class InstallerPackager
         chmod($stage . '/payload/runtime/bin/php', 0700);
         chmod($stage . '/payload/runtime/bin/php-compiler', 0700);
         $this->copyDirectory($runtimeLicenseDirectory, $stage . '/payload/runtime/licenses');
+        foreach ([
+            'libmbfl-LGPL-2.1.txt' => 'php-8.4.25/ext/mbstring/libmbfl/LICENSE',
+            'libbcmath-LGPL-2.1.txt' => 'php-8.4.25/ext/bcmath/libbcmath/LICENSE',
+        ] as $name => $member) {
+            $license = $this->readTarMember($phpSourceArchive, $member);
+            if (!str_contains($license, 'GNU LESSER GENERAL PUBLIC LICENSE')
+                || file_put_contents($stage . '/payload/runtime/licenses/' . $name, $license) === false
+            ) {
+                throw new RuntimeException("unable to stage PHP library license: {$member}");
+            }
+        }
         $this->createDirectory($stage . '/payload/launcher');
         copy($this->root . '/bin/webman-aot', $stage . '/payload/launcher/webman-aot');
         chmod($stage . '/payload/launcher/webman-aot', 0700);
@@ -341,6 +356,27 @@ final class InstallerPackager
         if (!is_file($source) || is_link($source) || !copy($source, $destination)) {
             throw new RuntimeException("unable to stage required runtime file: {$source}");
         }
+    }
+
+    private function readTarMember(string $archive, string $member): string
+    {
+        $process = proc_open(
+            ['tar', '-xOf', $archive, $member],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes
+        );
+        if (!is_resource($process)) {
+            throw new RuntimeException('unable to inspect locked PHP source archive');
+        }
+        fclose($pipes[0]);
+        $contents = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $error = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+        if (proc_close($process) !== 0 || !is_string($contents) || $contents === '') {
+            throw new RuntimeException('PHP source license is missing: ' . $member . ' ' . trim((string) $error));
+        }
+        return $contents;
     }
 
     /**
