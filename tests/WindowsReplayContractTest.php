@@ -66,6 +66,18 @@ final class WindowsReplayContractTest
             );
         }
 
+        require_once $root . '/src/Toolchain/ReproducibilityInput.php';
+        $this->assert(
+            preg_match(
+                "/expectedNormalizedInputSha256 = '([0-9a-f]{64})'/",
+                $contents,
+                $matches
+            ) === 1 &&
+            $matches[1] === (new \WebmanAot\Toolchain\ReproducibilityInput())
+                ->describe($root)['sha256'],
+            'Windows replay normalized input baseline must match the current repository input'
+        );
+
         $this->assert(
             preg_match('/\\b(?:docker|podman|winget|choco|Start-Process)\\b/i', $contents) !== 1,
             'Windows replay must not use a container, package manager, or GUI installer'
