@@ -1,0 +1,32 @@
+{
+  "schema": "webman-aot-exportguard-license-preflight-v1",
+  "date": "2026-09-25",
+  "scope": "Read-only inventory of the current local exportguard-candidate installers; not a legal compliance determination",
+  "archives": {
+    "macosArm64Sha256": "da763c86f84aa7d8493cb9692d54cba6e5ec32089c473ced6c2a30e56f7c27ad",
+    "windowsX64Sha256": "82c3eaf5e5844d3fc7f190863b8a36053fa0acd5ef66edd133403eac336b2f1a"
+  },
+  "macosArm64": {
+    "runtimeLicenseFiles": 7,
+    "phpSourceLicensePath": "payload/runtime/licenses/src_php-src_0.txt",
+    "phpSourceLicenseHeading": "The PHP License, version 3.01"
+  },
+  "windowsX64": {
+    "topLevelRuntimeLicensePath": "payload/runtime/LICENSE",
+    "topLevelRuntimeLicenseHeading": "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007",
+    "topLevelRuntimeLicenseSha256": "bab8713713eb433451278731c85322dcf153d7f409dddff0cd8c14900700b1b1",
+    "phpLicensePath": "payload/runtime/license.txt",
+    "phpLicenseHeading": "The PHP License, version 3.01",
+    "phpLicenseSha256": "098bdc5b9808fc16bef4b7154e876ac08ca249549727cde3b3f3b431e27cca",
+    "spdxPath": "payload/runtime/extras/sbom/php.spdx.json",
+    "spdxPackages": 102,
+    "spdxPackagesWithNoAssertion": 34,
+    "spdxPackagesWithLgplDeclared": 8
+  },
+  "releaseReview": [
+    "The repository application is MIT-licensed, but the Windows installer bundles a TypePHP runtime with a top-level GPL v3 license text; determine the scope of that license and the corresponding redistribution obligations before public binary release.",
+    "The bundled Windows PHP SBOM contains NOASSERTION entries, so the SBOM alone does not close the third-party license inventory.",
+    "No conclusion is made here about the license of the generated Linux ELF or the license compatibility of the aggregate installer."
+  ],
+  "status": "Local installer candidates remain unpublished; this inventory does not change existing build or runtime acceptance evidence."
+}
