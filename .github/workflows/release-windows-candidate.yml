@@ -78,7 +78,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Neutral fixture checkout failed' }
           $fixture = Join-Path $fixtureSource 'tests\fixtures\minimal-webman'
           $composerSetup = Join-Path $env:RUNNER_TEMP 'composer-setup.php'
-          $composerSignature = (Invoke-WebRequest -Uri https://composer.github.io/installer.sig).Content.Trim()
+          $signatureFile = Join-Path $env:RUNNER_TEMP 'composer-installer.sig'
+          Invoke-WebRequest -Uri https://composer.github.io/installer.sig -OutFile $signatureFile
+          $composerSignature = (Get-Content -Raw $signatureFile).Trim()
           Invoke-WebRequest -Uri https://getcomposer.org/installer -OutFile $composerSetup
           if ((Get-FileHash -Algorithm SHA384 $composerSetup).Hash.ToLowerInvariant() -ne $composerSignature) {
             throw 'Composer installer signature mismatch'
