@@ -89,7 +89,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Composer installation failed' }
           Push-Location $fixture
           try {
-            & $php -c $ini (Join-Path $env:RUNNER_TEMP 'composer.phar') install `
+            & $php -c $ini (Join-Path $env:RUNNER_TEMP 'composer.phar') require `
+              'workerman/webman-framework:2.2.4' -W `
               --no-dev --no-interaction --no-progress --prefer-dist
             if ($LASTEXITCODE -ne 0) { throw 'Fixture dependency installation failed' }
             & (Join-Path $binDir 'webman-aot.cmd') doctor --repair
