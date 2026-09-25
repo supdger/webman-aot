@@ -1,8 +1,53 @@
 # Webman AOT
 
-Webman AOT 是一个独立的全局命令行工具项目，目标是在 macOS ARM64 和
-Windows x64 主机上构建 Linux amd64 musl 全静态 Webman/SaiAdmin
-可执行文件。
+Webman AOT 是全局命令行工具：在 macOS ARM64 或 Windows x64 开发机上，
+将普通 Webman 或 SaiAdmin 项目编译成 Linux amd64 musl 全静态程序。
+目标项目不需要安装 AOT Composer 插件，也不需要 Docker。
+
+## 先看这里：如何使用
+
+**目前公开仓库只有源码，没有可下载的公开安装包。** 因此现在不能仅靠
+`git clone` 或下载 GitHub 的 Source code ZIP 就获得可运行的 `webman-aot`
+命令。经过验证的 macOS/Windows 候选安装包仍在本地，公开发布前还须核定
+随包第三方软件的许可义务；[安装与构建说明](docs/install-and-build.md)
+供持有对应候选包的测试者使用。
+
+安装对应开发机系统的候选包后，进入**待编译 Webman 项目的根目录**
+（有 `webman`、`composer.json` 的目录），依次执行：
+
+```sh
+webman-aot doctor
+webman-aot doctor --repair  # 只在提示缺少工具链时执行；会下载到当前用户目录
+webman-aot build             # 自动识别普通 Webman / SaiAdmin
+webman-aot verify
+```
+
+需要明确指定 SaiAdmin 时使用 `webman-aot build --profile=saiadmin`。
+构建结果在该项目的 `dist-aot/`；将整个目录复制到 Linux amd64 目标机，
+配置该目录的外置 `.env`，在目录内执行 `./start.sh`。上线前按
+[Linux 目标机验收](docs/linux-acceptance.md)检查静态链接、启动和业务接口。
+Windows PowerShell 中使用同样的四条 `webman-aot` 命令；安装命令和已验证
+依赖版本见[安装与构建说明](docs/install-and-build.md)。
+
+## 哪些文件是使用者必需的？
+
+| 内容 | 开发者维护源码仓库 | 已安装的用户工具 |
+| --- | --- | --- |
+| `bin/`、`src/`、锁文件、兼容规则和构建所需的少量 `tools/`、`toolchain/patches/` | 必需 | 必需，安装包按白名单收录 |
+| 私有 PHP 运行时和编译工具 | 不提交仓库 | 由安装包及显式的 `doctor --repair` 提供 |
+| 本仓库的 `.github/workflows/`、`tests/`、`evidence/`、开发文档 | 用于持续验证和复核 | **不需要，也不在安装包内** |
+
+所以 `main` 是可维护、可复核的**开发源码仓库**，不是要求使用者克隆的安装目录。
+当前最小应用源码清单以
+[`InstallerPackager::stageApplication()`](tools/package-installers.php) 为准：
+`bin/webman-aot.php`、`src/`、两个锁文件、Webman/Workerman 兼容锁、
+TypePHP 补丁，以及准备/应用补丁所需的 5 个工具脚本；安装时再加入对应
+平台启动器、安装脚本和已锁定的私有 PHP 运行时。
+如果要分发“最小源码”，应从安装包的应用文件白名单生成独立源码归档；
+源码归档本身不含私有 PHP 和 SDK，不能冒充可直接使用的安装包。当前没有公开
+发布这类归档，不建议通过删除 `main` 的测试和 CI 来伪装精简。
+
+## 当前验证边界
 
 全静态 SDK 可行性门和 Mac/Windows 跨主机最小 Webman 构建已经通过。
 SaiAdmin 6.1.5 在 Mac ARM64 上由全局命令完整编译、打包并通过产物校验；
@@ -38,8 +83,10 @@ Windows 已安装修复包但未重复完成全量构建；这次额外全量重
 这个 Git 仓库供开发和复核；使用者安装的是按宿主系统选择的安装包，
 不需要克隆仓库，也不需要在业务项目安装 Composer AOT 插件。
 安装包由 `tools/package-installers.php` 明确选择运行所需的 `bin`、`src`、
-锁文件、兼容规则和少量构建工具，不包含 `.github/`、`tests/`、
-`evidence/` 或开发文档。
+锁文件、兼容规则和少量构建工具，不包含**本仓库的** `.github/`、`tests/`、
+`evidence/` 或开发文档。Windows 包随附的第三方 PHP 运行时中仍含少量
+上游依赖自带的 `tests/`、`docs/`、`.github/` 文件；当前没有验证过
+裁剪它们对该运行时是否安全，因此不把整个安装包称为“逐文件最小”。
 
 - `.github/workflows/` 保留跨 Windows 宿主的自动复现检查。
 - `tests/` 保留兼容规则、漏编译拦截和产物校验的回归测试。
