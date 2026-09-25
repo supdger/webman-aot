@@ -30,7 +30,8 @@ Windows 已安装修复包但未重复完成全量构建；这次额外全量重
 不能把这项发布审查混同为构建或运行失败。
 [当前源码及 Git 历史的隐私核查](evidence/2026-09-25-source-history-privacy-audit.json)
 与[候选包隐私核查](evidence/2026-09-25-exportguard-public-audit.json)
-分别记录；两者都不等于公开仓库授权。
+分别记录；两者都不等于安装包发布审查。
+本仓库原创代码与 TypePHP 补丁的许可归属见[上游归属说明](NOTICE.md)。
 
 本轮结果和边界见
 [SaiAdmin 业务运行证据](evidence/2026-09-25-saiadmin-full-static-business-runtime.json)。
