@@ -90,6 +90,7 @@ ld-flags: >-
   -L"{$target}/usr/lib"
   -L"{$gcc}"
 YAML;
+        $suffix = str_replace(["\r\n", "\r"], "\n", $suffix);
         if (file_put_contents($projectFile, $source . $suffix . "\n", LOCK_EX) === false) {
             throw new ConfigurationException('unable to write full-static TypePHP project overlay');
         }

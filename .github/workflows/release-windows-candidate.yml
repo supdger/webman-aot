@@ -109,3 +109,13 @@ jobs:
           path: ${{ runner.temp }}/release-packages/webman-aot-0.1.0-windows-x86_64.zip
           if-no-files-found: error
           retention-days: 14
+      - name: Upload neutral fixture build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-fixture-diagnostics-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/fixture-source/tests/fixtures/minimal-webman/.webman-aot/build/project/project.linux.yml
+            ${{ runner.temp }}/release-install/logs/*/diagnostic.json
+          if-no-files-found: warn
+          retention-days: 7
