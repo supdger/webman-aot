@@ -11,7 +11,7 @@ permissions:
 jobs:
   package-install:
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Download locked inputs and package
@@ -63,6 +63,42 @@ jobs:
           }
           Get-FileHash -Algorithm SHA256 $archive | Format-List
           exit 0
+      - name: Compile neutral Webman fixture with installed command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'release-install'
+          $binDir = Join-Path $env:RUNNER_TEMP 'release-bin'
+          $php = Join-Path $installRoot 'current\runtime\php.exe'
+          $ini = Join-Path $installRoot 'current\runtime\php.ini'
+          $env:WEBMAN_AOT_HOME = $installRoot
+          $fixtureSource = Join-Path $env:RUNNER_TEMP 'fixture-source'
+          git clone --depth 1 --branch feat/full-static-sdk-cross-host `
+            https://github.com/supdger/webman-aot.git $fixtureSource
+          if ($LASTEXITCODE -ne 0) { throw 'Neutral fixture checkout failed' }
+          $fixture = Join-Path $fixtureSource 'tests\fixtures\minimal-webman'
+          $composerSetup = Join-Path $env:RUNNER_TEMP 'composer-setup.php'
+          $composerSignature = (Invoke-WebRequest -Uri https://composer.github.io/installer.sig).Content.Trim()
+          Invoke-WebRequest -Uri https://getcomposer.org/installer -OutFile $composerSetup
+          if ((Get-FileHash -Algorithm SHA384 $composerSetup).Hash.ToLowerInvariant() -ne $composerSignature) {
+            throw 'Composer installer signature mismatch'
+          }
+          & $php -c $ini $composerSetup "--install-dir=$env:RUNNER_TEMP" --filename=composer.phar
+          if ($LASTEXITCODE -ne 0) { throw 'Composer installation failed' }
+          Push-Location $fixture
+          try {
+            & $php -c $ini (Join-Path $env:RUNNER_TEMP 'composer.phar') install `
+              --no-dev --no-interaction --no-progress --prefer-dist
+            if ($LASTEXITCODE -ne 0) { throw 'Fixture dependency installation failed' }
+            & (Join-Path $binDir 'webman-aot.cmd') doctor --repair
+            if ($LASTEXITCODE -ne 0) { throw 'Locked toolchain repair failed' }
+            & (Join-Path $binDir 'webman-aot.cmd') build
+            if ($LASTEXITCODE -ne 0) { throw 'Neutral project build failed' }
+            & (Join-Path $binDir 'webman-aot.cmd') verify
+            if ($LASTEXITCODE -ne 0) { throw 'Neutral distribution verification failed' }
+          } finally {
+            Pop-Location
+          }
       - name: Upload checked Windows package
         uses: actions/upload-artifact@v4
         with:
