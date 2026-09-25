@@ -11,16 +11,23 @@ SaiAdmin 6.1.5 在 Mac ARM64 上由全局命令完整编译、打包并通过产
 验证码、登录、登录后用户信息和权限拒绝路径均通过。
 Windows x64 也从已安装的全局命令完成同版 SaiAdmin 构建，其规范化
 输入、ELF、覆盖清单、资源清单和分发文件摘要与 Mac 产物一致。目标
-两台现有目标机的数据库业务验收及最终发布候选验收尚未完成；
-其他系统留待后续使用者验证，本项目目前不可发布。
+两台现有目标机均已运行相同哈希的 ELF，并通过启动与验证码检查；
+数据库支持的四条业务路径是在隔离 Ubuntu 虚拟机中验收的，不能称为
+已在那两台目标机通过。其他发行版留待后续使用者验证，不作为本轮
+源码交付或重复编译的门槛。
 新增中立 Webman 插件的完整构建、Linux HTTP 路由与普通 PHP 对照也已在
 隔离试验中通过；Mac 与 Windows 从同一项目快照构建出字节相同的 ELF、
 覆盖清单和资源清单。
 目标系统的逐机检查项见 [Linux 目标机验收](docs/linux-acceptance.md)。
 最新包已排除 SaiAdmin 历史导出数据；修复后 Mac 全量构建和校验通过，
-Windows 已安装修复包但未重复完成全量构建。两台目标服务器此前运行的
+Windows 已安装修复包但未重复完成全量构建；这次额外全量重建不作为
+交付门槛。两台目标服务器此前运行的
 是同一 SHA-256 的 ELF，启动与验证码通过，数据库相关业务路径未在
 这两台服务器验收。详见[运行数据打包修复证据](evidence/2026-09-25-runtime-export-package-fix.json)。
+
+源码、文档和证据已交付到功能分支。候选安装包目前保存在本地，
+尚未作为公开 Release 发布；公开发布还需核定随包第三方许可义务，
+不能把这项发布审查混同为构建或运行失败。
 
 本轮结果和边界见
 [SaiAdmin 业务运行证据](evidence/2026-09-25-saiadmin-full-static-business-runtime.json)。
@@ -125,3 +132,7 @@ Windows ZIP 与源码归档统一由系统自带 `tar.exe` 解包，避免 Power
 仓库的 `Windows full-static replay` workflow 在 Windows Server 2022 x64 原生
 runner 上执行同一脚本，用于持续验证跨宿主 SDK 与 ELF 一致性。该 workflow
 不替代后续干净实体 Windows 用户账号下的安装、构建和卸载验收。
+修正规范化输入基线后的
+[Windows 自动复核](https://github.com/supdger/webman-aot/actions/runs/36153995918)
+在提交 `a22c97a` 上通过；它验证的是静态 smoke 产物，不是另一次 SaiAdmin
+全量构建。
