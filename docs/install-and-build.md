@@ -1,12 +1,12 @@
 # 安装与构建
 
-**目前尚无公开安装包。** 今后普通使用者从
-[Releases](https://github.com/supdger/webman-aot/releases)
-打开一个版本，展开 **Assets**，按开发电脑系统点击
-`macos-arm64.tar.gz` 或 `windows-x86_64.zip` 文件下载。
-如果页面没有这两个文件，就说明现在还不能按下面的步骤公开下载安装；
-不要下载「Source code (zip)」冒充安装包。下面的步骤目前仅供已经拿到
-测试安装包的人使用。
+**目前没有公开安装包，Releases 页面是空的。** 普通用户现在无法按本文
+下载安装；不要下载「Source code (zip)」冒充安装包。本页的安装步骤
+**只适用于已取得测试安装包的人**。
+
+将来真正发布时，安装包会出现在
+[Releases 的某个版本](https://github.com/supdger/webman-aot/releases)
+的 **Assets** 中；届时再按开发电脑系统下载 Mac 或 Windows 文件。
 GitHub「Code → Download ZIP」得到的是源码，**不是下面命令使用的安装包**。
 安装包按开发电脑系统选择：
 `macos-arm64.tar.gz` 或 `windows-x86_64.zip`；两端都只构建
