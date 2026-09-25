@@ -1,8 +1,9 @@
 # 安装与构建
 
 **目前尚无公开安装包。** [Releases](https://github.com/supdger/webman-aot/releases)
-开放下载前，下面的步骤仅供已经拿到候选包的测试者使用；GitHub 的源码 ZIP
-不含私有 PHP 运行时，不能直接安装。安装包按开发电脑系统选择：
+开放下载前，下面的步骤仅供已经拿到测试安装包的人使用。
+GitHub「Code → Download ZIP」得到的是源码，**不是下面命令使用的安装包**。
+安装包按开发电脑系统选择：
 `macos-arm64.tar.gz` 或 `windows-x86_64.zip`；两端都只构建
 **Linux amd64 musl 全静态**目标，不生成 Windows exe。目标 Webman
 项目无需安装 Composer AOT 插件，业务 PHP 源码也无需按宿主系统分叉。
@@ -17,7 +18,11 @@
 使用前核对候选包摘要；摘要不一致时不要安装。安装器仅写入当前
 用户的私有工具目录及用户命令目录，不安装 Docker 或系统级 PHP。
 
-## macOS ARM64
+## 第 1 步：在开发电脑安装工具
+
+把收到的测试安装包放到一个目录，在那个目录打开终端。
+
+### macOS Apple Silicon
 
 ```sh
 mkdir webman-aot-install
@@ -26,21 +31,7 @@ cd webman-aot-install
 ./install.sh
 ```
 
-重新打开终端后，进入 Webman 项目根目录：
-
-```sh
-webman-aot doctor
-webman-aot doctor --repair
-webman-aot doctor
-webman-aot build --profile=saiadmin
-webman-aot verify
-```
-
-`doctor` 是只读检查；只有显式 `--repair` 会在用户私有目录下载并校验
-锁定工具链。若已备齐工具链，可跳过修复。普通 Webman 项目省略
-`--profile=saiadmin`，由项目结构自动识别。
-
-## Windows x64 PowerShell
+### Windows x64 PowerShell
 
 ```powershell
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
@@ -48,10 +39,42 @@ tar.exe -xf .\webman-aot-0.1.0-dev-windows-x86_64.zip -C .\webman-aot-install
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
 
-重新打开 PowerShell，进入 Webman 项目根目录后执行与 Mac 相同的
-`webman-aot doctor`、`doctor --repair`、`build` 和 `verify` 命令。
-首次修复会下载较大的静态 SDK 和编译工具；无需 Docker、GUI 或目标
-项目内的 Composer AOT 插件。
+**安装到此结束。** 关闭并重新打开终端，执行 `webman-aot version`；
+出现版本号表示开发电脑已装好工具。安装阶段不会编译 Webman 项目。
+
+## 第 2 步：编译你的 Webman 项目
+
+在开发电脑进入你自己的后端目录：该目录内应有 `webman` 和
+`composer.json`。不要在工具安装包目录或本仓库源码目录执行。
+
+```sh
+webman-aot doctor
+```
+
+如果检查提示缺少编译组件，再执行：
+
+```sh
+webman-aot doctor --repair
+webman-aot doctor
+```
+
+`doctor` 只检查；`doctor --repair` 才在当前用户目录下载并校验工具链，
+首次运行可能比较久。检查通过后编译：
+
+```sh
+webman-aot build --profile=saiadmin
+webman-aot verify
+```
+
+普通 Webman 项目改用 `webman-aot build`。成功后，**你的项目目录**
+会出现 `dist-aot/`；这里才是编译完成的 Linux 发布目录。
+
+## 第 3 步：部署 Linux 发布目录
+
+将整个 `dist-aot/` 复制到 Linux amd64 服务器，在部署目录配置外置 `.env`，
+然后进入该目录执行 `./start.sh`。数据库连接等环境参数不需要重新编译。
+请按[目标机验收](linux-acceptance.md)检查启动和真实业务接口；
+`webman-aot verify` 不等于目标服务器验收。
 
 ## 使用边界
 
