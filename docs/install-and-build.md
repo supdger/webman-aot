@@ -69,5 +69,8 @@ PHP 不会被静默忽略，需先处理适配失败再出包。`dist-aot` 的 `
 候选包随带的许可证文件已有[清单](../evidence/2026-09-25-runtime-license-inventory.json)；
 [当前候选包的只读许可预检](../evidence/2026-09-25-exportguard-license-preflight.json)
 还记录了 Windows 运行时顶层 GPL v3 许可文本和 SBOM 中未声明许可证的
-条目。它们的适用范围、再分发义务以及最终静态 ELF 的第三方许可义务
+条目；锁定的
+[TypePHP v0.9.2 源码](https://github.com/swoole/typephp/tree/v0.9.2)
+在 `composer.json` 中声明 `GPL-3.0-only`，包内许可文本与上游文本规范化
+换行后相同。它们的适用范围、再分发义务以及最终静态 ELF 的第三方许可义务
 尚未核定；公开二进制发布前须完成审查，不能把文件存在当作合规结论。

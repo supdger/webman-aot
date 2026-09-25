@@ -15,6 +15,13 @@
     "topLevelRuntimeLicensePath": "payload/runtime/LICENSE",
     "topLevelRuntimeLicenseHeading": "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007",
     "topLevelRuntimeLicenseSha256": "bab8713713eb433451278731c85322dcf153d7f409dddff0cd8c14900700b1b1",
+    "typephpUpstream": {
+      "sourceTag": "https://github.com/swoole/typephp/tree/v0.9.2",
+      "tagCommit": "3b923316a9938c00425cf9e41fc378aa49b5392f",
+      "composerLicense": "GPL-3.0-only",
+      "licenseTextNormalizedSha256": "6fc6044ee95db615d5beb1bee67987830f7ce0a55eb6e4e5ad725c405925b135",
+      "archiveAndUpstreamLicenseTextMatchAfterCrLfNormalization": true
+    },
     "phpLicensePath": "payload/runtime/license.txt",
     "phpLicenseHeading": "The PHP License, version 3.01",
     "phpLicenseSha256": "098bdc5b9808fc16bef4b7154e876ac08ca249549727cde3b3f3b431e27cca",
