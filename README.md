@@ -12,16 +12,34 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 并在发布前检查漏编译与包完整性。普通 PHP 源码保持不变；目标服务器不需要
 安装 PHP 或 Docker。
 
-## 先分清三个东西
+## 先选你的路线
+
+**只想用工具编译项目？** 不必下载源码。到
+[Releases 安装包页面](https://github.com/supdger/webman-aot/releases)，按**开发电脑**
+的系统下载 Mac 或 Windows 安装包，再从下面的「第 1 步」开始。
+目前该页面尚无公开安装包，因而新用户暂时无法完成这条路线；
+这里列出文件名是为了说明将来的选择，**不是说文件已经能下载**。
+
+**想查看或修改工具、自己制作安装包？** 下载本仓库源码，按
+[从源码制作安装包](docs/build-installers.md)准备锁定的第三方运行时并运行
+打包脚本。源码 ZIP 不含这些运行时，不能直接当安装包执行。
+
+从头到尾是这条关系：
+
+```text
+本仓库源码 + 锁定的第三方运行时 → Mac/Windows 工具安装包
+工具安装包 → 在开发电脑安装 webman-aot 命令
+webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
+```
+
+## 这三个东西分别是什么
 
 1. GitHub「Code → Download ZIP」下载的是**Webman AOT 工具的源代码**：给开发者查看和修改，**不是安装包，解压后不能直接使用工具**。
 2. `webman-aot-...-macos-arm64.tar.gz` 或 `webman-aot-...-windows-x86_64.zip` 是**工具安装包**：按你的开发电脑系统选一个，只安装一次。本文下面的安装命令用的是这个文件。
 3. `dist-aot/` 是**编译结果**：安装工具后，在你的 Webman 项目里运行 `webman-aot build` 才会生成；它要复制到 Linux 服务器运行。
 
-**目前工具安装包还没有公开发布，所以新用户现在不能从 GitHub 下载并安装使用。**
-[Releases](https://github.com/supdger/webman-aot/releases) 开放安装包下载后，
-才能从下面的第 1 步开始操作。当前说明供已经拿到测试安装包的人使用；
-不要把[源码 ZIP](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)
+当前说明供已经拿到测试安装包的人使用；不要把
+[源码 ZIP](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)
 当作测试安装包。
 
 ## 第 1 步：在开发电脑安装工具（只做一次）
@@ -32,7 +50,9 @@ Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成
 - macOS Apple Silicon：`webman-aot-0.1.0-dev-macos-arm64.tar.gz`
 - Windows x64：`webman-aot-0.1.0-dev-windows-x86_64.zip`
 
-把收到的测试安装包放到一个容易找到的目录，打开该目录的终端，运行对应命令：
+在 Releases 页面找到与你的**开发电脑**系统相符的文件，点击文件名下载；
+如果页面还没有文件，就先不要执行后面的安装命令。已经拿到测试包的人，
+把它放到一个容易找到的目录，在该目录打开终端，运行对应命令：
 
 ```sh
 # macOS

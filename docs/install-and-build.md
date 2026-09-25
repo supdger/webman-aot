@@ -1,7 +1,12 @@
 # 安装与构建
 
-**目前尚无公开安装包。** [Releases](https://github.com/supdger/webman-aot/releases)
-开放下载前，下面的步骤仅供已经拿到测试安装包的人使用。
+**目前尚无公开安装包。** 今后普通使用者从
+[Releases](https://github.com/supdger/webman-aot/releases)
+打开一个版本，展开 **Assets**，按开发电脑系统点击
+`macos-arm64.tar.gz` 或 `windows-x86_64.zip` 文件下载。
+如果页面没有这两个文件，就说明现在还不能按下面的步骤公开下载安装；
+不要下载「Source code (zip)」冒充安装包。下面的步骤目前仅供已经拿到
+测试安装包的人使用。
 GitHub「Code → Download ZIP」得到的是源码，**不是下面命令使用的安装包**。
 安装包按开发电脑系统选择：
 `macos-arm64.tar.gz` 或 `windows-x86_64.zip`；两端都只构建
@@ -17,6 +22,11 @@ GitHub「Code → Download ZIP」得到的是源码，**不是下面命令使用
 
 使用前核对候选包摘要；摘要不一致时不要安装。安装器仅写入当前
 用户的私有工具目录及用户命令目录，不安装 Docker 或系统级 PHP。
+macOS 在包所在目录执行
+`shasum -a 256 webman-aot-0.1.0-dev-macos-arm64.tar.gz`，
+Windows PowerShell 执行
+`(Get-FileHash .\webman-aot-0.1.0-dev-windows-x86_64.zip -Algorithm SHA256).Hash`；
+将结果与对应包公布的 SHA-256 对照。
 
 ## 第 1 步：在开发电脑安装工具
 
@@ -77,6 +87,10 @@ webman-aot verify
 `webman-aot verify` 不等于目标服务器验收。
 
 ## 使用边界
+
+想自己从本仓库源码生成上述工具安装包，请看
+[从源码制作安装包](build-installers.md)。源码下载、工具安装和编译
+Webman 项目是三个不同动作。
 
 当前实测组合为 SaiAdmin 6.1.5、Webman 2.2.4、TypePHP 0.9.2 与
 锁定的 PHP 8.4.25 静态 SDK。新增插件或依赖版本漂移时，未知业务
