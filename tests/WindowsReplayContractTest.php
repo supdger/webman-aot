@@ -125,6 +125,7 @@ final class WindowsReplayContractTest
         }
         foreach ([
             'runs-on: windows-2022',
+            "      - main\n",
             '.\\tools\\windows-replay.ps1',
             'windows-replay.json',
             'full_static_cross_smoke',

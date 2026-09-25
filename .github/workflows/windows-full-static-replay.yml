@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feat/full-static-sdk-cross-host
+      - main
     paths:
       - '.github/workflows/windows-full-static-replay.yml'
       - 'src/Toolchain/**'
