@@ -12,21 +12,17 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 并在发布前检查漏编译与包完整性。普通 PHP 源码保持不变；目标服务器不需要
 安装 PHP 或 Docker。
 
-## 当前状态：还不能公开下载安装
+## 第 1 步：下载并安装工具
 
-**目前没有公开的 Mac 或 Windows 安装包。**
-[Releases](https://github.com/supdger/webman-aot/releases) 页面是空的；
-普通用户现在无法下载、安装和使用 `webman-aot`。不要下载 GitHub 自动生成的
-「Source code (zip)」来代替安装包。
+到 [v0.1.0 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
+的 **Assets** 下载一个与你的**开发电脑**匹配的文件：
 
-现在能做的只有两件事：
+- macOS Apple Silicon：`webman-aot-0.1.0-macos-arm64.tar.gz`
+- Windows x64：`webman-aot-0.1.0-windows-x86_64.zip`
 
-- 查看、修改源码，或按[从源码制作安装包](docs/build-installers.md)准备锁定的
-  第三方运行时并自己构包；仅下载源码还不能直接运行工具。
-- 如果你**已经从维护者处取得测试安装包**，按下方步骤安装和试用。
-
-等安装包真的上传到 Releases 并列在 **Assets** 中，普通用户才能按开发
-电脑系统下载对应文件。发布前不会把下载步骤描述成当前可执行的操作。
+同时下载 `SHA256SUMS.txt`，按[安装说明](docs/install-and-build.md)核对
+摘要。不要下载 GitHub 自动生成的「Source code (zip)」来代替安装包；
+它是供阅读、修改及[自行构包](docs/build-installers.md)的工具源码。
 
 从头到尾是这条关系：
 
@@ -42,28 +38,21 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 2. `webman-aot-...-macos-arm64.tar.gz` 或 `webman-aot-...-windows-x86_64.zip` 是**工具安装包**：按你的开发电脑系统选一个，只安装一次。本文下面的安装命令用的是这个文件。
 3. `dist-aot/` 是**编译结果**：安装工具后，在你的 Webman 项目里运行 `webman-aot build` 才会生成；它要复制到 Linux 服务器运行。
 
-## 已取得测试包的人：第 1 步安装工具
-
 看**开发电脑**的系统选择安装包，不是看 Linux 服务器的系统。Mac 和
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
-
-- macOS Apple Silicon：`webman-aot-0.1.0-dev-macos-arm64.tar.gz`
-- Windows x64：`webman-aot-0.1.0-dev-windows-x86_64.zip`
-
-以下命令仅适用于**手上已有对应测试安装包**的人。把安装包放到一个
-容易找到的目录，在该目录打开终端，运行对应命令：
+把下载的安装包放到一个容易找到的目录，在该目录打开终端，运行：
 
 ```sh
 # macOS
 mkdir webman-aot-install
-tar -xzf webman-aot-0.1.0-dev-macos-arm64.tar.gz -C webman-aot-install
+tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
 ./webman-aot-install/install.sh
 ```
 
 ```powershell
 # Windows PowerShell
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
-tar.exe -xf .\webman-aot-0.1.0-dev-windows-x86_64.zip -C .\webman-aot-install
+tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
 
@@ -77,7 +66,7 @@ webman-aot version
 也没有生成 `dist-aot/`。安装器只写入当前用户目录，不安装系统级 PHP。
 安装包摘要和补充说明见[安装说明](docs/install-and-build.md)。
 
-## 已安装工具的人：第 2 步编译项目
+## 第 2 步：编译你的项目
 
 在开发电脑上，进入**你自己的 Webman 后端目录**，即同时能看到
 `webman` 和 `composer.json` 的目录；**不是刚解压的安装包目录，
@@ -112,7 +101,7 @@ webman-aot verify
 PHP 8.4 工具链；其他依赖版本和插件需要重新验证。SaiAdmin 的普通 PHP 8.4
 注意事项见[兼容与迁移](docs/saiadmin-compatibility.md)。
 
-## 编译成功后：第 3 步部署到 Linux
+## 第 3 步：部署到 Linux
 
 把**整个** `dist-aot/` 目录复制到 Linux amd64 服务器。在部署目录配置外置
 `.env`（数据库等环境配置不用重新编译），然后从该目录启动：

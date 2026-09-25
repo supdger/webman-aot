@@ -1,42 +1,40 @@
 # 安装与构建
 
-**目前没有公开安装包，Releases 页面是空的。** 普通用户现在无法按本文
-下载安装；不要下载「Source code (zip)」冒充安装包。本页的安装步骤
-**只适用于已取得测试安装包的人**。
+到 [v0.1.0 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
+的 **Assets** 下载你的开发电脑对应的安装包和 `SHA256SUMS.txt`：
 
-将来真正发布时，安装包会出现在
-[Releases 的某个版本](https://github.com/supdger/webman-aot/releases)
-的 **Assets** 中；届时再按开发电脑系统下载 Mac 或 Windows 文件。
-GitHub「Code → Download ZIP」得到的是源码，**不是下面命令使用的安装包**。
-安装包按开发电脑系统选择：
-`macos-arm64.tar.gz` 或 `windows-x86_64.zip`；两端都只构建
-**Linux amd64 musl 全静态**目标，不生成 Windows exe。目标 Webman
-项目无需安装 Composer AOT 插件，业务 PHP 源码也无需按宿主系统分叉。
-
-当前修复后的候选包保存在项目维护者本地，尚未对外发布：
-
-| 包 | SHA-256 |
+| 开发电脑 | 下载文件 |
 | --- | --- |
-| `webman-aot-0.1.0-dev-macos-arm64.tar.gz` | `da763c86f84aa7d8493cb9692d54cba6e5ec32089c473ced6c2a30e56f7c27ad` |
-| `webman-aot-0.1.0-dev-windows-x86_64.zip` | `82c3eaf5e5844d3fc7f190863b8a36053fa0acd5ef66edd133403eac336b2f1a` |
+| macOS Apple Silicon | `webman-aot-0.1.0-macos-arm64.tar.gz` |
+| Windows x64 | `webman-aot-0.1.0-windows-x86_64.zip` |
 
-使用前核对候选包摘要；摘要不一致时不要安装。安装器仅写入当前
-用户的私有工具目录及用户命令目录，不安装 Docker 或系统级 PHP。
-macOS 在包所在目录执行
-`shasum -a 256 webman-aot-0.1.0-dev-macos-arm64.tar.gz`，
-Windows PowerShell 执行
-`(Get-FileHash .\webman-aot-0.1.0-dev-windows-x86_64.zip -Algorithm SHA256).Hash`；
-将结果与对应包公布的 SHA-256 对照。
+不要下载 GitHub 自动生成的「Source code (zip)」充当安装包。先把本机
+计算的 SHA-256 与 `SHA256SUMS.txt` 中同名文件的一行对照；不同就
+不要安装：
+
+```sh
+# macOS，在下载目录执行
+shasum -a 256 webman-aot-0.1.0-macos-arm64.tar.gz
+```
+
+```powershell
+# Windows PowerShell，在下载目录执行
+(Get-FileHash .\webman-aot-0.1.0-windows-x86_64.zip -Algorithm SHA256).Hash
+```
+
+安装包按**开发电脑**系统选，不是按目标 Linux 服务器选。两端都构建
+Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
+当前用户的私有工具目录及命令目录，不安装 Docker 或系统级 PHP。
 
 ## 第 1 步：在开发电脑安装工具
 
-把收到的测试安装包放到一个目录，在那个目录打开终端。
+把下载的安装包放到一个目录，在那个目录打开终端。
 
 ### macOS Apple Silicon
 
 ```sh
 mkdir webman-aot-install
-tar -xzf webman-aot-0.1.0-dev-macos-arm64.tar.gz -C webman-aot-install
+tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
 cd webman-aot-install
 ./install.sh
 ```
@@ -45,7 +43,7 @@ cd webman-aot-install
 
 ```powershell
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
-tar.exe -xf .\webman-aot-0.1.0-dev-windows-x86_64.zip -C .\webman-aot-install
+tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
 
@@ -101,6 +99,6 @@ PHP 不会被静默忽略，需先处理适配失败再出包。`dist-aot` 的 `
 但不会把其中已有的导出文件复制进产物；`public/storage` 中的历史上传文件
 也不会随包分发。部署时如需保留这些运行数据，应单独迁移，不能把构建包
 当作数据备份。上述目录若含 PHP 或符号链接，构建会报错而不是静默排除。
-公开二进制安装包前还需核定第三方运行时的再分发许可；当前构建和运行
-证据见[验证记录](verification.md)。这项发布审查不影响本地候选包的
-已完成测试，但不能被测试结果替代。
+第三方组件的许可和来源见[归属说明](../NOTICE.md)；构建与运行的
+已验证范围见[验证记录](verification.md)。在未验证过的目标系统和
+业务项目上，仍需执行实际部署与业务验收。
