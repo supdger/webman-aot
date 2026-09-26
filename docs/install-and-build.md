@@ -28,42 +28,70 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 
 ## 第 1 步：在开发电脑安装工具
 
-先看你是否已经解压安装包。**已解压**时，在能看到 `install.sh`（Mac）
-或 `install.ps1`（Windows）的目录打开终端，直接执行：
+**安装包必须先解压；已经解压过就直接使用解压出的文件夹，不要再执行
+解压命令。** 当前 v0.1.0 没有双击安装入口，解压后还需执行一条安装
+命令。安装脚本位于安装包根目录，不在你的 Webman 项目里。
 
-```sh
-# macOS
-./install.sh
-```
+### Windows x64
 
-```powershell
-# Windows PowerShell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+1. 在下载目录找到 `webman-aot-0.1.0-windows-x86_64.zip`，右键选择
+   “全部提取”。如果已经有解压出的文件夹，跳过这一步。
+2. 打开解压出的文件夹。应能直接看到 `install.ps1`、`uninstall.ps1`
+   和 `payload`；看不到 `install.ps1` 就继续找实际包含它的文件夹。
+3. 在这个文件夹的地址栏输入 `powershell` 并按回车。确认 PowerShell
+   当前路径是这个文件夹，然后执行：
 
-**不要在已解压的目录里再次执行解压命令。** 如果还没有解压，才按下面的
-步骤在下载文件所在目录操作。
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\install.ps1
+   ```
 
 ### macOS Apple Silicon
 
+1. 双击下载的 `webman-aot-0.1.0-macos-arm64.tar.gz` 解压；如果已经解压，
+   跳过这一步。
+2. 进入能看到 `install.sh` 的文件夹，在该文件夹打开终端，执行：
+
+   ```sh
+   ./install.sh
+   ```
+
+安装脚本结束时会显示两行路径，例如 Windows 上：
+
+```text
+Webman AOT installed in: E:\Users\你的用户名\AppData\Local\webman-aot
+Command installed as: E:\Users\你的用户名\AppData\Local\webman-aot\bin\webman-aot.cmd
+```
+
+这表示**安装脚本已完成**。关闭并重新打开终端，执行：
+
 ```sh
+webman-aot version
+```
+
+输出 `webman-aot 0.1.0` 才表示新终端也能找到并运行工具。安装阶段不会
+编译 Webman 项目；下一步才进入项目目录。
+
+### 命令行解压安装包
+
+不使用文件管理器时，**先进入下载文件所在目录**，确认那里有 ZIP 或
+tar.gz，再执行对应命令。已经在解压后的目录时，不要重复执行本段；
+直接回到上面的安装脚本命令。
+
+```sh
+# macOS，在 tar.gz 所在目录
 mkdir webman-aot-install
 tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
 cd webman-aot-install
 ./install.sh
 ```
 
-### Windows x64 PowerShell
-
 ```powershell
+# Windows PowerShell，在 ZIP 所在目录
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
 tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
 if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
-
-**安装到此结束。** 关闭并重新打开终端，执行 `webman-aot version`；
-出现版本号表示开发电脑已装好工具。安装阶段不会编译 Webman 项目。
 
 ## 第 2 步：编译你的 Webman 项目
 
