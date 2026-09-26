@@ -84,6 +84,32 @@ webman-aot verify
 请按[目标机验收](linux-acceptance.md)检查启动和真实业务接口；
 `webman-aot verify` 不等于目标服务器验收。
 
+## 卸载开发电脑上的工具
+
+在下载目录打开终端，使用安装时解压出的 `webman-aot-install` 目录：
+
+```sh
+# macOS
+./webman-aot-install/uninstall.sh --purge
+```
+
+```powershell
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .\webman-aot-install\uninstall.ps1 -Purge
+```
+
+不加 `--purge` / `-Purge` 时，会移除当前安装和命令入口，但保留部分
+已下载组件与安装备份；加上后会清除 Webman AOT 的整个用户工具目录。
+Mac 默认目录是 `~/Library/Application Support/webman-aot`，Windows 默认
+目录是 `%LOCALAPPDATA%\webman-aot`。卸载脚本还会移除安装时加入的
+命令路径；重新打开终端后生效。卸载不会删除你的 Webman 项目、项目
+中的 `dist-aot/`，也不会删除下载的安装包或解压目录。
+
+如果解压目录已经删除，从上方 Release 重新下载与你的开发电脑对应的
+安装包并解压，即可取得卸载脚本。自定义安装目录的用户卸载时也要传入
+相同目录参数：Mac 使用 `--home`、`--bin-dir`；Windows 使用
+`-InstallRoot`、`-BinDir`，避免只卸载默认位置。
+
 ## 使用边界
 
 想自己从本仓库源码生成上述工具安装包，请看

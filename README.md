@@ -116,6 +116,25 @@ cd dist-aot
 [Linux 验收步骤](docs/linux-acceptance.md)检查静态链接、启动和业务接口。
 目标机不需要 PHP 或 Docker；“全静态”不等于所有未测试系统都已通过业务验收。
 
+## 卸载开发电脑上的工具
+
+在下载目录打开终端，使用安装时解压出的 `webman-aot-install` 目录运行：
+
+```sh
+# macOS
+./webman-aot-install/uninstall.sh --purge
+```
+
+```powershell
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .\webman-aot-install\uninstall.ps1 -Purge
+```
+
+`--purge` / `-Purge` 会一并清除工具下载的编译组件和安装备份；不加则保留
+部分缓存与备份。卸载不会删除 Webman 项目或项目里的 `dist-aot/`。
+解压目录已删除时，可从上面的 Release 重新下载对应安装包。细节见
+[安装与卸载说明](docs/install-and-build.md#卸载开发电脑上的工具)。
+
 ## 验证记录
 
 [查看编译、跨 Mac/Windows 一致性及 Linux 运行证据](docs/verification.md)。
