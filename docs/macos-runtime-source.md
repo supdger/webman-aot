@@ -1,11 +1,11 @@
 # macOS 运行时源码与重链接材料
 
-v0.1.0 的 Mac 安装包含两个 PHP 8.4.25 程序：工具使用的静态 CLI，以及
+v0.1.1 的 Mac 安装包含两个 PHP 8.4.25 程序：工具使用的静态 CLI，以及
 单独的编译驱动。CLI 编入 PHP 的 `libmbfl`，编译驱动编入 `libbcmath`；
 这两部分采用 LGPL-2.1。各自的许可证文本已随安装包提供。
 
-[v0.1.0 Release Assets](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
-另有 `webman-aot-0.1.0-macos-php-relink-materials.tar.gz`。它不是工具
+[v0.1.1 Release Assets](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
+另有 `webman-aot-0.1.1-macos-php-relink-materials.tar.gz`。它不是工具
 安装包，普通使用者不用下载。它包含该 CLI 的 PHP 8.4.25 源码、实际
 编译出的目标文件、Makefile、静态依赖库与许可证；还包含原样的官方
 `php-8.4.25.tar.xz` 和 static-php-cli 2.8.5 源码，供修改 LGPL 组件

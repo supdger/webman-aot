@@ -4,7 +4,7 @@
 Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，构建时不用 Docker。
 
 **这个仓库存放的是 Webman AOT 编译工具的源码，不是要装进 Webman 项目的插件。**
-只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
+只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
 下载安装包；想自行制作安装包，可按[源码构包说明](docs/build-installers.md)
 备齐锁定的第三方运行时后构建。源码 ZIP 本身不是可安装的工具包。
 
@@ -23,14 +23,15 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 
 ## 第 1 步：下载并安装工具
 
-到 [v0.1.0 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
+到 [v0.1.1 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
 的 **Assets** 下载一个与你的**开发电脑**匹配的文件：
 
-- macOS Apple Silicon：`webman-aot-0.1.0-macos-arm64.tar.gz`
-- Windows x64：`webman-aot-0.1.0-windows-x86_64.zip`
+- macOS Apple Silicon：`webman-aot-0.1.1-macos-arm64.tar.gz`
+- Windows x64：`webman-aot-0.1.1-windows-x86_64.zip`
 
-同时下载 `SHA256SUMS.txt`，按[安装说明](docs/install-and-build.md)核对
-摘要。不要下载 GitHub 自动生成的「Source code (zip)」来代替安装包；
+正常安装**不要求你手工计算 SHA-256**：安装脚本会自动校验包内每个文件，
+不匹配就停止。发布者也应在上传前核对安装包摘要；`SHA256SUMS.txt`
+保留给想独立复核的用户。不要下载 GitHub 自动生成的「Source code (zip)」来代替安装包；
 它是供阅读、修改及[自行构包](docs/build-installers.md)的工具源码。
 
 从头到尾是这条关系：
@@ -51,7 +52,7 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
 **先解压安装包，再运行里面的安装脚本。** ZIP 或 tar.gz 本身不能直接安装；
 如果已经解压，就跳过解压，不要在解压后的文件夹里再找 ZIP。当前
-v0.1.0 没有双击安装入口，解压后还需执行下面对应的一条命令。
+v0.1.1 没有双击安装入口，解压后还需执行下面对应的一条命令。
 
 - **Windows：**右键下载的 ZIP，选“全部提取”。打开解压出的文件夹，确认
   能看到 `install.ps1`。在该文件夹的地址栏输入 `powershell` 并按回车，
@@ -77,7 +78,7 @@ v0.1.0 没有双击安装入口，解压后还需执行下面对应的一条命�
 webman-aot version
 ```
 
-看到 `webman-aot 0.1.0`，才表示**命令也能正常使用、工具安装验证通过**。
+看到 `webman-aot 0.1.1`，才表示**命令也能正常使用、工具安装验证通过**。
 此时还没有编译任何项目，也没有生成 `dist-aot/`。安装器只写入当前
 用户目录，不安装系统级 PHP。
 安装包摘要和补充说明见[安装说明](docs/install-and-build.md)。
@@ -104,8 +105,8 @@ webman-aot doctor --repair
 webman-aot doctor
 ```
 
-`--repair` 会下载、校验并准备锁定组件，首次运行可能较久、期间可能
-暂时没有输出；等命令结束再运行第二条检查。只有看到
+`--repair` 会下载、校验并准备锁定组件，首次运行可能较久；过程中会显示
+当前组件和下载进度。等命令结束再运行第二条检查。只有看到
 `Result: healthy` 才能继续编译。如果修复后仍是 `unhealthy`，或报的是
 平台、磁盘、网络、项目错误，先按具体 `[ERROR]` 和诊断文件处理，
 不要直接执行 `build`。健康后编译并检查产物：
@@ -143,21 +144,27 @@ cd dist-aot
 
 ## 卸载开发电脑上的工具
 
-在下载目录打开终端，使用安装时解压出的 `webman-aot-install` 目录运行：
+卸载脚本在**安装时解压出的安装包文件夹**，不在 Webman 项目目录里。
+打开那个能直接看到 `uninstall.ps1` 或 `uninstall.sh` 的文件夹，并在
+该文件夹打开终端。先确认脚本存在，再运行：
 
 ```sh
 # macOS
-./webman-aot-install/uninstall.sh --purge
+ls ./uninstall.sh
+./uninstall.sh --purge
 ```
 
 ```powershell
 # Windows PowerShell
-powershell -ExecutionPolicy Bypass -File .\webman-aot-install\uninstall.ps1 -Purge
+Test-Path -LiteralPath .\uninstall.ps1  # 应显示 True
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1 -Purge
 ```
 
 `--purge` / `-Purge` 会一并清除工具下载的编译组件和安装备份；不加则保留
 部分缓存与备份。卸载不会删除 Webman 项目或项目里的 `dist-aot/`。
-解压目录已删除时，可从上面的 Release 重新下载对应安装包。细节见
+如果检查结果是 `False`，说明当前目录不是安装包解压目录，**不要继续
+执行卸载命令**；先找到实际解压目录。解压目录已删除时，可从上面的
+Release 重新下载对应安装包并解压。细节见
 [安装与卸载说明](docs/install-and-build.md#卸载开发电脑上的工具)。
 
 ## 验证记录

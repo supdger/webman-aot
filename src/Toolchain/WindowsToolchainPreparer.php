@@ -15,7 +15,7 @@ final class WindowsToolchainPreparer implements ToolchainPreparer
     ) {
     }
 
-    public function prepare(string $candidate): void
+    public function prepare(string $candidate, ?\Closure $progress = null): void
     {
         if (PHP_OS_FAMILY !== 'Windows' || PHP_INT_SIZE !== 8) {
             throw new UnavailableException('Windows toolchain preparation requires Windows x64');
@@ -88,17 +88,40 @@ final class WindowsToolchainPreparer implements ToolchainPreparer
         stream_set_blocking($pipes[2], false);
         $tail = '';
         $exit = null;
+        $output = '';
+        $nextHeartbeat = microtime(true) + 30;
+        $reportOutput = static function (string $chunk) use (&$output, $progress): void {
+            if ($progress === null) {
+                return;
+            }
+            $output .= str_replace("\r", "\n", $chunk);
+            while (($newline = strpos($output, "\n")) !== false) {
+                $line = trim(substr($output, 0, $newline));
+                $output = substr($output, $newline + 1);
+                if (preg_match('/^(Downloading|Extracting|Stripping|Applying|Assembling|Calculating|Building)\b/', $line) === 1) {
+                    $progress('SDK: ' . $line);
+                }
+            }
+            $output = substr($output, -4096);
+        };
         while (true) {
             $status = proc_get_status($process);
             foreach ([1, 2] as $index) {
                 $chunk = stream_get_contents($pipes[$index]);
                 if (is_string($chunk) && $chunk !== '') {
                     $tail = substr($tail . $chunk, -8192);
+                    if ($index === 1) {
+                        $reportOutput($chunk);
+                    }
                 }
             }
             if (!$status['running']) {
                 $exit = $status['exitcode'];
                 break;
+            }
+            if ($progress !== null && microtime(true) >= $nextHeartbeat) {
+                $progress('SDK preparation is still running...');
+                $nextHeartbeat = microtime(true) + 30;
             }
             usleep(20000);
         }
@@ -106,6 +129,9 @@ final class WindowsToolchainPreparer implements ToolchainPreparer
             $chunk = stream_get_contents($pipes[$index]);
             if (is_string($chunk) && $chunk !== '') {
                 $tail = substr($tail . $chunk, -8192);
+                if ($index === 1) {
+                    $reportOutput($chunk);
+                }
             }
             fclose($pipes[$index]);
         }

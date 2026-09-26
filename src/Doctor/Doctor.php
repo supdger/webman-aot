@@ -8,6 +8,7 @@ use WebmanAot\Cli\ConfigurationException;
 use WebmanAot\Project\ProfileDetector;
 use WebmanAot\Toolchain\LockValidator;
 use WebmanAot\Toolchain\HostComponentSelector;
+use WebmanAot\Toolchain\NativeDownloader;
 use WebmanAot\Toolchain\ToolchainPreparer;
 
 final class Doctor
@@ -163,7 +164,7 @@ final class Doctor
         $urls = [];
         foreach ($lock['components'] ?? [] as $component) {
             if (is_array($component) && is_string($component['sourceUrl'] ?? null)) {
-                $url = $component['sourceUrl'];
+                $url = NativeDownloader::sourceDownloadUrl($component['sourceUrl']);
                 $host = parse_url($url, PHP_URL_HOST);
                 if (is_string($host) && !isset($urls[$host])) {
                     $urls[$host] = $url;
@@ -178,9 +179,11 @@ final class Doctor
             }
         }
         $checks[] = $this->check(
-            'network',
+            'network-tcp',
             $unreachable === [],
-            $unreachable === [] ? 'all toolchain source hosts are reachable' : 'toolchain source hosts are unreachable',
+            $unreachable === []
+                ? 'source host TCP ports respond; archive redirects and downloads are not verified'
+                : 'one or more source host TCP ports are unreachable',
             [
                 'checkedHosts' => array_keys($urls),
                 'unreachableHosts' => $unreachable,

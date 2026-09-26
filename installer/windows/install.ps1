@@ -15,7 +15,8 @@ if (-not [Environment]::Is64BitOperatingSystem -or
 
 $packageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $manifestPath = Join-Path $packageRoot 'payload-manifest.sha256'
-foreach ($line in Get-Content -LiteralPath $manifestPath) {
+$manifestLines = @(Get-Content -LiteralPath $manifestPath)
+foreach ($line in $manifestLines) {
     if ($line -notmatch '^([a-f0-9]{64})  (.+)$') {
         throw "Invalid payload manifest line: $line"
     }
@@ -26,6 +27,7 @@ foreach ($line in Get-Content -LiteralPath $manifestPath) {
         throw "Payload digest mismatch: $relative"
     }
 }
+Write-Output "Package contents SHA-256 verified: $($manifestLines.Count) files"
 
 $candidate = Join-Path $InstallRoot ('.install-candidates\install-' + $PID + '-' + [Guid]::NewGuid().ToString('N'))
 $backup = $null

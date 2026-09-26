@@ -17,6 +17,27 @@ Webman 项目，请返回[首页的安装路线](../README.md#第-1-步下载并
 没有这些输入时，源码可以阅读、修改，却**不能单独生成可安装的归档**。
 所有输入须符合锁文件中的 SHA-256；不符时脚本停止，不能用其他版本凑数。
 
+### Windows：从源码一条命令构包并对照
+
+在 Windows x64 上下载与发布安装包**同一个版本标签**的本仓库源码 ZIP
+并解压。进入源码根目录，运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 `
+  -Compare "C:\你下载的\webman-aot-<版本>-windows-x86_64.zip"
+```
+
+把 `-Compare` 换成实际下载的发布包路径。无需预装 PHP 或 TypePHP：
+脚本会下载锁定的 PHP Windows 运行时和 TypePHP 源码、自动核对
+SHA-256、构建安装包、自动校验包内文件，
+再逐文件对照发布包。看到 `[MATCH]` 才表示内容一致；不一致会列出文件名。
+本地构包位于 `dist/source-build/`。ZIP 自身的字节摘要可能因压缩时间戳
+不同而不同，因此对照的是每个归档文件的实际内容与包内清单，而不是
+要求两个 ZIP 的字节完全相同。无需手工比对 `SHA256SUMS.txt`。
+
+仅想从源码构建、不对照发布包时，省略 `-Compare` 即可。Mac 安装包仍需
+下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责 Windows 安装包。
+
 ## 第 1 步：准备输入
 
 在 macOS Apple Silicon 机器上准备：

@@ -6,7 +6,10 @@ namespace WebmanAot\Toolchain;
 
 interface ToolchainPreparer
 {
-    public function prepare(string $candidate): void;
+    /**
+     * @param (\Closure(string):void)|null $progress
+     */
+    public function prepare(string $candidate, ?\Closure $progress = null): void;
 
     public function assertReady(string $generation): void;
 }

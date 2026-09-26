@@ -1,26 +1,17 @@
 # 安装与构建
 
-到 [v0.1.0 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
-的 **Assets** 下载你的开发电脑对应的安装包和 `SHA256SUMS.txt`：
+到 [v0.1.1 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
+的 **Assets** 下载你的开发电脑对应的安装包：
 
 | 开发电脑 | 下载文件 |
 | --- | --- |
-| macOS Apple Silicon | `webman-aot-0.1.0-macos-arm64.tar.gz` |
-| Windows x64 | `webman-aot-0.1.0-windows-x86_64.zip` |
+| macOS Apple Silicon | `webman-aot-0.1.1-macos-arm64.tar.gz` |
+| Windows x64 | `webman-aot-0.1.1-windows-x86_64.zip` |
 
-不要下载 GitHub 自动生成的「Source code (zip)」充当安装包。先把本机
-计算的 SHA-256 与 `SHA256SUMS.txt` 中同名文件的一行对照；不同就
-不要安装：
-
-```sh
-# macOS，在下载目录执行
-shasum -a 256 webman-aot-0.1.0-macos-arm64.tar.gz
-```
-
-```powershell
-# Windows PowerShell，在下载目录执行
-(Get-FileHash .\webman-aot-0.1.0-windows-x86_64.zip -Algorithm SHA256).Hash
-```
+不要下载 GitHub 自动生成的「Source code (zip)」充当安装包。**正常安装
+不要求手工计算摘要**：安装脚本会自动逐个验证包内文件的 SHA-256，
+不一致就停止，并在通过时显示校验结果。发布者在上传前核对完整安装包
+摘要；`SHA256SUMS.txt` 供需要独立复核的用户自愿使用。
 
 安装包按**开发电脑**系统选，不是按目标 Linux 服务器选。两端都构建
 Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
@@ -29,12 +20,12 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 ## 第 1 步：在开发电脑安装工具
 
 **安装包必须先解压；已经解压过就直接使用解压出的文件夹，不要再执行
-解压命令。** 当前 v0.1.0 没有双击安装入口，解压后还需执行一条安装
+解压命令。** 当前 v0.1.1 没有双击安装入口，解压后还需执行一条安装
 命令。安装脚本位于安装包根目录，不在你的 Webman 项目里。
 
 ### Windows x64
 
-1. 在下载目录找到 `webman-aot-0.1.0-windows-x86_64.zip`，右键选择
+1. 在下载目录找到 `webman-aot-0.1.1-windows-x86_64.zip`，右键选择
    “全部提取”。如果已经有解压出的文件夹，跳过这一步。
 2. 打开解压出的文件夹。应能直接看到 `install.ps1`、`uninstall.ps1`
    和 `payload`；看不到 `install.ps1` 就继续找实际包含它的文件夹。
@@ -47,7 +38,7 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 
 ### macOS Apple Silicon
 
-1. 双击下载的 `webman-aot-0.1.0-macos-arm64.tar.gz` 解压；如果已经解压，
+1. 双击下载的 `webman-aot-0.1.1-macos-arm64.tar.gz` 解压；如果已经解压，
    跳过这一步。
 2. 进入能看到 `install.sh` 的文件夹，在该文件夹打开终端，执行：
 
@@ -68,7 +59,7 @@ Command installed as: E:\Users\你的用户名\AppData\Local\webman-aot\bin\webm
 webman-aot version
 ```
 
-输出 `webman-aot 0.1.0` 才表示新终端也能找到并运行工具。安装阶段不会
+输出 `webman-aot 0.1.1` 才表示新终端也能找到并运行工具。安装阶段不会
 编译 Webman 项目；下一步才进入项目目录。
 
 ### 命令行解压安装包
@@ -80,7 +71,7 @@ tar.gz，再执行对应命令。已经在解压后的目录时，不要重复�
 ```sh
 # macOS，在 tar.gz 所在目录
 mkdir webman-aot-install
-tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
+tar -xzf webman-aot-0.1.1-macos-arm64.tar.gz -C webman-aot-install
 cd webman-aot-install
 ./install.sh
 ```
@@ -88,7 +79,7 @@ cd webman-aot-install
 ```powershell
 # Windows PowerShell，在 ZIP 所在目录
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
-tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
+tar.exe -xf .\webman-aot-0.1.1-windows-x86_64.zip -C .\webman-aot-install
 if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
@@ -118,8 +109,8 @@ webman-aot doctor
   ```
 
 `doctor` 只检查，不会下载组件；`doctor --repair` 才会在当前用户目录
-下载、校验并准备锁定的编译工具链。首次运行可能很久，且在完成前
-可能暂时没有输出；请等它返回命令提示符。修复成功时会显示
+下载、校验并准备锁定的编译工具链。首次运行可能很久，过程中会显示
+当前组件和下载进度；请等它返回命令提示符。修复成功时会显示
 `Toolchain generation activated: ...`，后续检查应显示 `Result: healthy`。
 只有健康时才能编译。如果修复命令报错，或再次检查仍为 `unhealthy`，
 **不要继续编译**；查看具体 `[ERROR]` 和输出末尾的 Diagnostic bundle
@@ -142,17 +133,27 @@ webman-aot verify
 
 ## 卸载开发电脑上的工具
 
-在下载目录打开终端，使用安装时解压出的 `webman-aot-install` 目录：
+卸载脚本在**安装包的解压目录**，不在 Webman 项目目录，也不在任意
+PowerShell 当前目录。用文件管理器打开安装时解压出的文件夹，确认里面
+能直接看到 `uninstall.ps1`（Windows）或 `uninstall.sh`（Mac）。
+Windows 用户可在该文件夹的地址栏输入 `powershell` 并按回车，然后
+先检查、再执行：
 
 ```sh
-# macOS
-./webman-aot-install/uninstall.sh --purge
+# macOS：在能直接看到 uninstall.sh 的目录
+ls ./uninstall.sh
+./uninstall.sh --purge
 ```
 
 ```powershell
-# Windows PowerShell
-powershell -ExecutionPolicy Bypass -File .\webman-aot-install\uninstall.ps1 -Purge
+# Windows PowerShell：在能直接看到 uninstall.ps1 的目录
+Test-Path -LiteralPath .\uninstall.ps1  # 应显示 True
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1 -Purge
 ```
+
+如果 `Test-Path` 显示 `False`，先找到实际解压目录，不要在 Webman 项目
+目录反复运行相对路径命令。卸载成功时会显示 `Webman AOT uninstalled.`；
+重新打开终端后，`webman-aot` 命令应不可用。
 
 不加 `--purge` / `-Purge` 时，会移除当前安装和命令入口，但保留部分
 已下载组件与安装备份；加上后会清除 Webman AOT 的整个用户工具目录。

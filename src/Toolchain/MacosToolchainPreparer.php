@@ -15,7 +15,7 @@ final class MacosToolchainPreparer implements ToolchainPreparer
     ) {
     }
 
-    public function prepare(string $candidate): void
+    public function prepare(string $candidate, ?\Closure $progress = null): void
     {
         if (PHP_OS_FAMILY !== 'Darwin' || php_uname('m') !== 'arm64') {
             throw new UnavailableException('macOS toolchain preparation requires macOS ARM64');
@@ -59,6 +59,7 @@ final class MacosToolchainPreparer implements ToolchainPreparer
         stream_set_blocking($pipes[2], false);
         $tail = '';
         $exit = null;
+        $nextHeartbeat = microtime(true) + 30;
         while (true) {
             $status = proc_get_status($process);
             foreach ([1, 2] as $index) {
@@ -70,6 +71,10 @@ final class MacosToolchainPreparer implements ToolchainPreparer
             if (!$status['running']) {
                 $exit = $status['exitcode'];
                 break;
+            }
+            if ($progress !== null && microtime(true) >= $nextHeartbeat) {
+                $progress('SDK preparation is still running...');
+                $nextHeartbeat = microtime(true) + 30;
             }
             usleep(20000);
         }

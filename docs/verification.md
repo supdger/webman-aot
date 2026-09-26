@@ -11,6 +11,7 @@
 | 两台现有 Linux 目标机 | [CentOS 7 虚拟机](https://github.com/supdger/webman-aot/blob/2ce04a4c5f6be438bb2c5fb5ff43925b20ab5272/evidence/2026-09-25-centos7-vm-saiadmin-runtime.json) · [Alibaba Cloud Linux 3 ECS](https://github.com/supdger/webman-aot/blob/2ce04a4c5f6be438bb2c5fb5ff43925b20ab5272/evidence/2026-09-25-alinux3-ecs-saiadmin-runtime.json) | 同一 ELF 的静态检查、启动和验证码通过；未在两台机器上做数据库登录验收 |
 | 最新打包边界 | [运行数据排除与复核](https://github.com/supdger/webman-aot/blob/2ce04a4c5f6be438bb2c5fb5ff43925b20ab5272/evidence/2026-09-25-runtime-export-package-fix.json) | 历史导出数据不再进入候选包 |
 | v0.1.0 Windows 安装包 | [公开验收运行记录](https://github.com/supdger/webman-aot/actions/runs/36174257212) | 新包安装、`doctor --repair`、中立 Webman 2.2.4 项目编译及 `verify` 通过；53 个直接编译、6 个 AOT 替代。此运行没有在 Linux 启动生成的程序 |
+| v0.1.1 Windows 安装包 | [公开验收运行记录](https://github.com/supdger/webman-aot/actions/runs/36217329199) | Windows Server 2022 上从源码两次构包并对照内容，安装时自动校验 payload，`doctor --repair`、环境健康检查、中立 Webman 2.2.4 项目编译、`verify` 与从项目目录卸载均通过；此运行没有在 Linux 启动生成的程序 |
 
 `webman-aot verify` 证明包结构和覆盖清单，不等于目标机业务验收。新增插件、
 更换依赖版本或修改业务代码后，应重新编译并执行项目自己的接口回归。
