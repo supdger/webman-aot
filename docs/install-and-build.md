@@ -28,7 +28,21 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 
 ## 第 1 步：在开发电脑安装工具
 
-把下载的安装包放到一个目录，在那个目录打开终端。
+先看你是否已经解压安装包。**已解压**时，在能看到 `install.sh`（Mac）
+或 `install.ps1`（Windows）的目录打开终端，直接执行：
+
+```sh
+# macOS
+./install.sh
+```
+
+```powershell
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+**不要在已解压的目录里再次执行解压命令。** 如果还没有解压，才按下面的
+步骤在下载文件所在目录操作。
 
 ### macOS Apple Silicon
 
@@ -44,6 +58,7 @@ cd webman-aot-install
 ```powershell
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
 tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
+if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
 
