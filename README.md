@@ -49,7 +49,20 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 
 看**开发电脑**的系统选择安装包，不是看 Linux 服务器的系统。Mac 和
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
-把下载的安装包放到一个容易找到的目录，在该目录打开终端，运行：
+**如果安装包已经解压**，在解压后能看到 `install.sh`（Mac）或
+`install.ps1`（Windows）的目录打开终端，直接运行对应命令，**不要再次解压**：
+
+```sh
+# macOS，在包含 install.sh 的目录
+./install.sh
+```
+
+```powershell
+# Windows PowerShell，在包含 install.ps1 的目录
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+**如果安装包尚未解压**，先在下载文件所在目录打开终端，再运行：
 
 ```sh
 # macOS
@@ -62,6 +75,7 @@ tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
 # Windows PowerShell
 New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
 tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
+if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
 powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 ```
 
