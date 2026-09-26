@@ -211,12 +211,17 @@ function publishedReference(string $directory): string
     }
     $partial = $directory . '/SHA256SUMS-' . $version . '.partial-' . bin2hex(random_bytes(6));
     fwrite(STDOUT, "[release] Downloading published v{$version} checksums ...\n");
+    $startedAt = microtime(true);
     try {
         (new NativeDownloader())->download(
             $base . 'SHA256SUMS.txt',
             $partial,
-            static function (int $bytes): void {
-                fwrite(STDOUT, sprintf("[release] Waiting for checksums: %.1f KiB received\n", $bytes / 1024));
+            static function (int $bytes) use ($startedAt): void {
+                fwrite(STDOUT, sprintf(
+                    "[release] Waiting for checksums: %.1f KiB received after %.1f seconds\n",
+                    $bytes / 1024,
+                    microtime(true) - $startedAt
+                ));
             }
         );
         $lines = file($partial, FILE_IGNORE_NEW_LINES);
@@ -242,6 +247,7 @@ function publishedReference(string $directory): string
     return $reference;
 }
 
+$startedAt = microtime(true);
 try {
     if ($compareRelease) {
         fwrite(STDOUT, "[release] Locating matching published installer ...\n");
@@ -315,6 +321,7 @@ try {
     if (!is_resource($process)) {
         throw new RuntimeException('Unable to start Windows installer packager');
     }
+    $packageStartedAt = microtime(true);
     stream_set_blocking($pipes[1], false);
     stream_set_blocking($pipes[2], false);
     $result = '';
@@ -328,7 +335,10 @@ try {
             break;
         }
         if (microtime(true) >= $nextReport) {
-            fwrite(STDOUT, "[build] Packaging still running ...\n");
+            fwrite(STDOUT, sprintf(
+                "[build] Packaging still running after %.1f seconds ...\n",
+                microtime(true) - $packageStartedAt
+            ));
             $nextReport = microtime(true) + 5;
         }
         usleep(200000);
@@ -376,7 +386,12 @@ try {
             . count($actual) . " verified files.\n");
         fwrite(STDOUT, "ZIP byte hashes can differ because archive metadata or compression differs.\n");
     }
+    fwrite(STDOUT, sprintf("[OK] Source build finished in %.1f seconds.\n", microtime(true) - $startedAt));
 } catch (Throwable $exception) {
-    fwrite(STDERR, '[ERROR] ' . $exception->getMessage() . "\n");
+    fwrite(STDERR, sprintf(
+        "[ERROR] Source build failed after %.1f seconds: %s\n",
+        microtime(true) - $startedAt,
+        $exception->getMessage()
+    ));
     exit(1);
 }
