@@ -348,7 +348,13 @@ final class Application
             throw new UsageException("Unknown doctor option: {$option}");
         }
 
-        $repairResult = $repair ? ($this->repairFactory)()->repair() : null;
+        $progress = function (string $message) use ($json): void {
+            $this->logger?->event('info', 'toolchain.progress', 'doctor', $message);
+            if (!$json) {
+                fwrite(STDERR, '[repair] ' . $message . PHP_EOL);
+            }
+        };
+        $repairResult = $repair ? ($this->repairFactory)()->repair($progress) : null;
         $report = ($this->doctorFactory)()->inspect();
         if ($json) {
             $payload = $repair

@@ -6,5 +6,8 @@ namespace WebmanAot\Toolchain;
 
 interface Downloader
 {
-    public function download(string $url, string $destination): void;
+    /**
+     * @param (\Closure(int):void)|null $progress Receives downloaded byte counts.
+     */
+    public function download(string $url, string $destination, ?\Closure $progress = null): void;
 }

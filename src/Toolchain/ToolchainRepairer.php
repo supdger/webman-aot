@@ -27,14 +27,18 @@ final class ToolchainRepairer
      *     lockSha256:string,
      *     changed:bool
      * }
+     * @param (\Closure(string):void)|null $progress
      */
-    public function repair(): array
+    public function repair(?\Closure $progress = null): array
     {
+        $progress?->__invoke('Checking the locked toolchain and acquiring the repair lock...');
         $toolchains = $this->layout->path('toolchains');
         $candidates = $toolchains . '/candidates';
         $versions = $toolchains . '/versions';
+        $downloads = $toolchains . '/downloads';
         $this->createDirectory($candidates);
         $this->createDirectory($versions);
+        $this->createDirectory($downloads);
         $lockHandle = fopen($toolchains . '/repair.lock', 'c+');
         if (!is_resource($lockHandle)) {
             throw new ConfigurationException('unable to open toolchain repair lock');
@@ -46,7 +50,7 @@ final class ToolchainRepairer
 
         $candidate = $candidates . '/candidate-' . bin2hex(random_bytes(8));
         try {
-            $result = $this->buildAndPromote($candidate, $versions);
+            $result = $this->buildAndPromote($candidate, $versions, $downloads, $progress);
         } catch (\Throwable $throwable) {
             $this->removeDirectory($candidate);
             throw $throwable;
@@ -67,7 +71,12 @@ final class ToolchainRepairer
      *     changed:bool
      * }
      */
-    private function buildAndPromote(string $candidate, string $versions): array
+    private function buildAndPromote(
+        string $candidate,
+        string $versions,
+        string $downloads,
+        ?\Closure $progress
+    ): array
     {
         $lockContents = file_get_contents($this->lockPath);
         if (!is_string($lockContents)) {
@@ -88,6 +97,9 @@ final class ToolchainRepairer
         if ($components === []) {
             throw new ConfigurationException("toolchain lock has no components for {$this->host}");
         }
+        $progress?->__invoke(
+            sprintf('Locked components selected for %s: %d', $this->host, count($components))
+        );
 
         $artifacts = $candidate . '/artifacts';
         $this->createDirectory($artifacts);
@@ -113,6 +125,7 @@ final class ToolchainRepairer
             && ($this->preparer === null || $activeReady)
         ) {
             $this->removeDirectory($candidate);
+            $progress?->__invoke('Existing toolchain is verified and ready; no download needed.');
 
             return [
                 'generation' => basename($activeGeneration),
@@ -126,7 +139,8 @@ final class ToolchainRepairer
         $downloaded = [];
         $manifestComponents = [];
         $filenames = [];
-        foreach ($components as $component) {
+        $total = count($components);
+        foreach ($components as $index => $component) {
             $id = (string) $component['id'];
             $filename = $this->artifactFilename($component);
             if (isset($filenames[$filename])) {
@@ -135,26 +149,53 @@ final class ToolchainRepairer
             $filenames[$filename] = true;
             $expected = (string) $component['sha256'];
             $source = $active . '/' . $filename;
+            $cached = $downloads . '/' . $expected;
             $target = $artifacts . '/' . $filename;
+            $step = sprintf('Component %d/%d %s', $index + 1, $total, $id);
             if ($this->matchesDigest($source, $expected)) {
+                $progress?->__invoke("{$step}: reusing verified active component");
                 if (!copy($source, $target)) {
                     throw new \RuntimeException("unable to copy verified component: {$id}");
                 }
                 $copied[] = $id;
+            } elseif ($this->matchesDigest($cached, $expected)) {
+                $progress?->__invoke("{$step}: reusing SHA-256 verified download");
+                if (!copy($cached, $target)) {
+                    throw new \RuntimeException("unable to copy verified download: {$id}");
+                }
+                $copied[] = $id;
             } else {
+                $progress?->__invoke("{$step}: downloading from locked source");
                 $partial = $target . '.partial';
-                $this->downloader->download((string) $component['sourceUrl'], $partial);
+                $this->downloader->download(
+                    (string) $component['sourceUrl'],
+                    $partial,
+                    static function (int $bytes) use ($progress, $step): void {
+                        $progress?->__invoke(sprintf(
+                            '%s: %.1f MiB received; still downloading',
+                            $step,
+                            $bytes / 1048576
+                        ));
+                    }
+                );
                 if (!$this->matchesDigest($partial, $expected)) {
                     throw new UnavailableException("downloaded component digest mismatch: {$id}");
                 }
-                if (!rename($partial, $target)) {
-                    throw new \RuntimeException("unable to promote verified component: {$id}");
+                if (is_file($cached) && !unlink($cached)) {
+                    throw new \RuntimeException("unable to replace corrupt cached component: {$id}");
+                }
+                if (!rename($partial, $cached)) {
+                    throw new \RuntimeException("unable to cache verified component: {$id}");
+                }
+                if (!copy($cached, $target)) {
+                    throw new \RuntimeException("unable to copy verified download: {$id}");
                 }
                 $downloaded[] = $id;
             }
             if (!$this->matchesDigest($target, $expected)) {
                 throw new \RuntimeException("candidate component self-check failed: {$id}");
             }
+            $progress?->__invoke("{$step}: SHA-256 verified");
             $manifestComponents[] = [
                 'id' => $id,
                 'version' => (string) $component['version'],
@@ -183,8 +224,10 @@ final class ToolchainRepairer
         ) {
             throw new \RuntimeException('unable to preserve verified toolchain lock');
         }
-        $this->preparer?->prepare($candidate);
+        $progress?->__invoke('Preparing the private compiler and Linux static SDK...');
+        $this->preparer?->prepare($candidate, $progress);
         $this->preparer?->assertReady($candidate);
+        $progress?->__invoke('Prepared compiler and static SDK passed verification.');
         $destination = $versions . '/' . $generationName;
         if (!rename($candidate, $destination)) {
             throw new \RuntimeException('unable to atomically promote candidate toolchain');
@@ -200,6 +243,7 @@ final class ToolchainRepairer
             }
             throw $exception;
         }
+        $progress?->__invoke('Toolchain generation activated and ready.');
 
         return [
             'generation' => $generationName,

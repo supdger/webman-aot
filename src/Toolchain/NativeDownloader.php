@@ -6,10 +6,11 @@ namespace WebmanAot\Toolchain;
 
 final class NativeDownloader implements Downloader
 {
-    public function download(string $url, string $destination): void
+    public function download(string $url, string $destination, ?\Closure $progress = null): void
     {
+        $downloadUrl = self::sourceDownloadUrl($url);
         if (PHP_OS_FAMILY === 'Windows') {
-            $this->downloadWithWindowsCurl($url, $destination);
+            $this->downloadWithWindowsCurl($downloadUrl, $destination, $progress);
             return;
         }
 
@@ -25,7 +26,7 @@ final class NativeDownloader implements Downloader
                 'verify_peer_name' => true,
             ],
         ]);
-        $source = @fopen($url, 'rb', false, $context);
+        $source = @fopen($downloadUrl, 'rb', false, $context);
         if (!is_resource($source)) {
             throw new \RuntimeException("unable to download locked component: {$url}");
         }
@@ -35,8 +36,18 @@ final class NativeDownloader implements Downloader
             throw new \RuntimeException('unable to create candidate download');
         }
         try {
-            if (stream_copy_to_stream($source, $target) === false) {
-                throw new \RuntimeException("unable to download locked component: {$url}");
+            $downloaded = 0;
+            $nextReport = microtime(true) + 5;
+            while (!feof($source)) {
+                $copied = stream_copy_to_stream($source, $target, 1024 * 1024);
+                if ($copied === false || ($copied === 0 && !feof($source))) {
+                    throw new \RuntimeException("unable to download locked component: {$url}");
+                }
+                $downloaded += $copied;
+                if ($progress !== null && microtime(true) >= $nextReport) {
+                    $progress($downloaded);
+                    $nextReport = microtime(true) + 5;
+                }
             }
         } finally {
             fclose($source);
@@ -44,7 +55,34 @@ final class NativeDownloader implements Downloader
         }
     }
 
-    private function downloadWithWindowsCurl(string $url, string $destination): void
+    public static function sourceDownloadUrl(string $url): string
+    {
+        if (preg_match(
+            '~^https://github\.com/([^/]+)/([^/]+)/archive/refs/tags/([^/]+)\.tar\.gz$~D',
+            $url,
+            $matches
+        ) === 1) {
+            return "https://codeload.github.com/{$matches[1]}/{$matches[2]}/tar.gz/refs/tags/{$matches[3]}";
+        }
+        if (preg_match(
+            '~^https://github\.com/([^/]+)/([^/]+)/archive/([^/]+)\.zip$~D',
+            $url,
+            $matches
+        ) === 1) {
+            return "https://codeload.github.com/{$matches[1]}/{$matches[2]}/zip/{$matches[3]}";
+        }
+
+        return $url;
+    }
+
+    /**
+     * @param (\Closure(int):void)|null $progress
+     */
+    private function downloadWithWindowsCurl(
+        string $url,
+        string $destination,
+        ?\Closure $progress
+    ): void
     {
         $systemRoot = getenv('SystemRoot');
         $curl = is_string($systemRoot)
@@ -64,7 +102,8 @@ final class NativeDownloader implements Downloader
                 '--retry', '5',
                 '--retry-delay', '2',
                 '--retry-all-errors',
-                '--connect-timeout', '30',
+                '--connect-timeout', '15',
+                '--max-time', '180',
                 '--proto', '=https',
                 '--proto-redir', '=https',
                 '--output', $destination,
@@ -83,11 +122,41 @@ final class NativeDownloader implements Downloader
         if (!is_resource($process)) {
             throw new \RuntimeException("unable to start secure Windows downloader: {$url}");
         }
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $error = '';
+        $exit = null;
+        $nextReport = microtime(true) + 5;
+        while (true) {
+            $status = proc_get_status($process);
+            stream_get_contents($pipes[1]);
+            $chunk = stream_get_contents($pipes[2]);
+            if (is_string($chunk) && $chunk !== '') {
+                $error = substr($error . $chunk, -8192);
+            }
+            if (!$status['running']) {
+                $exit = $status['exitcode'];
+                break;
+            }
+            if ($progress !== null && microtime(true) >= $nextReport) {
+                clearstatcache(true, $destination);
+                $bytes = is_file($destination) ? filesize($destination) : 0;
+                $progress(is_int($bytes) ? $bytes : 0);
+                $nextReport = microtime(true) + 5;
+            }
+            usleep(200000);
+        }
+        stream_set_blocking($pipes[1], true);
+        stream_set_blocking($pipes[2], true);
         stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        $error = stream_get_contents($pipes[2]);
+        $chunk = stream_get_contents($pipes[2]);
+        if (is_string($chunk) && $chunk !== '') {
+            $error = substr($error . $chunk, -8192);
+        }
         fclose($pipes[2]);
-        if (proc_close($process) !== 0) {
+        $closed = proc_close($process);
+        if (($exit >= 0 ? $exit : $closed) !== 0) {
             throw new \RuntimeException(
                 "unable to download locked component: {$url}"
                 . (is_string($error) && trim($error) !== '' ? ' (' . trim($error) . ')' : '')
