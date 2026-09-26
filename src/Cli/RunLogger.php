@@ -42,6 +42,11 @@ final class RunLogger
         string $message,
         array $context = []
     ): void {
+        $message = json_decode(
+            json_encode($message, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE),
+            true,
+            flags: JSON_THROW_ON_ERROR
+        );
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $record = [
             'timestamp' => $timestamp,
@@ -53,7 +58,8 @@ final class RunLogger
         ];
         $json = json_encode(
             $record,
-            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE
+                | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
         $human = sprintf(
             "%s %-5s [%s] %s\n",
