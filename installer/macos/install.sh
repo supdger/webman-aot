@@ -39,6 +39,7 @@ done
     cd "$package_root"
     shasum -a 256 -c payload-manifest.sha256
 )
+echo "Package contents SHA-256 verified."
 
 candidate="${aot_home}/.install-candidates/install-$$"
 backup=''

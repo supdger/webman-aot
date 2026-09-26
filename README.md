@@ -29,8 +29,9 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 - macOS Apple Silicon：`webman-aot-0.1.0-macos-arm64.tar.gz`
 - Windows x64：`webman-aot-0.1.0-windows-x86_64.zip`
 
-同时下载 `SHA256SUMS.txt`，按[安装说明](docs/install-and-build.md)核对
-摘要。不要下载 GitHub 自动生成的「Source code (zip)」来代替安装包；
+正常安装**不要求你手工计算 SHA-256**：安装脚本会自动校验包内每个文件，
+不匹配就停止。发布者也应在上传前核对安装包摘要；`SHA256SUMS.txt`
+保留给想独立复核的用户。不要下载 GitHub 自动生成的「Source code (zip)」来代替安装包；
 它是供阅读、修改及[自行构包](docs/build-installers.md)的工具源码。
 
 从头到尾是这条关系：
@@ -143,21 +144,27 @@ cd dist-aot
 
 ## 卸载开发电脑上的工具
 
-在下载目录打开终端，使用安装时解压出的 `webman-aot-install` 目录运行：
+卸载脚本在**安装时解压出的安装包文件夹**，不在 Webman 项目目录里。
+打开那个能直接看到 `uninstall.ps1` 或 `uninstall.sh` 的文件夹，并在
+该文件夹打开终端。先确认脚本存在，再运行：
 
 ```sh
 # macOS
-./webman-aot-install/uninstall.sh --purge
+ls ./uninstall.sh
+./uninstall.sh --purge
 ```
 
 ```powershell
 # Windows PowerShell
-powershell -ExecutionPolicy Bypass -File .\webman-aot-install\uninstall.ps1 -Purge
+Test-Path -LiteralPath .\uninstall.ps1  # 应显示 True
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1 -Purge
 ```
 
 `--purge` / `-Purge` 会一并清除工具下载的编译组件和安装备份；不加则保留
 部分缓存与备份。卸载不会删除 Webman 项目或项目里的 `dist-aot/`。
-解压目录已删除时，可从上面的 Release 重新下载对应安装包。细节见
+如果检查结果是 `False`，说明当前目录不是安装包解压目录，**不要继续
+执行卸载命令**；先找到实际解压目录。解压目录已删除时，可从上面的
+Release 重新下载对应安装包并解压。细节见
 [安装与卸载说明](docs/install-and-build.md#卸载开发电脑上的工具)。
 
 ## 验证记录
