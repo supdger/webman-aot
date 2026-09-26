@@ -49,44 +49,37 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 
 看**开发电脑**的系统选择安装包，不是看 Linux 服务器的系统。Mac 和
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
-**如果安装包已经解压**，在解压后能看到 `install.sh`（Mac）或
-`install.ps1`（Windows）的目录打开终端，直接运行对应命令，**不要再次解压**：
+**先解压安装包，再运行里面的安装脚本。** ZIP 或 tar.gz 本身不能直接安装；
+如果已经解压，就跳过解压，不要在解压后的文件夹里再找 ZIP。当前
+v0.1.0 没有双击安装入口，解压后还需执行下面对应的一条命令。
 
-```sh
-# macOS，在包含 install.sh 的目录
-./install.sh
-```
+- **Windows：**右键下载的 ZIP，选“全部提取”。打开解压出的文件夹，确认
+  能看到 `install.ps1`。在该文件夹的地址栏输入 `powershell` 并按回车，
+  然后执行：
 
-```powershell
-# Windows PowerShell，在包含 install.ps1 的目录
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\install.ps1
+  ```
 
-**如果安装包尚未解压**，先在下载文件所在目录打开终端，再运行：
+- **Mac：**双击下载的 tar.gz 解压，进入能看到 `install.sh` 的文件夹，
+  在该文件夹打开终端，然后执行：
 
-```sh
-# macOS
-mkdir webman-aot-install
-tar -xzf webman-aot-0.1.0-macos-arm64.tar.gz -C webman-aot-install
-./webman-aot-install/install.sh
-```
+  ```sh
+  ./install.sh
+  ```
 
-```powershell
-# Windows PowerShell
-New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
-tar.exe -xf .\webman-aot-0.1.0-windows-x86_64.zip -C .\webman-aot-install
-if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
-powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
-```
-
-安装脚本结束后，**关闭并重新打开终端**，运行：
+不想用文件管理器解压，也可以按[命令行解压步骤](docs/install-and-build.md#命令行解压安装包)
+操作。安装脚本结束时会显示 `Webman AOT installed in:` 和
+`Command installed as:` 两行。**这表示安装脚本已完成**；接着关闭并
+重新打开终端，运行：
 
 ```sh
 webman-aot version
 ```
 
-能显示版本号，就表示**工具已经装到开发电脑上**。此时还没有编译任何项目，
-也没有生成 `dist-aot/`。安装器只写入当前用户目录，不安装系统级 PHP。
+看到 `webman-aot 0.1.0`，才表示**命令也能正常使用、工具安装验证通过**。
+此时还没有编译任何项目，也没有生成 `dist-aot/`。安装器只写入当前
+用户目录，不安装系统级 PHP。
 安装包摘要和补充说明见[安装说明](docs/install-and-build.md)。
 
 ## 第 2 步：编译你的项目
