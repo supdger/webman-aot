@@ -97,7 +97,7 @@ final class NativeDownloader implements Downloader
                 '-q',
                 '--fail',
                 '--location',
-                '--silent',
+                '--progress-bar',
                 '--show-error',
                 '--retry', '5',
                 '--retry-delay', '2',
@@ -111,8 +111,8 @@ final class NativeDownloader implements Downloader
             ],
             [
                 0 => ['file', 'NUL', 'r'],
-                1 => ['pipe', 'w'],
-                2 => ['pipe', 'w'],
+                1 => ['file', 'NUL', 'w'],
+                2 => STDERR,
             ],
             $pipes,
             null,
@@ -122,18 +122,10 @@ final class NativeDownloader implements Downloader
         if (!is_resource($process)) {
             throw new \RuntimeException("unable to start secure Windows downloader: {$url}");
         }
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
-        $error = '';
         $exit = null;
         $nextReport = microtime(true) + 5;
         while (true) {
             $status = proc_get_status($process);
-            stream_get_contents($pipes[1]);
-            $chunk = stream_get_contents($pipes[2]);
-            if (is_string($chunk) && $chunk !== '') {
-                $error = substr($error . $chunk, -8192);
-            }
             if (!$status['running']) {
                 $exit = $status['exitcode'];
                 break;
@@ -146,20 +138,11 @@ final class NativeDownloader implements Downloader
             }
             usleep(200000);
         }
-        stream_set_blocking($pipes[1], true);
-        stream_set_blocking($pipes[2], true);
-        stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        $chunk = stream_get_contents($pipes[2]);
-        if (is_string($chunk) && $chunk !== '') {
-            $error = substr($error . $chunk, -8192);
-        }
-        fclose($pipes[2]);
         $closed = proc_close($process);
-        if (($exit >= 0 ? $exit : $closed) !== 0) {
+        $exitCode = $exit >= 0 ? $exit : $closed;
+        if ($exitCode !== 0) {
             throw new \RuntimeException(
-                "unable to download locked component: {$url}"
-                . (is_string($error) && trim($error) !== '' ? ' (' . trim($error) . ')' : '')
+                "unable to download locked component: {$url} (curl exit code {$exitCode})"
             );
         }
     }
