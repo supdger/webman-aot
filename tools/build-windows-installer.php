@@ -80,23 +80,76 @@ function verifiedInput(string $url, string $sha256, string $directory): string
     }
 
     $partial = $path . '.partial-' . bin2hex(random_bytes(6));
-    fwrite(STDOUT, "[download] {$name}\n");
+    // Display hints only; SHA-256 remains the authority for accepted inputs.
+    $expectedBytes = match ($sha256) {
+        '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c' => 35113790,
+        '7e5fe3549397e819c20b82c4586af5cad7cb03d6743d86fbca5094d629894902' => 14289309,
+        default => null,
+    };
+    $interactive = function_exists('stream_isatty') && stream_isatty(STDOUT);
+    $lineWidth = 0;
+    $lineVisible = false;
+    $lastBytes = 0;
+    $finishLine = static function () use ($interactive, &$lineVisible, &$lineWidth): void {
+        if ($interactive && $lineVisible) {
+            fwrite(STDOUT, "\n");
+            fflush(STDOUT);
+            $lineVisible = false;
+            $lineWidth = 0;
+        }
+    };
+    $showProgress = static function (int $bytes) use (
+        $name,
+        $expectedBytes,
+        $interactive,
+        &$lineWidth,
+        &$lineVisible,
+        &$lastBytes
+    ): void {
+        $status = $expectedBytes === null
+            ? sprintf('[download] %s: %.1f MiB', $name, $bytes / 1048576)
+            : sprintf(
+                '[download] %s: %.1f%%',
+                $name,
+                min(100, $bytes * 100 / $expectedBytes)
+            );
+        if ($bytes < $lastBytes) {
+            $status .= ' (retrying from start)';
+        }
+        if ($interactive) {
+            fwrite(STDOUT, "\r" . $status . str_repeat(' ', max(0, $lineWidth - strlen($status))));
+            fflush(STDOUT);
+            $lineWidth = strlen($status);
+            $lineVisible = true;
+        } else {
+            fwrite(STDOUT, $status . "\n");
+        }
+        $lastBytes = $bytes;
+    };
+    $showProgress(0);
     try {
         try {
             (new NativeDownloader())->download(
                 $url,
                 $partial,
-                static function (int $bytes) use ($name): void {
-                    fwrite(STDOUT, sprintf("[download] %s: %.1f MiB received\n", $name, $bytes / 1048576));
+                $showProgress,
+                static function (string $message) use ($finishLine): void {
+                    $finishLine();
+                    fwrite(STDERR, $message . "\n");
                 }
             );
         } catch (RuntimeException $exception) {
+            $finishLine();
             throw new RuntimeException(
                 "Download failed for {$name}. Check the connection and rerun the same build command; "
                 . "completed SHA-256 verified inputs will be reused. {$exception->getMessage()}",
                 previous: $exception
             );
         }
+        clearstatcache(true, $partial);
+        $bytes = filesize($partial);
+        $showProgress(is_int($bytes) ? $bytes : 0);
+        $finishLine();
         if (!hash_equals($sha256, (string) hash_file('sha256', $partial))) {
             throw new RuntimeException("Downloaded input SHA-256 mismatch: {$name}");
         }
@@ -107,6 +160,7 @@ function verifiedInput(string $url, string $sha256, string $directory): string
             throw new RuntimeException("Unable to activate verified input: {$name}");
         }
     } finally {
+        $finishLine();
         if (is_file($partial)) {
             unlink($partial);
         }
