@@ -8,6 +8,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$timer = [Diagnostics.Stopwatch]::StartNew()
+try {
 
 if ($Compare -and $CompareRelease) {
     throw 'Choose either -Compare or -CompareRelease, not both.'
@@ -88,4 +90,9 @@ try {
     if (Test-Path -LiteralPath $temporary) {
         Remove-Item -Recurse -Force -LiteralPath $temporary
     }
+}
+Write-Output ("[OK] Windows installer source build finished in {0:N1} seconds." -f $timer.Elapsed.TotalSeconds)
+} catch {
+    Write-Output ("[ERROR] Windows installer source build failed after {0:N1} seconds." -f $timer.Elapsed.TotalSeconds)
+    throw
 }
