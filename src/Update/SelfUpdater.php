@@ -27,7 +27,8 @@ final class SelfUpdater
         array $target,
         string $payloadSha256,
         string $verifiedKeyId,
-        ?\Closure $progress = null
+        ?\Closure $progress = null,
+        ?\Closure $diagnostic = null
     ): array
     {
         $store = new CliVersionStore($this->layout);
@@ -42,7 +43,7 @@ final class SelfUpdater
         $archive = $candidateRoot . '/package.zip';
         $this->createDirectory($candidateRoot);
         try {
-            $this->downloader->fetch($target['url'], $target['sha256'], $archive, $progress);
+            $this->downloader->fetch($target['url'], $target['sha256'], $archive, $progress, $diagnostic);
             $this->createDirectory($payload);
             $this->extractor->extract($archive, $payload);
             if (!$this->selfChecker->check($payload . '/app', $target['version'])) {

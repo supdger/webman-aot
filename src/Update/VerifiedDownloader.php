@@ -17,7 +17,8 @@ final class VerifiedDownloader
         string $url,
         string $sha256,
         string $destination,
-        ?\Closure $progress = null
+        ?\Closure $progress = null,
+        ?\Closure $diagnostic = null
     ): void
     {
         if (preg_match('/^[a-f0-9]{64}$/D', $sha256) !== 1) {
@@ -31,7 +32,7 @@ final class VerifiedDownloader
             unlink($partial);
         }
         try {
-            $this->downloader->download($url, $partial, $progress);
+            $this->downloader->download($url, $partial, $progress, $diagnostic);
             $actual = is_file($partial) ? hash_file('sha256', $partial) : false;
             if (!is_string($actual) || !hash_equals($sha256, $actual)) {
                 throw new UnavailableException('downloaded update digest mismatch');

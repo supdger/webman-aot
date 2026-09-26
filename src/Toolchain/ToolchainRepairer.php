@@ -182,6 +182,9 @@ final class ToolchainRepairer
                                 $bytes / 1048576
                             ));
                         }
+                    },
+                    static function (string $message) use ($progress, $step): void {
+                        $progress?->__invoke("{$step}: {$message}");
                     }
                 );
                 if (!$this->matchesDigest($partial, $expected)) {

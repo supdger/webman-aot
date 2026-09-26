@@ -31,10 +31,11 @@ final class UpdateManager
     public function selfUpdate(
         string $manifestUrl,
         string $trustedKeysPath,
-        ?\Closure $progress = null
+        ?\Closure $progress = null,
+        ?\Closure $stage = null
     ): array
     {
-        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress);
+        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress, $stage);
 
         return (new SelfUpdater(
             $this->layout,
@@ -47,7 +48,8 @@ final class UpdateManager
             $manifest->target('cli'),
             $manifest->payloadSha256(),
             $manifest->verifiedKeyId(),
-            static fn (int $bytes, ?int $total = null) => $progress?->__invoke('CLI update package', $bytes, $total)
+            static fn (int $bytes, ?int $total = null) => $progress?->__invoke('CLI update package', $bytes, $total),
+            $stage
         );
     }
 
@@ -75,7 +77,7 @@ final class UpdateManager
         ?\Closure $stage = null
     ): array
     {
-        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress);
+        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress, $stage);
         $target = $manifest->target('toolchain');
         $candidate = $this->temporaryPath('toolchain-lock') . '.json';
         try {
@@ -83,7 +85,8 @@ final class UpdateManager
                 $target['url'],
                 $target['sha256'],
                 $candidate,
-                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Toolchain lock', $bytes, $total)
+                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Toolchain lock', $bytes, $total),
+                $stage
             );
             $result = (new ToolchainRepairer(
                 $candidate,
@@ -119,7 +122,8 @@ final class UpdateManager
     private function loadManifest(
         string $url,
         string $trustedKeysPath,
-        ?\Closure $progress = null
+        ?\Closure $progress = null,
+        ?\Closure $stage = null
     ): UpdateManifest
     {
         if (!str_starts_with($url, 'https://')) {
@@ -130,7 +134,8 @@ final class UpdateManager
             $this->downloader->download(
                 $url,
                 $path,
-                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Update manifest', $bytes, $total)
+                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Update manifest', $bytes, $total),
+                $stage
             );
             $contents = file_get_contents($path);
             if (!is_string($contents)) {

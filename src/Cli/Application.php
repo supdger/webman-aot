@@ -529,6 +529,9 @@ final class Application
                     $output->update($total === null
                         ? sprintf('[update] %s: %.1f MiB received', $name, $bytes / 1048576)
                         : sprintf('[update] %s: %.1f%%', $name, min(99.9, $bytes * 100 / $total)));
+                },
+                static function (string $message) use ($output): void {
+                    $output->message('[update] ' . $message);
                 }
             );
         } finally {
