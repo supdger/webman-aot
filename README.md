@@ -6,7 +6,8 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 **这个仓库存放的是 Webman AOT 编译工具的源码，不是要装进 Webman 项目的插件。**
 只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
 下载安装包；想自行制作安装包，可按[源码构包说明](docs/build-installers.md)
-备齐锁定的第三方运行时后构建。源码 ZIP 本身不是可安装的工具包。
+操作：Windows 有自动下载与对照命令，Mac 仍须备齐锁定的运行时。
+源码 ZIP 本身不是可安装的工具包。
 
 **工具在同一台开发电脑上只需安装一次。** 以后编译另一个项目，或修改项目
 后重新编译，都不用重新安装工具，也不用在项目里 `composer require`；

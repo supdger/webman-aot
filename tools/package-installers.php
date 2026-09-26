@@ -256,7 +256,7 @@ final class InstallerPackager
         $app = $stage . '/payload/app';
         $this->createDirectory($app . '/bin');
         copy($this->root . '/bin/webman-aot.php', $app . '/bin/webman-aot.php');
-        $this->copyDirectory($this->root . '/src', $app . '/src');
+        $this->copyDirectory($this->root . '/src', $app . '/src', ['php']);
         copy($this->root . '/toolchain.lock.json', $app . '/toolchain.lock.json');
         $this->createDirectory($app . '/installer');
         copy($this->root . '/installer/runtime.lock.json', $app . '/installer/runtime.lock.json');
@@ -274,7 +274,8 @@ final class InstallerPackager
         }
         $this->copyDirectory(
             $this->root . '/toolchain/patches/typephp/0.9.2',
-            $app . '/toolchain/patches/typephp/0.9.2'
+            $app . '/toolchain/patches/typephp/0.9.2',
+            ['patch', 'json']
         );
         $this->createDirectory($app . '/compatibility/locks');
         if (!copy(
@@ -499,16 +500,26 @@ final class InstallerPackager
         return $this->options[$name];
     }
 
-    private function copyDirectory(string $source, string $destination): void
+    /**
+     * @param list<string>|null $extensions
+     */
+    private function copyDirectory(string $source, string $destination, ?array $extensions = null): void
     {
         $this->createDirectory($destination);
         foreach (new DirectoryIterator($source) as $item) {
             if ($item->isDot()) {
                 continue;
             }
+            if ($item->isLink()) {
+                throw new RuntimeException("installer source contains a symbolic link: {$item->getPathname()}");
+            }
             $target = $destination . '/' . $item->getFilename();
             if ($item->isDir()) {
-                $this->copyDirectory($item->getPathname(), $target);
+                $this->copyDirectory($item->getPathname(), $target, $extensions);
+            } elseif ($extensions !== null
+                && !in_array(strtolower($item->getExtension()), $extensions, true)
+            ) {
+                continue;
             } elseif (!copy($item->getPathname(), $target)) {
                 throw new RuntimeException("unable to copy installer file: {$target}");
             }
