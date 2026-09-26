@@ -17,6 +17,7 @@ $root = dirname(__DIR__);
 $output = $root . '/dist/source-build';
 $compare = null;
 $revision = 'v' . WebmanAot\Version::VALUE;
+$revisionProvided = false;
 
 foreach (array_slice($argv, 1) as $argument) {
     if ($argument === '--help') {
@@ -29,6 +30,7 @@ foreach (array_slice($argv, 1) as $argument) {
         $output = substr($argument, strlen('--output='));
     } elseif (str_starts_with($argument, '--revision=')) {
         $revision = substr($argument, strlen('--revision='));
+        $revisionProvided = true;
     } else {
         fwrite(STDERR, "Unknown option: {$argument}\n");
         exit(2);
@@ -162,7 +164,39 @@ function zipDigests(string $path): array
     }
 }
 
+function referenceRevision(string $path): string
+{
+    $zip = new ZipArchive();
+    if ($zip->open($path) !== true) {
+        throw new RuntimeException("Unable to open comparison ZIP: {$path}");
+    }
+    try {
+        $contents = $zip->getFromName('package.json');
+    } finally {
+        $zip->close();
+    }
+    if (!is_string($contents)) {
+        throw new RuntimeException('Comparison ZIP has no package.json');
+    }
+    $package = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+    if (!is_array($package)
+        || ($package['schema'] ?? null) !== 'webman-aot-installer-package-v1'
+        || ($package['version'] ?? null) !== WebmanAot\Version::VALUE
+        || ($package['platform'] ?? null) !== 'windows-x86_64'
+        || !is_string($package['revision'] ?? null)
+        || preg_match('/^[a-zA-Z0-9._-]{1,128}$/D', $package['revision']) !== 1
+    ) {
+        throw new RuntimeException('Comparison ZIP has incompatible package metadata');
+    }
+    return $package['revision'];
+}
+
 try {
+    if ($compare !== null && !$revisionProvided) {
+        zipDigests($compare);
+        $revision = referenceRevision($compare);
+        fwrite(STDOUT, "[OK] Using verified reference revision: {$revision}\n");
+    }
     $runtimeLock = readLockedJson($root . '/installer/runtime.lock.json');
     $windowsRuntime = $runtimeLock['runtimes']['windows-x86_64'] ?? null;
     $toolchainLock = readLockedJson($root . '/toolchain.lock.json');
