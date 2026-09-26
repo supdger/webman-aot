@@ -16,18 +16,15 @@ if (PHP_VERSION_ID < 80400 || !extension_loaded('zip') || !extension_loaded('Pha
 $root = dirname(__DIR__);
 $output = $root . '/dist/source-build';
 $compare = null;
-$compareRelease = false;
 $revision = 'v' . WebmanAot\Version::VALUE;
 $revisionProvided = false;
 
 foreach (array_slice($argv, 1) as $argument) {
     if ($argument === '--help') {
-        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--compare-release | --compare=<release-zip>] [--output=<directory>] [--revision=<value>]\n");
+        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--compare=<local-zip>] [--output=<directory>] [--revision=<value>]\n");
         exit(0);
     }
-    if ($argument === '--compare-release') {
-        $compareRelease = true;
-    } elseif (str_starts_with($argument, '--compare=')) {
+    if (str_starts_with($argument, '--compare=')) {
         $compare = substr($argument, strlen('--compare='));
     } elseif (str_starts_with($argument, '--output=')) {
         $output = substr($argument, strlen('--output='));
@@ -40,10 +37,6 @@ foreach (array_slice($argv, 1) as $argument) {
     }
 }
 
-if ($compareRelease && $compare !== null) {
-    fwrite(STDERR, "Choose either --compare-release or --compare, not both.\n");
-    exit(2);
-}
 if ($output === '' || $revision === '' || ($compare !== null && !is_file($compare))) {
     fwrite(STDERR, "Output and revision must be non-empty; --compare must name an existing ZIP.\n");
     exit(2);
@@ -198,61 +191,8 @@ function referenceRevision(string $path): string
     return $package['revision'];
 }
 
-function publishedReference(string $directory): string
-{
-    $version = WebmanAot\Version::VALUE;
-    if (preg_match('/^\d+\.\d+\.\d+$/D', $version) !== 1) {
-        throw new RuntimeException('Automatic release comparison requires a released version');
-    }
-    $name = "webman-aot-{$version}-windows-x86_64.zip";
-    $base = "https://github.com/supdger/webman-aot/releases/download/v{$version}/";
-    if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
-        throw new RuntimeException("Unable to create input directory: {$directory}");
-    }
-    $partial = $directory . '/SHA256SUMS-' . $version . '.partial-' . bin2hex(random_bytes(6));
-    fwrite(STDOUT, "[release] Downloading published v{$version} checksums ...\n");
-    $startedAt = microtime(true);
-    try {
-        (new NativeDownloader())->download(
-            $base . 'SHA256SUMS.txt',
-            $partial,
-            static function (int $bytes) use ($startedAt): void {
-                fwrite(STDOUT, sprintf(
-                    "[release] Waiting for checksums: %.1f KiB received after %.1f seconds\n",
-                    $bytes / 1024,
-                    microtime(true) - $startedAt
-                ));
-            }
-        );
-        $lines = file($partial, FILE_IGNORE_NEW_LINES);
-        if (!is_array($lines)) {
-            throw new RuntimeException('Unable to read published checksums');
-        }
-        $matches = [];
-        foreach ($lines as $line) {
-            if (preg_match('/^([a-f0-9]{64})  ' . preg_quote($name, '/') . '$/D', $line, $parts) === 1) {
-                $matches[] = $parts[1];
-            }
-        }
-        if (count($matches) !== 1) {
-            throw new RuntimeException("Published checksums must list {$name} exactly once");
-        }
-    } finally {
-        if (is_file($partial)) {
-            unlink($partial);
-        }
-    }
-    $reference = verifiedInput($base . $name, $matches[0], $directory);
-    fwrite(STDOUT, "[OK] Published v{$version} installer SHA-256 verified: {$reference}\n");
-    return $reference;
-}
-
 $startedAt = microtime(true);
 try {
-    if ($compareRelease) {
-        fwrite(STDOUT, "[release] Locating matching published installer ...\n");
-        $compare = publishedReference($root . '/dist/installer-inputs');
-    }
     if ($compare !== null && !$revisionProvided) {
         fwrite(STDOUT, "[verify] Checking reference installer contents ...\n");
         zipDigests($compare);
