@@ -97,7 +97,7 @@ final class NativeDownloader implements Downloader
                 '-q',
                 '--fail',
                 '--location',
-                '--progress-bar',
+                '--no-progress-meter',
                 '--show-error',
                 '--retry', '5',
                 '--retry-delay', '2',
@@ -131,10 +131,18 @@ final class NativeDownloader implements Downloader
                 $exit = $status['exitcode'];
                 break;
             }
-            if ($progress !== null && microtime(true) >= $nextReport) {
+            if (microtime(true) >= $nextReport) {
                 clearstatcache(true, $destination);
                 $bytes = is_file($destination) ? filesize($destination) : 0;
-                $progress(is_int($bytes) ? $bytes : 0);
+                $downloaded = is_int($bytes) ? $bytes : 0;
+                if ($progress !== null) {
+                    $progress($downloaded);
+                } else {
+                    fwrite(STDERR, sprintf(
+                        "[download] %.1f MiB received; still downloading\n",
+                        $downloaded / 1048576
+                    ));
+                }
                 $nextReport = microtime(true) + 5;
             }
             usleep(200000);
