@@ -4,7 +4,7 @@
 Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，构建时不用 Docker。
 
 **这个仓库存放的是 Webman AOT 编译工具的源码，不是要装进 Webman 项目的插件。**
-只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
+只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
 下载安装包；想自行制作安装包，可按[源码构包说明](docs/build-installers.md)
 备齐锁定的第三方运行时后构建。源码 ZIP 本身不是可安装的工具包。
 
@@ -23,11 +23,11 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 
 ## 第 1 步：下载并安装工具
 
-到 [v0.1.1 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.1)
+到 [v0.1.2 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
 的 **Assets** 下载一个与你的**开发电脑**匹配的文件：
 
-- macOS Apple Silicon：`webman-aot-0.1.1-macos-arm64.tar.gz`
-- Windows x64：`webman-aot-0.1.1-windows-x86_64.zip`
+- macOS Apple Silicon：`webman-aot-0.1.2-macos-arm64.tar.gz`
+- Windows x64：`webman-aot-0.1.2-windows-x86_64.zip`
 
 正常安装**不要求你手工计算 SHA-256**：安装脚本会自动校验包内每个文件，
 不匹配就停止。发布者也应在上传前核对安装包摘要；`SHA256SUMS.txt`
@@ -52,7 +52,7 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
 **先解压安装包，再运行里面的安装脚本。** ZIP 或 tar.gz 本身不能直接安装；
 如果已经解压，就跳过解压，不要在解压后的文件夹里再找 ZIP。当前
-v0.1.1 没有双击安装入口，解压后还需执行下面对应的一条命令。
+v0.1.2 没有双击安装入口，解压后还需执行下面对应的一条命令。
 
 - **Windows：**右键下载的 ZIP，选“全部提取”。打开解压出的文件夹，确认
   能看到 `install.ps1`。在该文件夹的地址栏输入 `powershell` 并按回车，
@@ -78,7 +78,7 @@ v0.1.1 没有双击安装入口，解压后还需执行下面对应的一条命�
 webman-aot version
 ```
 
-看到 `webman-aot 0.1.1`，才表示**命令也能正常使用、工具安装验证通过**。
+看到 `webman-aot 0.1.2`，才表示**命令也能正常使用、工具安装验证通过**。
 此时还没有编译任何项目，也没有生成 `dist-aot/`。安装器只写入当前
 用户目录，不安装系统级 PHP。
 安装包摘要和补充说明见[安装说明](docs/install-and-build.md)。
