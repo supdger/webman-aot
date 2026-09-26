@@ -48,85 +48,101 @@ TypePHP；所需运行时与源码也由脚本下载并校验。运行时会依�
 只想构包、不联网对照发布包时省略 `-CompareRelease`。Mac 安装包仍需
 下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责 Windows 安装包。
 
-## 第 1 步：准备输入
+## macOS Apple Silicon：先选你要做的事
 
-在 macOS Apple Silicon 机器上准备：
+**只想在 Mac 上使用工具编译 Webman 项目：**不需要本页的源码构包步骤。
+到 [v0.1.2 Release](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
+下载 `webman-aot-0.1.2-macos-arm64.tar.gz`，按
+[Mac 安装步骤](install-and-build.md#macos-apple-silicon)解压、安装，再回到
+[首页第 2 步](../README.md#第-2-步编译你的项目)使用 `webman-aot`。
 
-1. Mac PHP 8.4.25 CLI 运行时文件。锁文件记录上游
-   `static-php-cli 2.8.5` 构建器的下载地址、摘要、构建前和规范化后的
-   PHP 文件摘要。使用
-   [`tools/sanitize-macos-cli-runtime.php`](../tools/sanitize-macos-cli-runtime.php)
-   把符合锁文件的上游 CLI PHP 规范化成打包所需文件。当前锁定的上游
-   PHP 文件是在 `/private/tmp/webman-aot-spc-2.8.5` 构建的；规范化脚本
-   会校验这个构建路径的固定结构，不接受任意位置新编出的不同二进制。
-2. Mac 编译驱动文件。用锁文件指定的 PHP 8.4.25 源码和
-   [`tools/build-macos-compiler-driver.sh`](../tools/build-macos-compiler-driver.sh)
-   在 Mac ARM64 构建；脚本验证源码摘要和 PHP 版本，打包脚本再验证
-   编译结果摘要。
-3. 上述 Mac CLI 构建的第三方许可文件目录（例如
-   `static-php-cli` 构建结果中的 `buildroot/source-licenses/`）。
-   目录不能是空的；打包脚本还会从同一份锁定的 PHP 源码归档提取
-   `libmbfl` 和 `libbcmath` 的 LGPL-2.1 文本。
+**想从本仓库源码重新制作 Mac 工具安装包：**目前还不是 Windows 那样的
+一条命令。最难取得的输入是由 `static-php-cli 2.8.5` 构建、摘要与
+[运行时锁文件](../installer/runtime.lock.json)完全一致的 Mac CLI PHP，
+以及它对应的第三方许可文件。本仓库有锁文件、规范化脚本、编译驱动脚本和
+打包脚本，**没有从空白 Mac 自动构建该 CLI 并取得许可文件的完整脚本**。
+没有这两项输入，下面的打包命令不能成功；不要把已发布安装包中的 PHP
+冒充独立源码构建结果。
 
-另需准备两项跨平台输入：
+### 1. 在源码根目录备齐输入
 
-4. 按锁文件中的 `archiveUrl` 下载 **PHP 官方 Windows 8.4.25 x64 ZIP**，
-   保留原 ZIP；打包脚本会验证 ZIP、其中的 `php.exe` 和 `php8ts.dll`。
-   Windows 安装包只收录运行所需的 PHP 文件，不捆绑 TypePHP 编译器。
-5. 按 [`toolchain.lock.json`](../toolchain.lock.json) 的 `typephp-source`
-   记录下载 TypePHP v0.9.2 源码归档，保留原文件。打包脚本从中提取
-   GPL-3.0 许可证，并校验归档 SHA-256。
+下面的路径都相对于本仓库根目录（能直接看到 `tools/` 和 `src/` 的目录）。
+先准备这些文件；它们不会提交进 Git：
 
-取得上述原始文件后，Mac 上的两条转换命令分别是：
+| 路径 | 从哪里来 |
+| --- | --- |
+| `dist/installer-inputs/php-8.4.25.tar.xz` | [`toolchain.lock.json`](../toolchain.lock.json) 的 `php-source` 官方源码归档 |
+| `dist/installer-inputs/v0.9.2.tar.gz` | 同一锁文件的 `typephp-source` 源码归档 |
+| `dist/installer-inputs/php-macos-upstream` | 用 `static-php-cli 2.8.5` 在锁定的 `/private/tmp/webman-aot-spc-2.8.5` 路径构建的原始 Mac CLI PHP |
+| `dist/installer-inputs/source-licenses/` | **同一次** CLI 构建产出的第三方许可文件目录，不能是空目录 |
+
+前两个公开归档可以直接在源码根目录下载；`curl` 会显示下载进度，后续脚本
+仍会核对锁定的 SHA-256：
 
 ```sh
-mkdir -p dist/installer-inputs/driver-work
+mkdir -p dist/installer-inputs
+curl -fL --retry 3 \
+  https://www.php.net/distributions/php-8.4.25.tar.xz \
+  -o dist/installer-inputs/php-8.4.25.tar.xz
+curl -fL --retry 3 \
+  https://codeload.github.com/swoole/typephp/tar.gz/refs/tags/v0.9.2 \
+  -o dist/installer-inputs/v0.9.2.tar.gz
+```
+
+后两项**不能靠上述下载命令得到**。如果还没有锁定的 Mac CLI 和同次
+构建的许可文件，到这里就应停止：当前仓库没有可照抄的完整复建命令。
+[Mac 运行时源码与重链接材料](macos-runtime-source.md)供需要审查或修改
+LGPL 组件的人使用，但不是现成的安装包构建输入。
+
+### 2. 转换已备齐的 Mac 输入
+
+下面两条命令分别生成 `php-compiler`（打包时使用的编译驱动）和
+`php-macos`（规范化后的工具运行时）。Mac 须有 Xcode 命令行工具及脚本
+使用的系统构建依赖。`driver-work` 必须是新建的空目录，两个输出文件
+必须事先不存在：
+
+```sh
+mkdir dist/installer-inputs/driver-work
 sh tools/build-macos-compiler-driver.sh \
-  <php-8.4.25.tar.xz路径> \
+  dist/installer-inputs/php-8.4.25.tar.xz \
   dist/installer-inputs/php-compiler \
   dist/installer-inputs/driver-work
-php tools/sanitize-macos-cli-runtime.php \
-  <static-php-cli构建的原始PHP路径> \
+dist/installer-inputs/php-compiler tools/sanitize-macos-cli-runtime.php \
+  dist/installer-inputs/php-macos-upstream \
   dist/installer-inputs/php-macos
 ```
 
-`driver-work` 必须为空，两个输出文件必须事先不存在。若脚本提示摘要
-不符，应回到锁文件核对上游文件，**不要关闭校验**。
+脚本会检查 PHP 源码、原始 CLI、编译驱动的版本或摘要。摘要不符就停止，
+不要关闭校验或换一个“差不多”的 PHP。重复运行前不要覆盖已有输出或
+工作目录；换一个干净源码目录重新准备。
 
-Mac CLI 的上游构建仍需 `static-php-cli` 自身的构建环境；当前仓库**没有**
-一条从空白电脑自动安装依赖并完成所有输入的命令。这里的构包入口是
-“已备齐锁定输入 → 生成安装包”，不是“只下载源码 → 自动得到安装包”。
+### 3. 只制作 Mac 安装包
 
-## 第 2 步：运行打包脚本
-
-在本仓库根目录执行；把尖括号中的路径替换为第 1 步得到的**真实文件**：
+四项原始输入和两个转换结果都备齐后，在同一源码根目录执行：
 
 ```sh
-php tools/package-installers.php \
-  --mac-runtime=<规范化后的Mac-PHP文件> \
-  --mac-compiler-driver=<Mac编译驱动文件> \
-  --mac-runtime-license-dir=<Mac许可文件目录> \
-  --php-source-archive=<php-8.4.25.tar.xz路径> \
-  --windows-runtime-archive=<PHP官方Windows原始ZIP> \
-  --typephp-source-archive=<TypePHP-v0.9.2源码归档> \
+dist/installer-inputs/php-compiler tools/package-installers.php \
+  --platform=macos-arm64 \
+  --mac-runtime=dist/installer-inputs/php-macos \
+  --mac-compiler-driver=dist/installer-inputs/php-compiler \
+  --mac-runtime-license-dir=dist/installer-inputs/source-licenses \
+  --php-source-archive=dist/installer-inputs/php-8.4.25.tar.xz \
+  --typephp-source-archive=dist/installer-inputs/v0.9.2.tar.gz \
   --output=dist/installers \
-  --revision="$(git rev-parse HEAD)"
+  --revision=source-build
 ```
 
-脚本成功后，`dist/installers/` 内出现两个文件：
+成功后应出现 `dist/installers/webman-aot-0.1.2-macos-arm64.tar.gz`，命令输出
+路径、大小和 SHA-256；没有 `[ERROR]` 且退出码为 0 才算打包步骤通过。
+`--platform=macos-arm64` 表示**不需要 Windows PHP ZIP，也不会生成 Windows
+安装包**。想同时制作两个平台的安装包，另需锁定的 Windows PHP ZIP；
+Windows 单独构包请用上面的 Windows 命令。
 
-```text
-webman-aot-0.1.2-macos-arm64.tar.gz
-webman-aot-0.1.2-windows-x86_64.zip
-```
-
-终端输出各文件的路径、大小及 SHA-256。输入摘要不匹配或缺许可目录时，
-不会生成合格安装包。`dist/` 被 Git 忽略：**构包成功不等于 GitHub
-Releases 已经发布**。公开分发前还须核对第三方许可、对新归档做安装及
-构建验收，然后由维护者上传归档与对应摘要。已发布包见
+`dist/` 被 Git 忽略：本机生成归档**不等于已经发布**。公开分发前还须核对
+第三方许可，对新归档做安装及构建验收，再由维护者上传到
 [Releases](https://github.com/supdger/webman-aot/releases)。
 
-## 第 3 步：验证新安装包
+## 验证新安装包
 
 在相应系统上按[安装说明](install-and-build.md)从**新生成的安装包**
 安装，确认 `webman-aot version` 和 `webman-aot doctor`；
