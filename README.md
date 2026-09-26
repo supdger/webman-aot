@@ -10,6 +10,12 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 备齐锁定的运行时。
 源码 ZIP 本身不是可安装的工具包。
 
+> 当前 `fix/doctor-progress-autoprepare` 分支尚未发布安装包。下面的
+> `doctor` 自动准备行为只适用于用本分支源码构建的新包；下载上方
+> v0.1.2 发布包的用户仍需按
+> [v0.1.2 安装与构建说明](https://github.com/supdger/webman-aot/blob/v0.1.2/docs/install-and-build.md)
+> 执行一次 `webman-aot doctor --repair`。不要把分支源码当成已发布的新版本。
+
 **工具在同一台开发电脑上只需安装一次。** 以后编译另一个项目，或修改项目
 后重新编译，都不用重新安装工具，也不用在项目里 `composer require`；
 进入对应项目目录，重复[第 2 步](#第-2-步编译你的项目)的编译与校验命令即可。

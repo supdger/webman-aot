@@ -1,5 +1,10 @@
 # 安装与构建
 
+> 本分支的 `doctor` 自动准备尚未发布。下方 v0.1.2 安装包仍使用
+> [v0.1.2 原版构建步骤](https://github.com/supdger/webman-aot/blob/v0.1.2/docs/install-and-build.md)
+> 中的 `doctor --repair`；本页第 2 步的单命令流程适用于用本分支源码
+> 构建的新包。发布新版并完成验收前，不应把它描述为 v0.1.2 的行为。
+
 到 [v0.1.2 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
 的 **Assets** 下载你的开发电脑对应的安装包：
 

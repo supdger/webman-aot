@@ -247,7 +247,7 @@ final class Application
         $locator = new ToolchainLocator($this->layout);
         $generation = $locator->activeGeneration($host);
         if ($generation === null) {
-            throw new UnavailableException('private toolchain is missing; run webman-aot doctor --repair');
+            throw new UnavailableException('private toolchain is missing; run webman-aot doctor');
         }
         $lockFile = $generation . '/toolchain.lock.json';
         $tools = (new PreparedToolchain())->load(
