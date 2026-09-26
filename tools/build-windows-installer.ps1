@@ -35,18 +35,57 @@ if (-not $verified) {
     $partial = $archive + '.partial-' + [Guid]::NewGuid().ToString('N')
     try {
         Write-Output "Downloading locked Windows PHP runtime ..."
-        & curl.exe -q --fail --location --retry 3 --connect-timeout 15 `
-            --speed-limit 1024 --speed-time 120 `
-            --proto '=https' --proto-redir '=https' --output $partial $runtime.archiveUrl
-        if ($LASTEXITCODE -ne 0) {
+        $curlError = $partial + '.stderr'
+        $curl = Start-Process -FilePath (Get-Command curl.exe -CommandType Application).Source `
+            -ArgumentList @(
+                '-q', '--fail', '--location', '--silent', '--show-error',
+                '--retry', '3', '--retry-all-errors', '--connect-timeout', '15',
+                '--speed-limit', '1024', '--speed-time', '120',
+                '--proto', '=https', '--proto-redir', '=https',
+                '--output', ('"' + $partial + '"'), ('"' + $runtime.archiveUrl + '"')
+            ) -NoNewWindow -PassThru -RedirectStandardError $curlError
+        $lastBytes = 0L
+        $lastWidth = 0
+        $interactive = -not [Console]::IsOutputRedirected
+        $expectedBytes = if ($expected -eq '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c') {
+            35113790L
+        } else { 0L }
+        while (-not $curl.WaitForExit(5000)) {
+            $bytes = if (Test-Path -LiteralPath $partial) {
+                (Get-Item -LiteralPath $partial).Length
+            } else { 0L }
+            $status = if ($expectedBytes -gt 0) {
+                '[download] Windows PHP runtime: {0:N1}%' -f [Math]::Min(99.9, ($bytes * 100.0 / $expectedBytes))
+            } else {
+                '[download] Windows PHP runtime: {0:N1} MiB' -f ($bytes / 1MB)
+            }
+            if ($bytes -lt $lastBytes) { $status += ' (retrying from start)' }
+            if ($interactive) {
+                Write-Host -NoNewline ("`r" + $status + (' ' * [Math]::Max(0, $lastWidth - $status.Length)))
+                $lastWidth = $status.Length
+            } else {
+                Write-Output $status
+            }
+            $lastBytes = $bytes
+        }
+        if ($interactive -and $lastWidth -gt 0) { Write-Host '' }
+        if ($curl.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $curlError) {
+                Get-Content -LiteralPath $curlError | Write-Output
+            }
             throw 'Locked Windows PHP runtime download failed. Check the connection and rerun the same build command; verified inputs will be reused.'
         }
+        if (Test-Path -LiteralPath $curlError) { Remove-Item -Force -LiteralPath $curlError }
         $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $partial).Hash.ToLowerInvariant()
         if ($actual -ne $expected) {
             throw 'Locked Windows PHP runtime SHA-256 mismatch.'
         }
+        Write-Output '[download] Windows PHP runtime: SHA-256 verified'
         Move-Item -Force -LiteralPath $partial -Destination $archive
     } finally {
+        if (Test-Path -LiteralPath ($partial + '.stderr')) {
+            Remove-Item -Force -LiteralPath ($partial + '.stderr')
+        }
         if (Test-Path -LiteralPath $partial) {
             Remove-Item -Force -LiteralPath $partial
         }

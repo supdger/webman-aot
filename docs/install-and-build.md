@@ -23,32 +23,44 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 
 ## 第 1 步：在开发电脑安装工具
 
-**安装包必须先解压；已经解压过就直接使用解压出的文件夹，不要再执行
-解压命令。** 当前 v0.1.2 没有双击安装入口，解压后还需执行一条安装
-命令。安装脚本位于安装包根目录，不在你的 Webman 项目里。
+按你现在的情况，**每个平台只选一种方法做一次**。安装脚本在安装包
+解压出的文件夹里，不在 Webman 项目里。当前安装包没有双击安装入口。
 
 ### Windows x64
 
-1. 在下载目录找到 `webman-aot-0.1.2-windows-x86_64.zip`，右键选择
-   “全部提取”。如果已经有解压出的文件夹，跳过这一步。
-2. 打开解压出的文件夹。应能直接看到 `install.ps1`、`uninstall.ps1`
-   和 `payload`；看不到 `install.ps1` 就继续找实际包含它的文件夹。
-3. 在这个文件夹的地址栏输入 `powershell` 并按回车。确认 PowerShell
-   当前路径是这个文件夹，然后执行：
+**方法一：刚下载 ZIP，还没有解压。** 在下载目录找到
+`webman-aot-0.1.2-windows-x86_64.zip`，右键选“全部提取”。打开
+解压出的文件夹，确认能直接看到 `install.ps1` 和 `payload`。在该
+文件夹的地址栏输入 `powershell` 并按回车，执行：
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\install.ps1
-   ```
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+**方法二：ZIP 已经解压。** 不要再解压，也不要在这个文件夹里找 ZIP。
+直接打开能看到 `install.ps1` 和 `payload` 的文件夹，在地址栏输入
+`powershell` 并按回车，执行**同一条**安装命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
 
 ### macOS Apple Silicon
 
-1. 双击下载的 `webman-aot-0.1.2-macos-arm64.tar.gz` 解压；如果已经解压，
-   跳过这一步。
-2. 进入能看到 `install.sh` 的文件夹，在该文件夹打开终端，执行：
+**方法一：刚下载 tar.gz，还没有解压。** 双击
+`webman-aot-0.1.2-macos-arm64.tar.gz` 解压。进入能直接看到
+`install.sh` 的文件夹，在该文件夹打开终端，执行：
 
-   ```sh
-   ./install.sh
-   ```
+```sh
+./install.sh
+```
+
+**方法二：tar.gz 已经解压。** 不要再解压。直接进入能看到
+`install.sh` 的文件夹，在该文件夹打开终端，执行**同一条**命令：
+
+```sh
+./install.sh
+```
 
 安装脚本结束时会显示两行路径，例如 Windows 上：
 
@@ -66,28 +78,6 @@ webman-aot version
 输出 `webman-aot 0.1.2` 才表示新终端也能找到并运行工具。安装阶段不会
 编译 Webman 项目；下一步才进入项目目录。
 
-### 命令行解压安装包
-
-不使用文件管理器时，**先进入下载文件所在目录**，确认那里有 ZIP 或
-tar.gz，再执行对应命令。已经在解压后的目录时，不要重复执行本段；
-直接回到上面的安装脚本命令。
-
-```sh
-# macOS，在 tar.gz 所在目录
-mkdir webman-aot-install
-tar -xzf webman-aot-0.1.2-macos-arm64.tar.gz -C webman-aot-install
-cd webman-aot-install
-./install.sh
-```
-
-```powershell
-# Windows PowerShell，在 ZIP 所在目录
-New-Item -ItemType Directory -Force .\webman-aot-install | Out-Null
-tar.exe -xf .\webman-aot-0.1.2-windows-x86_64.zip -C .\webman-aot-install
-if ($LASTEXITCODE -ne 0) { throw '解压失败；请确认当前目录有 ZIP 文件，不要继续安装' }
-powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
-```
-
 ## 第 2 步：编译你的 Webman 项目
 
 在开发电脑进入你自己的后端目录：该目录内应有 `webman` 和
@@ -97,28 +87,11 @@ powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 webman-aot doctor
 ```
 
-看最后的 `Result`：
-
-- `Result: healthy`：环境已准备好，继续下方的 `build`。
-- `Result: unhealthy`，并看到
-  `[ERROR] component:... locked component is missing` 或
-  `[ERROR] components: ... not downloaded yet`，或
-  `[ERROR] prepared-toolchain: ... run doctor --repair`：这在**第一次运行**
-  很常见，表示编译组件尚未下载，**不代表工具安装失败**。如果平台、磁盘、
-  网络和项目检查同时显示 `[OK]`，执行：
-
-  ```sh
-  webman-aot doctor --repair
-  webman-aot doctor
-  ```
-
-`doctor` 只检查，不会下载组件；`doctor --repair` 才会在当前用户目录
-下载、校验并准备锁定的编译工具链。首次运行可能很久，过程中会显示
-当前组件和下载进度；请等它返回命令提示符。修复成功时会显示
-`Toolchain generation activated: ...`，后续检查应显示 `Result: healthy`。
-只有健康时才能编译。如果修复命令报错，或再次检查仍为 `unhealthy`，
-**不要继续编译**；查看具体 `[ERROR]` 和输出末尾的 Diagnostic bundle
-路径，先处理网络、磁盘、依赖或项目错误。检查通过后编译：
+首次运行若只有编译组件未准备好，`doctor` 会自动下载、校验并准备，
+不需要再手动运行 `doctor --repair`。它先检查平台、磁盘、锁文件和项目；
+这些检查失败时不会盲目下载。网络 TCP 探测可能受代理影响，即使探测
+失败也会尝试由实际下载器连接，并以下载结果为准。准备过程显示当前组件与下载进度，
+可能较久，请等命令返回。最后看到 `Result: healthy` 才继续编译：
 
 ```sh
 webman-aot build --profile=saiadmin
@@ -127,6 +100,10 @@ webman-aot verify
 
 普通 Webman 项目改用 `webman-aot build`。成功后，**你的项目目录**
 会出现 `dist-aot/`；这里才是编译完成的 Linux 发布目录。
+若看到 `Result: unhealthy` 或下载失败，不要编译；根据具体 `[ERROR]`
+与末尾的 Diagnostic bundle 排查。只想检查、不允许下载时使用
+`webman-aot doctor --check`；修复中断后可重试 `webman-aot doctor`，
+已通过 SHA-256 校验的组件会复用。
 
 ## 第 3 步：部署 Linux 发布目录
 

@@ -28,9 +28,13 @@ final class UpdateManager
     /**
      * @return array{previous:string,new:string,version:string}
      */
-    public function selfUpdate(string $manifestUrl, string $trustedKeysPath): array
+    public function selfUpdate(
+        string $manifestUrl,
+        string $trustedKeysPath,
+        ?\Closure $progress = null
+    ): array
     {
-        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath);
+        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress);
 
         return (new SelfUpdater(
             $this->layout,
@@ -42,7 +46,8 @@ final class UpdateManager
         ))->update(
             $manifest->target('cli'),
             $manifest->payloadSha256(),
-            $manifest->verifiedKeyId()
+            $manifest->verifiedKeyId(),
+            static fn (int $bytes, ?int $total = null) => $progress?->__invoke('CLI update package', $bytes, $total)
         );
     }
 
@@ -63,16 +68,22 @@ final class UpdateManager
      *     manifestPayloadSha256:string
      * }
      */
-    public function updateToolchain(string $manifestUrl, string $trustedKeysPath): array
+    public function updateToolchain(
+        string $manifestUrl,
+        string $trustedKeysPath,
+        ?\Closure $progress = null,
+        ?\Closure $stage = null
+    ): array
     {
-        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath);
+        $manifest = $this->loadManifest($manifestUrl, $trustedKeysPath, $progress);
         $target = $manifest->target('toolchain');
         $candidate = $this->temporaryPath('toolchain-lock') . '.json';
         try {
             (new VerifiedDownloader($this->downloader))->fetch(
                 $target['url'],
                 $target['sha256'],
-                $candidate
+                $candidate,
+                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Toolchain lock', $bytes, $total)
             );
             $result = (new ToolchainRepairer(
                 $candidate,
@@ -80,7 +91,10 @@ final class UpdateManager
                 $this->host,
                 $this->downloader,
                 $this->toolchainPreparer
-            ))->repair();
+            ))->repair(
+                $stage,
+                static fn (string $step, int $bytes, ?int $total) => $progress?->__invoke($step, $bytes, $total)
+            );
         } finally {
             if (is_file($candidate)) {
                 unlink($candidate);
@@ -102,14 +116,22 @@ final class UpdateManager
         return (new ToolchainLocator($this->layout))->rollback($this->host);
     }
 
-    private function loadManifest(string $url, string $trustedKeysPath): UpdateManifest
+    private function loadManifest(
+        string $url,
+        string $trustedKeysPath,
+        ?\Closure $progress = null
+    ): UpdateManifest
     {
         if (!str_starts_with($url, 'https://')) {
             throw new ConfigurationException('update manifest URL must use HTTPS');
         }
         $path = $this->temporaryPath('update-manifest') . '.json';
         try {
-            $this->downloader->download($url, $path);
+            $this->downloader->download(
+                $url,
+                $path,
+                static fn (int $bytes, ?int $total = null) => $progress?->__invoke('Update manifest', $bytes, $total)
+            );
             $contents = file_get_contents($path);
             if (!is_string($contents)) {
                 throw new ConfigurationException('downloaded update manifest is unreadable');

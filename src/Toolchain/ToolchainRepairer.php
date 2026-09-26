@@ -28,8 +28,9 @@ final class ToolchainRepairer
      *     changed:bool
      * }
      * @param (\Closure(string):void)|null $progress
+     * @param (\Closure(string,int,?int):void)|null $downloadProgress
      */
-    public function repair(?\Closure $progress = null): array
+    public function repair(?\Closure $progress = null, ?\Closure $downloadProgress = null): array
     {
         $progress?->__invoke('Checking the locked toolchain and acquiring the repair lock...');
         $toolchains = $this->layout->path('toolchains');
@@ -50,7 +51,7 @@ final class ToolchainRepairer
 
         $candidate = $candidates . '/candidate-' . bin2hex(random_bytes(8));
         try {
-            $result = $this->buildAndPromote($candidate, $versions, $downloads, $progress);
+            $result = $this->buildAndPromote($candidate, $versions, $downloads, $progress, $downloadProgress);
         } catch (\Throwable $throwable) {
             $this->removeDirectory($candidate);
             throw $throwable;
@@ -75,7 +76,8 @@ final class ToolchainRepairer
         string $candidate,
         string $versions,
         string $downloads,
-        ?\Closure $progress
+        ?\Closure $progress,
+        ?\Closure $downloadProgress
     ): array
     {
         $lockContents = file_get_contents($this->lockPath);
@@ -170,12 +172,16 @@ final class ToolchainRepairer
                 $this->downloader->download(
                     (string) $component['sourceUrl'],
                     $partial,
-                    static function (int $bytes) use ($progress, $step): void {
-                        $progress?->__invoke(sprintf(
-                            '%s: %.1f MiB received; still downloading',
-                            $step,
-                            $bytes / 1048576
-                        ));
+                    static function (int $bytes, ?int $total = null) use ($downloadProgress, $progress, $step): void {
+                        if ($downloadProgress !== null) {
+                            $downloadProgress($step, $bytes, $total);
+                        } else {
+                            $progress?->__invoke(sprintf(
+                                '%s: %.1f MiB received; still downloading',
+                                $step,
+                                $bytes / 1048576
+                            ));
+                        }
                     }
                 );
                 if (!$this->matchesDigest($partial, $expected)) {

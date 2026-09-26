@@ -17,50 +17,7 @@ final class NativeDownloader implements Downloader
     ): void
     {
         $downloadUrl = self::sourceDownloadUrl($url);
-        if (PHP_OS_FAMILY === 'Windows') {
-            $this->downloadWithWindowsCurl($downloadUrl, $destination, $progress, $diagnostic);
-            return;
-        }
-
-        $context = stream_context_create([
-            'http' => [
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'timeout' => 60,
-                'user_agent' => 'webman-aot',
-            ],
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ],
-        ]);
-        $source = @fopen($downloadUrl, 'rb', false, $context);
-        if (!is_resource($source)) {
-            throw new \RuntimeException("unable to download locked component: {$url}");
-        }
-        $target = @fopen($destination, 'xb');
-        if (!is_resource($target)) {
-            fclose($source);
-            throw new \RuntimeException('unable to create candidate download');
-        }
-        try {
-            $downloaded = 0;
-            $nextReport = microtime(true) + 5;
-            while (!feof($source)) {
-                $copied = stream_copy_to_stream($source, $target, 1024 * 1024);
-                if ($copied === false || ($copied === 0 && !feof($source))) {
-                    throw new \RuntimeException("unable to download locked component: {$url}");
-                }
-                $downloaded += $copied;
-                if ($progress !== null && microtime(true) >= $nextReport) {
-                    $progress($downloaded);
-                    $nextReport = microtime(true) + 5;
-                }
-            }
-        } finally {
-            fclose($source);
-            fclose($target);
-        }
+        $this->downloadWithCurl($downloadUrl, $destination, $progress, $diagnostic);
     }
 
     public static function sourceDownloadUrl(string $url): string
@@ -84,9 +41,32 @@ final class NativeDownloader implements Downloader
     }
 
     /**
-     * @param (\Closure(int):void)|null $progress
+     * @param mixed $headers
      */
-    private function downloadWithWindowsCurl(
+    private static function contentLength(mixed $headers): ?int
+    {
+        if (!is_array($headers)) {
+            return null;
+        }
+        $length = null;
+        foreach ($headers as $header) {
+            if (!is_string($header)) {
+                continue;
+            }
+            if (preg_match('/^HTTP\/\S+\s+\d{3}/i', $header) === 1) {
+                $length = null;
+            } elseif (preg_match('/^Content-Length:\s*(\d+)\s*$/i', $header, $matches) === 1) {
+                $length = (int) $matches[1];
+            }
+        }
+
+        return $length !== null && $length > 0 ? $length : null;
+    }
+
+    /**
+     * @param (\Closure(int,?int):void)|null $progress
+     */
+    private function downloadWithCurl(
         string $url,
         string $destination,
         ?\Closure $progress,
@@ -94,13 +74,15 @@ final class NativeDownloader implements Downloader
     ): void
     {
         $systemRoot = getenv('SystemRoot');
-        $curl = is_string($systemRoot)
+        $curl = PHP_OS_FAMILY === 'Windows' && is_string($systemRoot)
             ? str_replace('\\', '/', $systemRoot) . '/System32/curl.exe'
-            : '';
+            : (PHP_OS_FAMILY === 'Darwin' ? '/usr/bin/curl' : '');
+        $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         if (!str_starts_with($url, 'https://') || !is_file($curl)) {
-            throw new \RuntimeException("secure Windows downloader is unavailable: {$url}");
+            throw new \RuntimeException("secure host downloader is unavailable: {$url}");
         }
         $errorPath = $destination . '.curl-stderr-' . bin2hex(random_bytes(6));
+        $headersPath = $destination . '.curl-headers-' . bin2hex(random_bytes(6));
         $process = proc_open(
             [
                 $curl,
@@ -117,12 +99,13 @@ final class NativeDownloader implements Downloader
                 '--speed-time', '120',
                 '--proto', '=https',
                 '--proto-redir', '=https',
+                '--dump-header', $headersPath,
                 '--output', $destination,
                 $url,
             ],
             [
-                0 => ['file', 'NUL', 'r'],
-                1 => ['file', 'NUL', 'w'],
+                0 => ['file', $nullDevice, 'r'],
+                1 => ['file', $nullDevice, 'w'],
                 2 => ['file', $errorPath, 'w'],
             ],
             $pipes,
@@ -134,7 +117,10 @@ final class NativeDownloader implements Downloader
             if (is_file($errorPath)) {
                 unlink($errorPath);
             }
-            throw new \RuntimeException("unable to start secure Windows downloader: {$url}");
+            if (is_file($headersPath)) {
+                unlink($headersPath);
+            }
+            throw new \RuntimeException("unable to start secure host downloader: {$url}");
         }
         $errorOffset = 0;
         $pendingError = '';
@@ -183,7 +169,8 @@ final class NativeDownloader implements Downloader
                     $bytes = is_file($destination) ? filesize($destination) : 0;
                     $downloaded = is_int($bytes) ? $bytes : 0;
                     if ($progress !== null) {
-                        $progress($downloaded);
+                        $headers = @file($headersPath, FILE_IGNORE_NEW_LINES);
+                        $progress($downloaded, self::contentLength($headers));
                     } else {
                         fwrite(STDERR, sprintf(
                             "[download] %.1f MiB received; still downloading\n",
@@ -211,6 +198,9 @@ final class NativeDownloader implements Downloader
             }
             if (is_file($errorPath)) {
                 unlink($errorPath);
+            }
+            if (is_file($headersPath)) {
+                unlink($headersPath);
             }
         }
     }

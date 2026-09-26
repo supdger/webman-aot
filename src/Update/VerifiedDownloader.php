@@ -13,7 +13,12 @@ final class VerifiedDownloader
     {
     }
 
-    public function fetch(string $url, string $sha256, string $destination): void
+    public function fetch(
+        string $url,
+        string $sha256,
+        string $destination,
+        ?\Closure $progress = null
+    ): void
     {
         if (preg_match('/^[a-f0-9]{64}$/D', $sha256) !== 1) {
             throw new \InvalidArgumentException('verified download digest is invalid');
@@ -26,7 +31,7 @@ final class VerifiedDownloader
             unlink($partial);
         }
         try {
-            $this->downloader->download($url, $partial);
+            $this->downloader->download($url, $partial, $progress);
             $actual = is_file($partial) ? hash_file('sha256', $partial) : false;
             if (!is_string($actual) || !hash_equals($sha256, $actual)) {
                 throw new UnavailableException('downloaded update digest mismatch');

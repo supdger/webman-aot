@@ -15,12 +15,12 @@ SaiAdmin 后端目录运行：
 
 ```sh
 webman-aot doctor
-webman-aot doctor --repair
 webman-aot build --profile=saiadmin
 webman-aot verify --path=dist-aot
 ```
 
-`doctor` 只检查；只有 `--repair` 才下载、校验并准备私有工具链。
+`doctor` 在其余环境检查通过后，会自动下载、校验并准备缺少的私有工具链；
+只检查不下载可用 `doctor --check`。
 `build` 会在隔离副本里生成 AOT 适配，不改普通 PHP 源码。Mac ARM64
 和 Windows x64 都以同一套源码构建 Linux amd64 musl 全静态产物；
 Windows 可执行文件不是本阶段目标。`verify` 证明包完整性和静态结构，

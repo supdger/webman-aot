@@ -54,7 +54,7 @@ final class Doctor
         $lock = $this->readLock($checks);
         if ($lock !== null) {
             $this->inspectArtifacts($lock, $host, $checks);
-            $this->inspectNetwork($lock, $checks);
+            $this->inspectNetwork($lock, $host, $checks);
         }
         $this->inspectPrepared($checks);
         $this->inspectProject($checks);
@@ -74,7 +74,7 @@ final class Doctor
             $checks[] = $this->check(
                 'prepared-toolchain',
                 false,
-                'private compiler tools are not prepared; run doctor --repair'
+                'private compiler tools are not prepared'
             );
             return;
         }
@@ -89,7 +89,7 @@ final class Doctor
             $checks[] = $this->check(
                 'prepared-toolchain',
                 false,
-                'private compiler tools are incomplete; run doctor --repair',
+                'private compiler tools are incomplete',
                 ['error' => $exception->getMessage()]
             );
         }
@@ -141,7 +141,7 @@ final class Doctor
      * @param array<string, mixed> $lock
      * @param list<array{id:string,status:string,message:string,details:array<string,mixed>}> $checks
      */
-    private function inspectNetwork(array $lock, array &$checks): void
+    private function inspectNetwork(array $lock, string $host, array &$checks): void
     {
         $missingArtifact = false;
         foreach ($checks as $check) {
@@ -162,7 +162,11 @@ final class Doctor
             return;
         }
         $urls = [];
-        foreach ($lock['components'] ?? [] as $component) {
+        $components = (new HostComponentSelector())->select(
+            is_array($lock['components'] ?? null) ? $lock['components'] : [],
+            $host
+        );
+        foreach ($components as $component) {
             if (is_array($component) && is_string($component['sourceUrl'] ?? null)) {
                 $url = NativeDownloader::sourceDownloadUrl($component['sourceUrl']);
                 $host = parse_url($url, PHP_URL_HOST);

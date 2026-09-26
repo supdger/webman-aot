@@ -56,9 +56,10 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 
 看**开发电脑**的系统选择安装包，不是看 Linux 服务器的系统。Mac 和
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
-**先解压安装包，再运行里面的安装脚本。** ZIP 或 tar.gz 本身不能直接安装；
-如果已经解压，就跳过解压，不要在解压后的文件夹里再找 ZIP。当前
-v0.1.2 没有双击安装入口，解压后还需执行下面对应的一条命令。
+**每个平台只选一种情况做一次：**如果还只有 ZIP/tar.gz，先解压再运行
+安装脚本；如果已经解压，直接运行解压文件夹里的脚本，不要再解压。
+当前 v0.1.2 没有双击安装入口。两个方法的逐步说明见
+[安装说明](docs/install-and-build.md#第-1-步在开发电脑安装工具)。
 
 - **Windows：**右键下载的 ZIP，选“全部提取”。打开解压出的文件夹，确认
   能看到 `install.ps1`。在该文件夹的地址栏输入 `powershell` 并按回车，
@@ -75,8 +76,7 @@ v0.1.2 没有双击安装入口，解压后还需执行下面对应的一条命�
   ./install.sh
   ```
 
-不想用文件管理器解压，也可以按[命令行解压步骤](docs/install-and-build.md#命令行解压安装包)
-操作。安装脚本结束时会显示 `Webman AOT installed in:` 和
+安装脚本结束时会显示 `Webman AOT installed in:` 和
 `Command installed as:` 两行。**这表示安装脚本已完成**；接着关闭并
 重新打开终端，运行：
 
@@ -95,27 +95,17 @@ webman-aot version
 `webman` 和 `composer.json` 的目录；**不是刚解压的安装包目录，
 也不是本工具的源码目录**。
 
-先检查环境。安装成功不等于编译组件已经准备好：
+检查环境并自动准备缺少的编译组件。安装成功不等于组件已经准备好：
 
 ```sh
 webman-aot doctor
 ```
 
-**首次使用**时，如果看到多条 `[ERROR] component:... locked component is missing`
-（或汇总的 `[ERROR] components: ... not downloaded yet`）和
-`Result: unhealthy`，表示编译组件还没下载，**不是工具安装失败**。
-此时运行：
-
-```sh
-webman-aot doctor --repair
-webman-aot doctor
-```
-
-`--repair` 会下载、校验并准备锁定组件，首次运行可能较久；过程中会显示
-当前组件和下载进度。等命令结束再运行第二条检查。只有看到
-`Result: healthy` 才能继续编译。如果修复后仍是 `unhealthy`，或报的是
-平台、磁盘、网络、项目错误，先按具体 `[ERROR]` 和诊断文件处理，
-不要直接执行 `build`。健康后编译并检查产物：
+首次使用时，`doctor` 会在平台、磁盘、锁文件和项目检查通过后自动下载、
+校验并准备缺少的组件，可能较久；不必再手动输入 `doctor --repair`。
+只有最后看到 `Result: healthy` 才能继续编译。若出现 `unhealthy`，
+按具体 `[ERROR]` 和诊断文件排查，不要直接执行 `build`。
+只想检查且不下载时用 `webman-aot doctor --check`。健康后编译并检查产物：
 
 ```sh
 webman-aot build --profile=saiadmin

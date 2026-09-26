@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use WebmanAot\Cli\ProgressOutput;
 use WebmanAot\Toolchain\NativeDownloader;
 
+require dirname(__DIR__) . '/src/Cli/ProgressOutput.php';
 require dirname(__DIR__) . '/src/Toolchain/Downloader.php';
 require dirname(__DIR__) . '/src/Toolchain/NativeDownloader.php';
 require dirname(__DIR__) . '/src/Version.php';
@@ -86,44 +88,26 @@ function verifiedInput(string $url, string $sha256, string $directory): string
         '7e5fe3549397e819c20b82c4586af5cad7cb03d6743d86fbca5094d629894902' => 14289309,
         default => null,
     };
-    $interactive = function_exists('stream_isatty') && stream_isatty(STDOUT);
-    $lineWidth = 0;
-    $lineVisible = false;
+    $output = new ProgressOutput(STDOUT);
     $lastBytes = 0;
-    $finishLine = static function () use ($interactive, &$lineVisible, &$lineWidth): void {
-        if ($interactive && $lineVisible) {
-            fwrite(STDOUT, "\n");
-            fflush(STDOUT);
-            $lineVisible = false;
-            $lineWidth = 0;
-        }
-    };
-    $showProgress = static function (int $bytes, bool $verified = false) use (
+    $showProgress = static function (int $bytes, ?int $reportedTotal = null, bool $verified = false) use (
         $name,
         $expectedBytes,
-        $interactive,
-        &$lineWidth,
-        &$lineVisible,
+        $output,
         &$lastBytes
     ): void {
-        $status = $expectedBytes === null
+        $total = $reportedTotal ?? $expectedBytes;
+        $status = $total === null
             ? sprintf('[download] %s: %.1f MiB', $name, $bytes / 1048576)
             : sprintf(
                 '[download] %s: %.1f%%',
                 $name,
-                min($verified ? 100 : 99.9, $bytes * 100 / $expectedBytes)
+                min($verified ? 100 : 99.9, $bytes * 100 / $total)
             );
         if ($bytes < $lastBytes) {
             $status .= ' (retrying from start)';
         }
-        if ($interactive) {
-            fwrite(STDOUT, "\r" . $status . str_repeat(' ', max(0, $lineWidth - strlen($status))));
-            fflush(STDOUT);
-            $lineWidth = strlen($status);
-            $lineVisible = true;
-        } else {
-            fwrite(STDOUT, $status . "\n");
-        }
+        $output->update($status);
         $lastBytes = $bytes;
     };
     $showProgress(0);
@@ -134,12 +118,12 @@ function verifiedInput(string $url, string $sha256, string $directory): string
                 $partial,
                 $showProgress,
                 static function (string $message) use ($finishLine): void {
-                    $finishLine();
+                    $output->finish();
                     fwrite(STDERR, $message . "\n");
                 }
             );
         } catch (RuntimeException $exception) {
-            $finishLine();
+            $output->finish();
             throw new RuntimeException(
                 "Download failed for {$name}. Check the connection and rerun the same build command; "
                 . "completed SHA-256 verified inputs will be reused. {$exception->getMessage()}",
@@ -151,8 +135,8 @@ function verifiedInput(string $url, string $sha256, string $directory): string
         if (!hash_equals($sha256, (string) hash_file('sha256', $partial))) {
             throw new RuntimeException("Downloaded input SHA-256 mismatch: {$name}");
         }
-        $showProgress(is_int($bytes) ? $bytes : 0, true);
-        $finishLine();
+        $showProgress(is_int($bytes) ? $bytes : 0, null, true);
+        $output->finish();
         if (is_file($path) && !unlink($path)) {
             throw new RuntimeException("Unable to replace stale input: {$name}");
         }
@@ -160,7 +144,7 @@ function verifiedInput(string $url, string $sha256, string $directory): string
             throw new RuntimeException("Unable to activate verified input: {$name}");
         }
     } finally {
-        $finishLine();
+        $output->finish();
         if (is_file($partial)) {
             unlink($partial);
         }

@@ -23,7 +23,12 @@ final class SelfUpdater
      * @param array{version:string,url:string,sha256:string} $target
      * @return array{previous:string,new:string,version:string}
      */
-    public function update(array $target, string $payloadSha256, string $verifiedKeyId): array
+    public function update(
+        array $target,
+        string $payloadSha256,
+        string $verifiedKeyId,
+        ?\Closure $progress = null
+    ): array
     {
         $store = new CliVersionStore($this->layout);
         $this->ensureBaseline($store);
@@ -37,7 +42,7 @@ final class SelfUpdater
         $archive = $candidateRoot . '/package.zip';
         $this->createDirectory($candidateRoot);
         try {
-            $this->downloader->fetch($target['url'], $target['sha256'], $archive);
+            $this->downloader->fetch($target['url'], $target['sha256'], $archive, $progress);
             $this->createDirectory($payload);
             $this->extractor->extract($archive, $payload);
             if (!$this->selfChecker->check($payload . '/app', $target['version'])) {
