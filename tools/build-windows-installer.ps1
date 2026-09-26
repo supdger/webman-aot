@@ -1,12 +1,17 @@
 [CmdletBinding()]
 param(
     [string]$Compare,
+    [switch]$CompareRelease,
     [string]$Output,
     [string]$Revision
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if ($Compare -and $CompareRelease) {
+    throw 'Choose either -Compare or -CompareRelease, not both.'
+}
 
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'Building the Windows installer requires Windows x64.'
@@ -69,6 +74,7 @@ try {
 
     $arguments = @('-c', $ini, (Join-Path $repository 'tools\build-windows-installer.php'))
     if ($Compare) { $arguments += "--compare=$Compare" }
+    if ($CompareRelease) { $arguments += '--compare-release' }
     if ($Output) { $arguments += "--output=$Output" }
     if ($Revision) { $arguments += "--revision=$Revision" }
     & $php @arguments

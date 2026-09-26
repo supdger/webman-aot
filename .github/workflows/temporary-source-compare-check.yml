@@ -1,0 +1,41 @@
+name: Temporary Windows source compare check
+
+on:
+  push:
+    branches:
+      - fix/source-build-one-command
+
+permissions:
+  contents: read
+
+jobs:
+  compare-release:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and compare using the documented command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -CompareRelease
+          if ($LASTEXITCODE -ne 0) { throw 'Documented source comparison failed' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -CompareRelease
+          if ($LASTEXITCODE -ne 0) { throw 'Repeated source comparison failed' }
+          $archive = Join-Path $PWD 'dist\source-build\webman-aot-0.1.2-windows-x86_64.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'source-install'
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          tar.exe -xf $archive -C $extract
+          if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
+          $installRoot = Join-Path $env:RUNNER_TEMP 'source-tool'
+          $binDir = Join-Path $env:RUNNER_TEMP 'source-bin'
+          & (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $binDir -NoPath
+          if ($LASTEXITCODE -ne 0) { throw 'Installer failed' }
+          $env:WEBMAN_AOT_HOME = $installRoot
+          & (Join-Path $binDir 'webman-aot.cmd') version
+          if ($LASTEXITCODE -ne 0) { throw 'Installed command failed' }
+          & (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $binDir -Purge -NoPath
+          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $installRoot)) {
+            throw 'Uninstall failed'
+          }

@@ -13,29 +13,29 @@ Webman 项目，请返回[首页的安装路线](../README.md#第-1-步下载并
 整个源码仓库塞进安装包。Mac 和 Windows 安装包都用来**在开发电脑上**
 编译 Linux amd64 程序；Windows 安装包不会生成 Windows exe。
 
-构包分两段：先准备锁定的外部输入，再运行仓库里的打包脚本。
-没有这些输入时，源码可以阅读、修改，却**不能单独生成可安装的归档**。
-所有输入须符合锁文件中的 SHA-256；不符时脚本停止，不能用其他版本凑数。
+Windows 脚本会自动取得所需输入并校验；Mac 仍需按下文准备锁定的运行时
+和编译驱动。仅把源码 ZIP 解压不会自动得到可安装的归档。所有输入须符合
+锁文件中的 SHA-256；不符时脚本停止，不能用其他版本凑数。
 
 ### Windows：从源码一条命令构包并对照
 
-在 Windows x64 上下载与发布安装包**同一个版本标签**的本仓库源码 ZIP
-并解压。进入源码根目录，运行：
+在 Windows x64 上下载 [当前仓库源码 ZIP](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)，
+解压后打开 `webman-aot-main` 文件夹。这个文件夹应能直接看到 `tools`
+和 `src`。在文件夹地址栏输入
+`powershell` 并回车，然后原样运行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 `
-  -Compare "C:\你下载的\webman-aot-<版本>-windows-x86_64.zip"
+powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -CompareRelease
 ```
 
-把 `-Compare` 换成实际下载的发布包路径。无需预装 PHP 或 TypePHP：
-脚本会下载锁定的 PHP Windows 运行时和 TypePHP 源码、自动核对
-SHA-256、构建安装包、自动校验包内文件，
-再逐文件对照发布包。看到 `[MATCH]` 才表示内容一致；不一致会列出文件名。
-本地构包位于 `dist/source-build/`。ZIP 自身的字节摘要可能因压缩时间戳
-不同而不同，因此对照的是每个归档文件的实际内容与包内清单，而不是
-要求两个 ZIP 的字节完全相同。无需手工比对 `SHA256SUMS.txt`。
+**不用另外下载或解压发布安装包，也不用修改命令中的路径、版本或文件名。**
+脚本读取源码里的版本号，自动找到对应的 Release，下载发布包及摘要，校验后在
+`dist/source-build/` 生成本机安装包，再逐文件对照。无需预装 PHP 或
+TypePHP；所需运行时与源码也由脚本下载并校验。看到 `[MATCH]` 才表示
+内容一致；失败会报具体原因。两个 ZIP 的整体摘要可能因压缩时间戳
+不同而不同，所以对照的是 134 个包内文件的内容及清单。
 
-仅想从源码构建、不对照发布包时，省略 `-Compare` 即可。Mac 安装包仍需
+只想构包、不联网对照发布包时省略 `-CompareRelease`。Mac 安装包仍需
 下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责 Windows 安装包。
 
 ## 第 1 步：准备输入
@@ -106,8 +106,8 @@ php tools/package-installers.php \
 脚本成功后，`dist/installers/` 内出现两个文件：
 
 ```text
-webman-aot-<版本>-macos-arm64.tar.gz
-webman-aot-<版本>-windows-x86_64.zip
+webman-aot-0.1.2-macos-arm64.tar.gz
+webman-aot-0.1.2-windows-x86_64.zip
 ```
 
 终端输出各文件的路径、大小及 SHA-256。输入摘要不匹配或缺许可目录时，
