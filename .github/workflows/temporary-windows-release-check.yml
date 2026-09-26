@@ -21,7 +21,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Source build failed' }
-          $archive = Join-Path $PWD 'dist\source-build\webman-aot-0.1.0-windows-x86_64.zip'
+          $archive = Join-Path $PWD 'dist\source-build\webman-aot-0.1.1-windows-x86_64.zip'
           $reference = Join-Path $env:RUNNER_TEMP 'source-build-reference.zip'
           Copy-Item -LiteralPath $archive -Destination $reference
           powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -Compare $reference
