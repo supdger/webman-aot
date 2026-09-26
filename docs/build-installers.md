@@ -32,8 +32,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -Co
 脚本读取源码里的版本号，自动找到对应的 Release，下载发布包及摘要，校验后在
 `dist/source-build/` 生成本机安装包，再逐文件对照。无需预装 PHP 或
 TypePHP；所需运行时与源码也由脚本下载并校验。看到 `[MATCH]` 才表示
-内容一致；失败会报具体原因。两个 ZIP 的整体摘要可能因压缩时间戳
-不同而不同，所以对照的是 134 个包内文件的内容及清单。
+内容一致；失败会报具体原因。你手工解压的只有**源码 ZIP**；脚本下载的
+发布安装包留在 `dist/installer-inputs/`，自己构建的安装包留在
+`dist/source-build/`，这两个安装包都不用解压。两个安装包的整体摘要
+可能因压缩时间戳不同而不同，所以对照的是包内文件的内容及清单。
 
 只想构包、不联网对照发布包时省略 `-CompareRelease`。Mac 安装包仍需
 下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责 Windows 安装包。
