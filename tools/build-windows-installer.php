@@ -130,7 +130,7 @@ function verifiedInput(string $url, string $sha256, string $directory): string
                 $url,
                 $partial,
                 $showProgress,
-                static function (string $message) use ($finishLine): void {
+                static function (string $message) use ($output): void {
                     $output->finish();
                     fwrite(STDERR, $message . "\n");
                 }
