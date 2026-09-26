@@ -28,11 +28,19 @@ Windows 脚本会自动取得所需输入并校验；Mac 仍需按下文准备�
 powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -CompareRelease
 ```
 
+如果你要在**以前创建的本地 Git 克隆**里运行，先确认它是没有本地修改的
+`main` 分支，再在该目录执行 `git pull --ff-only origin main`；看到更新
+成功后才能运行上面的命令。旧脚本没有 `-CompareRelease` 参数，直接运行
+只会报“找不到参数”。如果目录不是 Git 克隆、更新失败或有本地修改，
+不要强行覆盖；改用上面的当前源码 ZIP，解压到**新文件夹**运行。
+
 **不用另外下载或解压发布安装包，也不用修改命令中的路径、版本或文件名。**
 脚本读取源码里的版本号，自动找到对应的 Release，下载发布包及摘要，校验后在
 `dist/source-build/` 生成本机安装包，再逐文件对照。无需预装 PHP 或
-TypePHP；所需运行时与源码也由脚本下载并校验。看到 `[MATCH]` 才表示
-内容一致；失败会报具体原因。你手工解压的只有**源码 ZIP**；脚本下载的
+TypePHP；所需运行时与源码也由脚本下载并校验。运行时会依次显示
+`[prepare]`、`[release]`、`[download]`、`[build]`、`[verify]` 和
+`[compare]` 阶段；下载或打包耗时期间会定期输出进度或仍在运行的提示。
+看到 `[MATCH]` 才表示内容一致；失败会报具体原因。你手工解压的只有**源码 ZIP**；脚本下载的
 发布安装包留在 `dist/installer-inputs/`，自己构建的安装包留在
 `dist/source-build/`，这两个安装包都不用解压。两个安装包的整体摘要
 可能因压缩时间戳不同而不同，所以对照的是包内文件的内容及清单。

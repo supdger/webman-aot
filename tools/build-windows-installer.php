@@ -210,9 +210,15 @@ function publishedReference(string $directory): string
         throw new RuntimeException("Unable to create input directory: {$directory}");
     }
     $partial = $directory . '/SHA256SUMS-' . $version . '.partial-' . bin2hex(random_bytes(6));
-    fwrite(STDOUT, "[download] Published v{$version} checksums\n");
+    fwrite(STDOUT, "[release] Downloading published v{$version} checksums ...\n");
     try {
-        (new NativeDownloader())->download($base . 'SHA256SUMS.txt', $partial);
+        (new NativeDownloader())->download(
+            $base . 'SHA256SUMS.txt',
+            $partial,
+            static function (int $bytes): void {
+                fwrite(STDOUT, sprintf("[release] Waiting for checksums: %.1f KiB received\n", $bytes / 1024));
+            }
+        );
         $lines = file($partial, FILE_IGNORE_NEW_LINES);
         if (!is_array($lines)) {
             throw new RuntimeException('Unable to read published checksums');
@@ -238,9 +244,11 @@ function publishedReference(string $directory): string
 
 try {
     if ($compareRelease) {
+        fwrite(STDOUT, "[release] Locating matching published installer ...\n");
         $compare = publishedReference($root . '/dist/installer-inputs');
     }
     if ($compare !== null && !$revisionProvided) {
+        fwrite(STDOUT, "[verify] Checking reference installer contents ...\n");
         zipDigests($compare);
         $revision = referenceRevision($compare);
         fwrite(STDOUT, "[OK] Using verified reference revision: {$revision}\n");
@@ -259,6 +267,7 @@ try {
         throw new RuntimeException('Locked Windows runtime or TypePHP source is missing');
     }
     $inputs = $root . '/dist/installer-inputs';
+    fwrite(STDOUT, "[prepare] Checking locked PHP and TypePHP inputs ...\n");
     $phpArchive = verifiedInput(
         (string) $windowsRuntime['archiveUrl'],
         (string) $windowsRuntime['archiveSha256'],
@@ -292,6 +301,7 @@ try {
         '--output=' . $output,
         '--revision=' . $revision,
     );
+    fwrite(STDOUT, "[build] Packaging Windows installer; this can take several minutes ...\n");
     $process = proc_open(
         $command,
         [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
@@ -305,12 +315,33 @@ try {
     if (!is_resource($process)) {
         throw new RuntimeException('Unable to start Windows installer packager');
     }
-    $result = stream_get_contents($pipes[1]);
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $result = '';
+    $error = '';
+    $nextReport = microtime(true) + 5;
+    while (true) {
+        $result .= (string) stream_get_contents($pipes[1]);
+        $error .= (string) stream_get_contents($pipes[2]);
+        $status = proc_get_status($process);
+        if (!$status['running']) {
+            break;
+        }
+        if (microtime(true) >= $nextReport) {
+            fwrite(STDOUT, "[build] Packaging still running ...\n");
+            $nextReport = microtime(true) + 5;
+        }
+        usleep(200000);
+    }
+    stream_set_blocking($pipes[1], true);
+    stream_set_blocking($pipes[2], true);
+    $result .= (string) stream_get_contents($pipes[1]);
     fclose($pipes[1]);
-    $error = stream_get_contents($pipes[2]);
+    $error .= (string) stream_get_contents($pipes[2]);
     fclose($pipes[2]);
-    if (proc_close($process) !== 0) {
-        throw new RuntimeException('Windows installer packaging failed: ' . trim((string) $error));
+    $closed = proc_close($process);
+    if (($status['exitcode'] >= 0 ? $status['exitcode'] : $closed) !== 0) {
+        throw new RuntimeException('Windows installer packaging failed: ' . trim($error));
     }
     $packageResult = is_string($result) ? json_decode($result, true) : null;
     if (!is_array($packageResult)
@@ -322,10 +353,12 @@ try {
     if (!is_file($archive)) {
         throw new RuntimeException('Windows installer was not produced');
     }
+    fwrite(STDOUT, "[verify] Checking built installer contents ...\n");
     zipDigests($archive);
     fwrite(STDOUT, "[OK] Built and internally verified: {$archive}\n");
     fwrite(STDOUT, "[OK] Installer ZIP SHA-256: " . hash_file('sha256', $archive) . "\n");
     if ($compare !== null) {
+        fwrite(STDOUT, "[compare] Comparing source-built and reference files ...\n");
         $actual = zipDigests($archive);
         $published = zipDigests($compare);
         if ($actual !== $published) {
