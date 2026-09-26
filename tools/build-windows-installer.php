@@ -82,13 +82,21 @@ function verifiedInput(string $url, string $sha256, string $directory): string
     $partial = $path . '.partial-' . bin2hex(random_bytes(6));
     fwrite(STDOUT, "[download] {$name}\n");
     try {
-        (new NativeDownloader())->download(
-            $url,
-            $partial,
-            static function (int $bytes) use ($name): void {
-                fwrite(STDOUT, sprintf("[download] %s: %.1f MiB received\n", $name, $bytes / 1048576));
-            }
-        );
+        try {
+            (new NativeDownloader())->download(
+                $url,
+                $partial,
+                static function (int $bytes) use ($name): void {
+                    fwrite(STDOUT, sprintf("[download] %s: %.1f MiB received\n", $name, $bytes / 1048576));
+                }
+            );
+        } catch (RuntimeException $exception) {
+            throw new RuntimeException(
+                "Download failed for {$name}. Check the connection and rerun the same build command; "
+                . "completed SHA-256 verified inputs will be reused. {$exception->getMessage()}",
+                previous: $exception
+            );
+        }
         if (!hash_equals($sha256, (string) hash_file('sha256', $partial))) {
             throw new RuntimeException("Downloaded input SHA-256 mismatch: {$name}");
         }
