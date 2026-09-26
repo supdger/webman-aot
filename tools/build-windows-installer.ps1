@@ -35,10 +35,11 @@ if (-not $verified) {
     $partial = $archive + '.partial-' + [Guid]::NewGuid().ToString('N')
     try {
         Write-Output "Downloading locked Windows PHP runtime ..."
-        & curl.exe -q --fail --location --retry 3 --connect-timeout 15 --max-time 180 `
+        & curl.exe -q --fail --location --retry 3 --connect-timeout 15 `
+            --speed-limit 1024 --speed-time 120 `
             --proto '=https' --proto-redir '=https' --output $partial $runtime.archiveUrl
         if ($LASTEXITCODE -ne 0) {
-            throw 'Locked Windows PHP runtime download failed.'
+            throw 'Locked Windows PHP runtime download failed. Check the connection and rerun the same build command; verified inputs will be reused.'
         }
         $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $partial).Hash.ToLowerInvariant()
         if ($actual -ne $expected) {
