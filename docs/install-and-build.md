@@ -8,6 +8,10 @@
 | macOS Apple Silicon | `webman-aot-0.1.2-macos-arm64.tar.gz` |
 | Windows x64 | `webman-aot-0.1.2-windows-x86_64.zip` |
 
+普通安装只选上表中的一个文件。`macos-php-relink-materials.tar.gz` 是
+运行时源码与重链接材料，不是安装包；`SHA256SUMS.txt` 是可选的独立
+复核材料，**都不需要为正常安装下载**。
+
 不要下载 GitHub 自动生成的「Source code (zip)」充当安装包。**正常安装
 不要求手工计算摘要**：安装脚本会自动逐个验证包内文件的 SHA-256，
 不一致就停止，并在通过时显示校验结果。发布者在上传前核对完整安装包

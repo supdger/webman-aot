@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
     [string]$Compare,
-    [switch]$CompareRelease,
     [string]$Output,
     [string]$Revision
 )
@@ -10,10 +9,6 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $timer = [Diagnostics.Stopwatch]::StartNew()
 try {
-
-if ($Compare -and $CompareRelease) {
-    throw 'Choose either -Compare or -CompareRelease, not both.'
-}
 
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'Building the Windows installer requires Windows x64.'
@@ -60,6 +55,7 @@ Write-Output 'Locked Windows PHP runtime SHA-256 verified.'
 
 $temporary = Join-Path $env:TEMP ('webman-aot-source-build-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $temporary | Out-Null
+$buildExit = 0
 try {
     Write-Output '[prepare] Extracting temporary PHP runtime ...'
     tar.exe -xf $archive -C $temporary
@@ -78,18 +74,64 @@ try {
 
     $arguments = @('-c', $ini, (Join-Path $repository 'tools\build-windows-installer.php'))
     if ($Compare) { $arguments += "--compare=$Compare" }
-    if ($CompareRelease) { $arguments += '--compare-release' }
     if ($Output) { $arguments += "--output=$Output" }
     if ($Revision) { $arguments += "--revision=$Revision" }
     Write-Output '[build] Starting Windows installer source build ...'
     & $php @arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Windows source build or comparison failed.'
+    $buildExit = $LASTEXITCODE
+    if ($buildExit -eq 0) {
+        $versionSource = Get-Content -Raw -LiteralPath (Join-Path $repository 'src\Version.php')
+        if ($versionSource -notmatch "public const VALUE = '([^']+)'") {
+            throw 'Unable to determine source package version.'
+        }
+        $version = $Matches[1]
+        $packageDir = if ($Output) {
+            if ([IO.Path]::IsPathRooted($Output)) { $Output } else { Join-Path $repository $Output }
+        } else {
+            Join-Path $repository 'dist\source-build'
+        }
+        $builtZip = Join-Path $packageDir "webman-aot-$version-windows-x86_64.zip"
+        if (-not (Test-Path -LiteralPath $builtZip -PathType Leaf)) {
+            throw "Built installer is missing: $builtZip"
+        }
+
+        $smokeRoot = Join-Path $temporary 'install-smoke'
+        $smokePackage = Join-Path $smokeRoot 'package'
+        $smokeHome = Join-Path $smokeRoot 'home'
+        $smokeBin = Join-Path $smokeRoot 'bin'
+        New-Item -ItemType Directory -Force -Path $smokePackage | Out-Null
+        Write-Output '[verify] Extracting the built installer into a temporary directory ...'
+        tar.exe -xf $builtZip -C $smokePackage
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to extract the built installer for validation.'
+        }
+        Write-Output '[verify] Installing into a temporary directory; user PATH is unchanged ...'
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $smokePackage 'install.ps1') `
+            -InstallRoot $smokeHome -BinDir $smokeBin -NoPath
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Temporary installer self-check failed.'
+        }
+        $previousHome = $env:WEBMAN_AOT_HOME
+        $env:WEBMAN_AOT_HOME = $smokeHome
+        try {
+            Write-Output '[verify] Running the installed version command ...'
+            $versionOutput = & (Join-Path $smokeBin 'webman-aot.cmd') version
+            if ($LASTEXITCODE -ne 0 -or $versionOutput -ne "webman-aot $version") {
+                throw "Installed tool version check failed: $versionOutput"
+            }
+            Write-Output "[OK] Temporary installation runs: $versionOutput"
+        } finally {
+            $env:WEBMAN_AOT_HOME = $previousHome
+        }
     }
 } finally {
     if (Test-Path -LiteralPath $temporary) {
         Remove-Item -Recurse -Force -LiteralPath $temporary
     }
+}
+if ($buildExit -ne 0) {
+    Write-Output ("[ERROR] Windows installer source build failed after {0:N1} seconds (exit code {1}); see the error above." -f $timer.Elapsed.TotalSeconds, $buildExit)
+    exit $buildExit
 }
 Write-Output ("[OK] Windows installer source build finished in {0:N1} seconds." -f $timer.Elapsed.TotalSeconds)
 } catch {

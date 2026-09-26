@@ -17,7 +17,7 @@ Windows 脚本会自动取得所需输入并校验；Mac 仍需按下文准备�
 和编译驱动。仅把源码 ZIP 解压不会自动得到可安装的归档。所有输入须符合
 锁文件中的 SHA-256；不符时脚本停止，不能用其他版本凑数。
 
-### Windows：从源码一条命令构包并对照
+### Windows：从源码一条命令构包并自检
 
 在 Windows x64 上下载 [当前仓库源码 ZIP](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)，
 解压后打开 `webman-aot-main` 文件夹。这个文件夹应能直接看到 `tools`
@@ -25,28 +25,31 @@ Windows 脚本会自动取得所需输入并校验；Mac 仍需按下文准备�
 `powershell` 并回车，然后原样运行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -CompareRelease
+powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
 ```
 
 如果你要在**以前创建的本地 Git 克隆**里运行，先确认它是没有本地修改的
 `main` 分支，再在该目录执行 `git pull --ff-only origin main`；看到更新
-成功后才能运行上面的命令。旧脚本没有 `-CompareRelease` 参数，直接运行
-只会报“找不到参数”。如果目录不是 Git 克隆、更新失败或有本地修改，
-不要强行覆盖；改用上面的当前源码 ZIP，解压到**新文件夹**运行。
+成功后运行上面的命令。如果目录不是 Git 克隆、更新失败或有本地修改，
+不要强行覆盖；改用当前源码 ZIP，解压到**新文件夹**运行。
 
-**不用另外下载或解压发布安装包，也不用修改命令中的路径、版本或文件名。**
-脚本读取源码里的版本号，自动找到对应的 Release，下载发布包及摘要，校验后在
-`dist/source-build/` 生成本机安装包，再逐文件对照。无需预装 PHP 或
-TypePHP；所需运行时与源码也由脚本下载并校验。运行时会依次显示
-`[prepare]`、`[release]`、`[download]`、`[build]`、`[verify]` 和
-`[compare]` 阶段；下载或打包耗时期间会定期输出进度或仍在运行的提示。
-看到 `[MATCH]` 才表示内容一致；失败会报具体原因。你手工解压的只有**源码 ZIP**；脚本下载的
-发布安装包留在 `dist/installer-inputs/`，自己构建的安装包留在
-`dist/source-build/`，这两个安装包都不用解压。两个安装包的整体摘要
-可能因压缩时间戳不同而不同，所以对照的是包内文件的内容及清单。
+**不用下载发布安装包或 `SHA256SUMS.txt`，也不用修改命令中的路径和版本。**
+首次运行会下载并校验锁定的 Windows PHP 和 TypePHP 源码输入；以后会复用
+摘要符合锁文件的缓存。随后脚本从本仓库源码生成
+`dist/source-build/webman-aot-0.1.2-windows-x86_64.zip`，检查 ZIP 内的
+文件清单，在一次性目录解压、安装并运行 `webman-aot version`。过程会
+显示 `[prepare]`、`[download]`、`[build]`、`[verify]` 状态和耗时；
+只有看到 `[OK] Temporary installation runs: webman-aot 0.1.2` 且命令
+退出码为 0，才算**工具安装包构建与本机安装自检通过**。一次性安装目录
+会清理，不会改你的用户 `PATH`；生成的 ZIP 留在 `dist/source-build/`。
 
-只想构包、不联网对照发布包时省略 `-CompareRelease`。Mac 安装包仍需
-下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责 Windows 安装包。
+这个自检不依赖 GitHub Release，也**不证明新构建包与已发布包逐文件相同**，
+更不等于用它编译 Webman 项目或完成 Linux 业务验收。维护者如果确实要
+比较两个本地 ZIP，可以另用可选的 `-Compare` 参数指定参考包；
+普通源码构建者不需要这一步。
+
+Mac 安装包仍需下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责
+Windows 安装包。
 
 ## macOS Apple Silicon：先选你要做的事
 
@@ -145,6 +148,7 @@ Windows 单独构包请用上面的 Windows 命令。
 ## 验证新安装包
 
 在相应系统上按[安装说明](install-and-build.md)从**新生成的安装包**
-安装，确认 `webman-aot version` 和 `webman-aot doctor`；
+安装；安装脚本会自动校验包内文件，不需要另下载 `SHA256SUMS.txt`。
+确认 `webman-aot version` 和 `webman-aot doctor`；
 再在测试 Webman 项目中执行 `webman-aot build`、`webman-aot verify`，
 最后到 Linux 验证 `dist-aot/`。仅有两个归档文件不等于功能已经验收。
