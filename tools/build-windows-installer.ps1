@@ -53,8 +53,8 @@ if (-not $verified) {
 }
 Write-Output 'Locked Windows PHP runtime SHA-256 verified.'
 
-$temporary = Join-Path $env:TEMP ('webman-aot-source-build-' + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Force -Path $temporary | Out-Null
+$temporary = Join-Path $env:TEMP ('waot-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
+New-Item -ItemType Directory -Path $temporary | Out-Null
 $buildExit = 0
 try {
     Write-Output '[prepare] Extracting temporary PHP runtime ...'
@@ -95,10 +95,10 @@ try {
             throw "Built installer is missing: $builtZip"
         }
 
-        $smokeRoot = Join-Path $temporary 'install-smoke'
-        $smokePackage = Join-Path $smokeRoot 'package'
-        $smokeHome = Join-Path $smokeRoot 'home'
-        $smokeBin = Join-Path $smokeRoot 'bin'
+        $smokeRoot = Join-Path $temporary 's'
+        $smokePackage = Join-Path $smokeRoot 'p'
+        $smokeHome = Join-Path $smokeRoot 'h'
+        $smokeBin = Join-Path $smokeRoot 'b'
         New-Item -ItemType Directory -Force -Path $smokePackage | Out-Null
         Write-Output '[verify] Extracting the built installer into a temporary directory ...'
         tar.exe -xf $builtZip -C $smokePackage
