@@ -68,13 +68,58 @@ try {
         throw new RuntimeException('expected exactly five locked sysroot packages');
     }
 
+    // Windows cannot create Unix links without a separate privilege. These
+    // locked APK links name shared libraries and GCC tool aliases, none of
+    // which is part of the static sysroot used by this build.
+    $windowsLinkExclusions = [
+        'alpine-musl-dev-x86-64' => [
+            'sha256' => 'd288f1cae4a503826df1ecff8d4c3818b8c765d3e4c63d397fddd3b52de3c17b',
+            'paths' => ['usr/lib/libc.so'],
+        ],
+        'alpine-libstdcpp-dev-x86-64' => [
+            'sha256' => '58f70628a343fbddba77261326b6a67437e69b0bc0bf277172137bb3ef1eaf59',
+            'paths' => ['usr/lib/libstdc++.so'],
+        ],
+        'alpine-gcc-x86-64' => [
+            'sha256' => 'ff9dc5bf2b8d80cc560c49ce3156d31e88eed94517781ee5e1b30c5ee7db7ea2',
+            'paths' => [
+                'usr/bin/cc',
+                'usr/lib/bfd-plugins/liblto_plugin.so',
+                'usr/lib/gcc/x86_64-alpine-linux-musl/12.2.1/plugin/libcc1plugin.so',
+                'usr/lib/gcc/x86_64-alpine-linux-musl/12.2.1/plugin/libcc1plugin.so.0',
+                'usr/lib/gcc/x86_64-alpine-linux-musl/12.2.1/plugin/libcp1plugin.so',
+                'usr/lib/gcc/x86_64-alpine-linux-musl/12.2.1/plugin/libcp1plugin.so.0',
+                'usr/lib/libatomic.so',
+                'usr/lib/libcc1.so',
+                'usr/lib/libcc1.so.0',
+                'usr/lib/libgomp.so',
+                'usr/lib/libitm.so',
+                'usr/lib/libitm.so.1',
+                'usr/bin/x86_64-alpine-linux-musl-gcc',
+                'usr/bin/x86_64-alpine-linux-musl-gcc-12.2.1',
+                'usr/bin/x86_64-alpine-linux-musl-gcc-ar',
+                'usr/bin/x86_64-alpine-linux-musl-gcc-nm',
+                'usr/bin/x86_64-alpine-linux-musl-gcc-ranlib',
+            ],
+        ],
+    ];
     foreach ($packages as $package) {
         $archive = $artifacts . '/' . basename((string) $package['sourceUrl']);
         $actualDigest = is_file($archive) ? hash_file('sha256', $archive) : false;
         if (!is_string($actualDigest) || !hash_equals((string) $package['sha256'], $actualDigest)) {
             throw new RuntimeException("sysroot package digest mismatch: {$archive}");
         }
-        execute([$tar, '-xf', $archive, '-C', $output]);
+        $command = [$tar];
+        if (PHP_OS_FAMILY === 'Windows' && isset($windowsLinkExclusions[$package['id']])) {
+            $rule = $windowsLinkExclusions[$package['id']];
+            if (!hash_equals($rule['sha256'], (string) $package['sha256'])) {
+                throw new RuntimeException("sysroot link rule requires locked {$package['id']} archive");
+            }
+            foreach ($rule['paths'] as $path) {
+                $command[] = '--exclude=' . $path;
+            }
+        }
+        execute([...$command, '-xf', $archive, '-C', $output]);
     }
 
     $required = [
