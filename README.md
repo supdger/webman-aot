@@ -3,6 +3,15 @@
 在 macOS 或 Windows 开发机上，把 Webman / SaiAdmin 项目编译成可部署到
 Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，构建时不用 Docker。
 
+**这个仓库存放的是 Webman AOT 编译工具的源码，不是要装进 Webman 项目的插件。**
+只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.0)
+下载安装包；想自行制作安装包，可按[源码构包说明](docs/build-installers.md)
+备齐锁定的第三方运行时后构建。源码 ZIP 本身不是可安装的工具包。
+
+**工具在同一台开发电脑上只需安装一次。** 以后编译另一个项目，或修改项目
+后重新编译，都不用重新安装工具，也不用在项目里 `composer require`；
+进入对应项目目录，重复[第 2 步](#第-2-步编译你的项目)的编译与校验命令即可。
+
 ![同一份项目源码从 Mac 或 Windows 编译成 Linux 全静态发布目录](docs/assets/build-flow.svg)
 
 图里的“项目源码”指**你自己的 Webman / SaiAdmin 后端项目**，不是本仓库的
@@ -35,7 +44,7 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 ## 这三个东西分别是什么
 
 1. GitHub「Code → Download ZIP」下载的是**Webman AOT 工具的源代码**：给开发者查看和修改，**不是安装包，解压后不能直接使用工具**。
-2. `webman-aot-...-macos-arm64.tar.gz` 或 `webman-aot-...-windows-x86_64.zip` 是**工具安装包**：按你的开发电脑系统选一个，只安装一次。本文下面的安装命令用的是这个文件。
+2. `webman-aot-...-macos-arm64.tar.gz` 或 `webman-aot-...-windows-x86_64.zip` 是**编译工具安装包，不是 Webman 插件包**：按你的开发电脑系统选一个，在同一台电脑上只安装一次。本文下面的安装命令用的是这个文件。
 3. `dist-aot/` 是**编译结果**：安装工具后，在你的 Webman 项目里运行 `webman-aot build` 才会生成；它要复制到 Linux 服务器运行。
 
 看**开发电脑**的系统选择安装包，不是看 Linux 服务器的系统。Mac 和
@@ -96,6 +105,9 @@ webman-aot verify
 普通 Webman 项目把编译命令改为 `webman-aot build`；SaiAdmin 也可以自动识别。
 未知插件代码或依赖结构不兼容时会报错，不会静默跳过业务 PHP。
 成功后，**当前 Webman 项目目录**下才会出现 `dist-aot/`。
+下次编译同一项目或其他项目时，无需重做第 1 步；进入该项目目录，
+执行 `webman-aot build --profile=saiadmin` 和 `webman-aot verify` 即可。
+普通 Webman 项目仍省略 `--profile=saiadmin`。
 
 已实际验证的组合是 SaiAdmin 6.1.5、Webman 2.2.4、TypePHP 0.9.2 和锁定的
 PHP 8.4 工具链；其他依赖版本和插件需要重新验证。SaiAdmin 的普通 PHP 8.4
