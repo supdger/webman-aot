@@ -49,18 +49,23 @@ final class NativeDownloader implements Downloader
             return null;
         }
         $length = null;
+        $rangeTotal = null;
         foreach ($headers as $header) {
             if (!is_string($header)) {
                 continue;
             }
             if (preg_match('/^HTTP\/\S+\s+\d{3}/i', $header) === 1) {
                 $length = null;
+                $rangeTotal = null;
             } elseif (preg_match('/^Content-Length:\s*(\d+)\s*$/i', $header, $matches) === 1) {
                 $length = (int) $matches[1];
+            } elseif (preg_match('/^Content-Range:\s*bytes\s+\d+-\d+\/(\d+)\s*$/i', $header, $matches) === 1) {
+                $rangeTotal = (int) $matches[1];
             }
         }
 
-        return $length !== null && $length > 0 ? $length : null;
+        $total = $rangeTotal ?? $length;
+        return $total !== null && $total > 0 ? $total : null;
     }
 
     /**
@@ -70,7 +75,8 @@ final class NativeDownloader implements Downloader
         string $url,
         string $destination,
         ?\Closure $progress,
-        ?\Closure $diagnostic
+        ?\Closure $diagnostic,
+        bool $allowRestart = true
     ): void
     {
         $systemRoot = getenv('SystemRoot');
@@ -81,28 +87,36 @@ final class NativeDownloader implements Downloader
         if (!str_starts_with($url, 'https://') || !is_file($curl)) {
             throw new \RuntimeException("secure host downloader is unavailable: {$url}");
         }
+        clearstatcache(true, $destination);
+        $resume = $allowRestart && is_file($destination) && filesize($destination) > 0;
         $errorPath = $destination . '.curl-stderr-' . bin2hex(random_bytes(6));
         $headersPath = $destination . '.curl-headers-' . bin2hex(random_bytes(6));
+        $command = [
+            $curl,
+            '-q',
+            '--fail',
+            '--location',
+            '--no-progress-meter',
+            '--show-error',
+            '--retry', $resume ? '1' : '5',
+            '--retry-delay', '2',
+            '--retry-all-errors',
+        ];
+        if ($resume) {
+            array_push($command, '--continue-at', '-');
+        }
+        array_push($command,
+            '--connect-timeout', '15',
+            '--speed-limit', '1024',
+            '--speed-time', '120',
+            '--proto', '=https',
+            '--proto-redir', '=https',
+            '--dump-header', $headersPath,
+            '--output', $destination,
+            $url
+        );
         $process = proc_open(
-            [
-                $curl,
-                '-q',
-                '--fail',
-                '--location',
-                '--no-progress-meter',
-                '--show-error',
-                '--retry', '5',
-                '--retry-delay', '2',
-                '--retry-all-errors',
-                '--connect-timeout', '15',
-                '--speed-limit', '1024',
-                '--speed-time', '120',
-                '--proto', '=https',
-                '--proto-redir', '=https',
-                '--dump-header', $headersPath,
-                '--output', $destination,
-                $url,
-            ],
+            $command,
             [
                 0 => ['file', $nullDevice, 'r'],
                 1 => ['file', $nullDevice, 'w'],
@@ -184,6 +198,22 @@ final class NativeDownloader implements Downloader
             $closed = proc_close($process);
             $reportErrors(true);
             $exitCode = $exit >= 0 ? $exit : $closed;
+            $errors = @file_get_contents($errorPath);
+            $rangeUnsupported = is_string($errors)
+                && str_contains(strtolower($errors), 'support byte ranges');
+            if ($resume && ($exitCode === 33 || $rangeUnsupported)) {
+                if (!unlink($destination)) {
+                    throw new \RuntimeException("unable to restart unsupported ranged download: {$url}");
+                }
+                $message = 'Source does not support resuming; retrying from start.';
+                if ($diagnostic !== null) {
+                    $diagnostic($message);
+                } else {
+                    fwrite(STDERR, $message . PHP_EOL);
+                }
+                $this->downloadWithCurl($url, $destination, $progress, $diagnostic, false);
+                return;
+            }
             if ($exitCode !== 0) {
                 throw new \RuntimeException(
                     "unable to download locked component: {$url} (curl exit code {$exitCode})"

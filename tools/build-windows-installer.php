@@ -81,13 +81,26 @@ function verifiedInput(string $url, string $sha256, string $directory): string
         return $path;
     }
 
-    $partial = $path . '.partial-' . bin2hex(random_bytes(6));
+    $partial = $path . '.partial';
+    if (is_file($partial) && hash_equals($sha256, (string) hash_file('sha256', $partial))) {
+        if (is_file($path) && !unlink($path)) {
+            throw new RuntimeException("Unable to replace stale input: {$name}");
+        }
+        if (!rename($partial, $path)) {
+            throw new RuntimeException("Unable to activate verified input: {$name}");
+        }
+        fwrite(STDOUT, "[OK] Reusing SHA-256 verified partial {$name}\n");
+        return $path;
+    }
     // Display hints only; SHA-256 remains the authority for accepted inputs.
     $expectedBytes = match ($sha256) {
         '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c' => 35113790,
         '7e5fe3549397e819c20b82c4586af5cad7cb03d6743d86fbca5094d629894902' => 14289309,
         default => null,
     };
+    if ($expectedBytes !== null && is_file($partial) && filesize($partial) > $expectedBytes) {
+        unlink($partial);
+    }
     $output = new ProgressOutput(STDOUT);
     $lastBytes = 0;
     $showProgress = static function (int $bytes, ?int $reportedTotal = null, bool $verified = false) use (
@@ -126,13 +139,15 @@ function verifiedInput(string $url, string $sha256, string $directory): string
             $output->finish();
             throw new RuntimeException(
                 "Download failed for {$name}. Check the connection and rerun the same build command; "
-                . "completed SHA-256 verified inputs will be reused. {$exception->getMessage()}",
+                . "the partial file will be resumed when the source supports ranges. "
+                . "Completed SHA-256 verified inputs will be reused. {$exception->getMessage()}",
                 previous: $exception
             );
         }
         clearstatcache(true, $partial);
         $bytes = filesize($partial);
         if (!hash_equals($sha256, (string) hash_file('sha256', $partial))) {
+            unlink($partial);
             throw new RuntimeException("Downloaded input SHA-256 mismatch: {$name}");
         }
         $showProgress(is_int($bytes) ? $bytes : 0, null, true);
@@ -145,9 +160,6 @@ function verifiedInput(string $url, string $sha256, string $directory): string
         }
     } finally {
         $output->finish();
-        if (is_file($partial)) {
-            unlink($partial);
-        }
     }
     fwrite(STDOUT, "[OK] SHA-256 verified {$name}\n");
     return $path;
