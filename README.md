@@ -88,21 +88,27 @@ webman-aot version
 `webman` 和 `composer.json` 的目录；**不是刚解压的安装包目录，
 也不是本工具的源码目录**。
 
-先检查环境：
+先检查环境。安装成功不等于编译组件已经准备好：
 
 ```sh
 webman-aot doctor
 ```
 
-如果提示缺少编译组件，再运行以下两条；`--repair` 会下载并校验组件，
-首次运行可能比较久。检查通过时直接跳过：
+**首次使用**时，如果看到多条 `[ERROR] component:... locked component is missing`
+（或汇总的 `[ERROR] components: ... not downloaded yet`）和
+`Result: unhealthy`，表示编译组件还没下载，**不是工具安装失败**。
+此时运行：
 
 ```sh
 webman-aot doctor --repair
 webman-aot doctor
 ```
 
-最后编译并检查产物：
+`--repair` 会下载、校验并准备锁定组件，首次运行可能较久、期间可能
+暂时没有输出；等命令结束再运行第二条检查。只有看到
+`Result: healthy` 才能继续编译。如果修复后仍是 `unhealthy`，或报的是
+平台、磁盘、网络、项目错误，先按具体 `[ERROR]` 和诊断文件处理，
+不要直接执行 `build`。健康后编译并检查产物：
 
 ```sh
 webman-aot build --profile=saiadmin

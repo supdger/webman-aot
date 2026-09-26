@@ -102,15 +102,28 @@ powershell -ExecutionPolicy Bypass -File .\webman-aot-install\install.ps1
 webman-aot doctor
 ```
 
-如果检查提示缺少编译组件，再执行：
+看最后的 `Result`：
 
-```sh
-webman-aot doctor --repair
-webman-aot doctor
-```
+- `Result: healthy`：环境已准备好，继续下方的 `build`。
+- `Result: unhealthy`，并看到
+  `[ERROR] component:... locked component is missing` 或
+  `[ERROR] components: ... not downloaded yet`，或
+  `[ERROR] prepared-toolchain: ... run doctor --repair`：这在**第一次运行**
+  很常见，表示编译组件尚未下载，**不代表工具安装失败**。如果平台、磁盘、
+  网络和项目检查同时显示 `[OK]`，执行：
 
-`doctor` 只检查；`doctor --repair` 才在当前用户目录下载并校验工具链，
-首次运行可能比较久。检查通过后编译：
+  ```sh
+  webman-aot doctor --repair
+  webman-aot doctor
+  ```
+
+`doctor` 只检查，不会下载组件；`doctor --repair` 才会在当前用户目录
+下载、校验并准备锁定的编译工具链。首次运行可能很久，且在完成前
+可能暂时没有输出；请等它返回命令提示符。修复成功时会显示
+`Toolchain generation activated: ...`，后续检查应显示 `Result: healthy`。
+只有健康时才能编译。如果修复命令报错，或再次检查仍为 `unhealthy`，
+**不要继续编译**；查看具体 `[ERROR]` 和输出末尾的 Diagnostic bundle
+路径，先处理网络、磁盘、依赖或项目错误。检查通过后编译：
 
 ```sh
 webman-aot build --profile=saiadmin
