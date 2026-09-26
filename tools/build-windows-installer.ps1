@@ -31,6 +31,7 @@ $inputs = Join-Path $repository 'dist\installer-inputs'
 New-Item -ItemType Directory -Force -Path $inputs | Out-Null
 $archive = Join-Path $inputs ([IO.Path]::GetFileName(([Uri]$runtime.archiveUrl).AbsolutePath))
 $expected = [string]$runtime.archiveSha256
+Write-Output '[prepare] Checking locked Windows PHP runtime ...'
 $verified = (Test-Path -LiteralPath $archive) -and
     ((Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant() -eq $expected)
 if (-not $verified) {
@@ -58,6 +59,7 @@ Write-Output 'Locked Windows PHP runtime SHA-256 verified.'
 $temporary = Join-Path $env:TEMP ('webman-aot-source-build-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $temporary | Out-Null
 try {
+    Write-Output '[prepare] Extracting temporary PHP runtime ...'
     tar.exe -xf $archive -C $temporary
     if ($LASTEXITCODE -ne 0) {
         throw 'Unable to extract locked Windows PHP runtime.'
@@ -77,6 +79,7 @@ try {
     if ($CompareRelease) { $arguments += '--compare-release' }
     if ($Output) { $arguments += "--output=$Output" }
     if ($Revision) { $arguments += "--revision=$Revision" }
+    Write-Output '[build] Starting Windows installer source build ...'
     & $php @arguments
     if ($LASTEXITCODE -ne 0) {
         throw 'Windows source build or comparison failed.'
