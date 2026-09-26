@@ -203,6 +203,12 @@ final class NativeDownloader implements Downloader
                 );
             }
         } finally {
+            if (is_resource($process)) {
+                if (proc_get_status($process)['running']) {
+                    proc_terminate($process);
+                }
+                proc_close($process);
+            }
             if (is_file($errorPath)) {
                 unlink($errorPath);
             }

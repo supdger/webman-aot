@@ -98,7 +98,7 @@ function verifiedInput(string $url, string $sha256, string $directory): string
             $lineWidth = 0;
         }
     };
-    $showProgress = static function (int $bytes) use (
+    $showProgress = static function (int $bytes, bool $verified = false) use (
         $name,
         $expectedBytes,
         $interactive,
@@ -111,7 +111,7 @@ function verifiedInput(string $url, string $sha256, string $directory): string
             : sprintf(
                 '[download] %s: %.1f%%',
                 $name,
-                min(100, $bytes * 100 / $expectedBytes)
+                min($verified ? 100 : 99.9, $bytes * 100 / $expectedBytes)
             );
         if ($bytes < $lastBytes) {
             $status .= ' (retrying from start)';
@@ -148,11 +148,11 @@ function verifiedInput(string $url, string $sha256, string $directory): string
         }
         clearstatcache(true, $partial);
         $bytes = filesize($partial);
-        $showProgress(is_int($bytes) ? $bytes : 0);
-        $finishLine();
         if (!hash_equals($sha256, (string) hash_file('sha256', $partial))) {
             throw new RuntimeException("Downloaded input SHA-256 mismatch: {$name}");
         }
+        $showProgress(is_int($bytes) ? $bytes : 0, true);
+        $finishLine();
         if (is_file($path) && !unlink($path)) {
             throw new RuntimeException("Unable to replace stale input: {$name}");
         }
