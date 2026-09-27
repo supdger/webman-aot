@@ -1,0 +1,160 @@
+name: Windows 0.2.2 final main package build
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact final main source
+        uses: actions/checkout@v4
+        with:
+          ref: 0f52bac70e9464eb1f34fa936f570eae82007e61
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify source and prepare locked Windows component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $revision = '0f52bac70e9464eb1f34fa936f570eae82007e61'
+          $actualRevision = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualRevision -ne $revision) {
+            throw "Checkout differs from final main source: $actualRevision"
+          }
+          if (@(& git status --porcelain).Count -ne 0) {
+            throw 'Final main checkout is not clean.'
+          }
+          if (Test-Path -LiteralPath '.github/workflows' -PathType Container) {
+            throw 'Final main source unexpectedly contains a workflow directory.'
+          }
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          if ($lock.version -ne '0.2.2') { throw 'Minimal component lock version differs.' }
+          $toolchainSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'toolchain.lock.json').Hash.ToLowerInvariant()
+          if ($toolchainSha -ne $lock.toolchainLockSha256) { throw 'Toolchain lock SHA-256 differs.' }
+          $sourceName = 'webman-aot-builder-0.2.1-windows-x86_64-components.zip'
+          $targetName = 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+          if ($lock.components.'windows-x86_64'.archive -ne $targetName) {
+            throw '0.2.2 component filename differs from lock.'
+          }
+          $inputs = Join-Path $env:RUNNER_TEMP 'windows-022-inputs'
+          New-Item -ItemType Directory -Force -Path $inputs | Out-Null
+          Write-Output '[download] Fetching published component bytes from v0.2.1 ...'
+          gh release download v0.2.1 --repo $env:GITHUB_REPOSITORY `
+            --pattern $sourceName --dir $inputs
+          if ($LASTEXITCODE -ne 0) { throw 'Component download failed.' }
+          $source = Join-Path $inputs $sourceName
+          $component = Join-Path $inputs $targetName
+          $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
+          if ($sourceSha -ne $lock.components.'windows-x86_64'.sha256) {
+            throw 'Published component bytes differ from 0.2.2 lock.'
+          }
+          Copy-Item -LiteralPath $source -Destination $component
+          $targetSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $component).Hash.ToLowerInvariant()
+          if ($targetSha -ne $sourceSha) { throw 'Renamed component differs.' }
+          Write-Output "[OK] Final source $actualRevision; component SHA-256 $targetSha"
+
+      - name: Build and inspect both Windows release packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $timer = [Diagnostics.Stopwatch]::StartNew()
+          $revision = '0f52bac70e9464eb1f34fa936f570eae82007e61'
+          $version = '0.2.2'
+          $component = Join-Path $env:RUNNER_TEMP `
+            'windows-022-inputs\webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          $output = Join-Path $env:RUNNER_TEMP 'windows-022-release'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $shaLines = @()
+          foreach ($flavor in @('small', 'full')) {
+            $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
+            $name = "webman-aot-builder-$version$suffix-windows-x86_64.zip"
+            $archive = Join-Path $output $name
+            Write-Output "[build] Packaging $name from exact final main revision $revision ..."
+            & .\tools\build-windows-installer.ps1 -Flavor $flavor `
+              -MinimalComponent $component -Output $output -Revision $revision
+            if ($LASTEXITCODE -ne 0 -or
+                -not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+              throw "$flavor release package build or built-in install smoke failed."
+            }
+            $extract = Join-Path $env:RUNNER_TEMP "verify-022-$flavor"
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            Write-Output "[verify] Extracting and checking metadata and payload manifest for $name ..."
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archive -C $extract
+            if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed." }
+            $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
+            $expectedFlavor = if ($flavor -eq 'full') { 'complete' } else { 'small' }
+            if ($metadata.schema -ne 'webman-aot-builder-installer-package-v1' -or
+                $metadata.version -ne $version -or
+                $metadata.revision -ne $revision -or
+                $metadata.platform -ne 'windows-x86_64' -or
+                $metadata.flavor -ne $expectedFlavor) {
+              throw "$flavor package metadata differs from final main source."
+            }
+            $manifest = @(Get-Content -LiteralPath (Join-Path $extract 'payload-manifest.sha256'))
+            if ($manifest.Count -eq 0 -or $manifest.Count -ne $metadata.payloadFiles) {
+              throw "$flavor payload manifest count differs from package metadata."
+            }
+            $verified = 0
+            foreach ($line in $manifest) {
+              if ($line -notmatch '^([a-f0-9]{64})  (payload/.+)$') {
+                throw "$flavor payload manifest has malformed entry."
+              }
+              $expectedSha = $Matches[1]
+              $relative = $Matches[2]
+              if (@($relative -split '/' | Where-Object { $_ -eq '..' }).Count -ne 0) {
+                throw "$flavor payload manifest contains traversal."
+              }
+              $file = Join-Path $extract ($relative.Replace('/', '\'))
+              if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+                throw "$flavor payload file is missing: $relative"
+              }
+              $actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant()
+              if ($actualSha -ne $expectedSha) {
+                throw "$flavor payload SHA-256 mismatch: $relative"
+              }
+              $verified++
+            }
+            $bundledComponent = Join-Path $extract 'payload\minimal-toolchain\component.zip'
+            if ($flavor -eq 'full') {
+              if (-not (Test-Path -LiteralPath $bundledComponent -PathType Leaf) -or
+                  (Get-FileHash -Algorithm SHA256 -LiteralPath $bundledComponent).Hash.ToLowerInvariant() -ne
+                    $lock.components.'windows-x86_64'.sha256) {
+                throw 'Full installer bundled component differs from source lock.'
+              }
+            } elseif (Test-Path -LiteralPath $bundledComponent) {
+              throw 'Small installer unexpectedly bundles the component.'
+            }
+            $archiveSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+            $shaLines += "$archiveSha  $name"
+            Write-Output "[OK] $name revision=$revision; payload=$verified files; SHA-256=$archiveSha"
+          }
+          $shaPath = Join-Path $output 'SHA256SUMS-windows'
+          Set-Content -LiteralPath $shaPath -Value $shaLines -Encoding ascii
+          Write-Output "[OK] Two final Windows packages built and verified in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
+          Get-Content -LiteralPath $shaPath
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
+            "Windows 0.2.2 packages from final main $revision: small/full built, installed, metadata and all payload SHA-256 verified."
+
+      - name: Upload verified Windows release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-022-main-0f52bac
+          path: |
+            ${{ runner.temp }}/windows-022-release/*.zip
+            ${{ runner.temp }}/windows-022-release/SHA256SUMS-windows
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
