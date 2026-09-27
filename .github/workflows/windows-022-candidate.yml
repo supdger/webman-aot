@@ -1,0 +1,447 @@
+name: Windows 0.2.2 global doctor acceptance
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify the reusable component and restore the historical fixture
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $timer = [Diagnostics.Stopwatch]::StartNew()
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          if ($lock.version -ne '0.2.2') { throw "Unexpected candidate version: $($lock.version)" }
+          $toolchainSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'toolchain.lock.json').Hash.ToLowerInvariant()
+          if ($toolchainSha -ne $lock.toolchainLockSha256) { throw 'Toolchain source lock differs.' }
+          $sourceName = 'webman-aot-builder-0.2.1-windows-x86_64-components.zip'
+          $candidateName = 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+          if ($lock.components.'windows-x86_64'.archive -ne $candidateName) {
+            throw 'Candidate component asset name differs from source lock.'
+          }
+          $inputs = Join-Path $env:RUNNER_TEMP 'candidate-inputs'
+          New-Item -ItemType Directory -Force -Path $inputs | Out-Null
+          Write-Output '[download] Fetching the published v0.2.1 component with identical locked bytes ...'
+          gh release download v0.2.1 --repo $env:GITHUB_REPOSITORY `
+            --pattern $sourceName --dir $inputs
+          if ($LASTEXITCODE -ne 0) { throw 'Historical component download failed.' }
+          $source = Join-Path $inputs $sourceName
+          $component = Join-Path $inputs $candidateName
+          $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
+          if ($sourceSha -ne $lock.components.'windows-x86_64'.sha256) {
+            throw 'Historical component bytes differ from candidate lock.'
+          }
+          Copy-Item -LiteralPath $source -Destination $component
+          $candidateSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $component).Hash.ToLowerInvariant()
+          if ($candidateSha -ne $sourceSha) { throw 'Renamed component bytes differ.' }
+          Write-Output "[OK] Candidate component SHA-256: $candidateSha"
+          Write-Output '[prepare] Restoring neutral fixture from immutable v0.2.0 tag ...'
+          git fetch --depth=1 origin 'refs/tags/v0.2.0:refs/tags/v0.2.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch v0.2.0 fixture tag.' }
+          $fixtureTar = Join-Path $env:RUNNER_TEMP 'fixture-v0.2.0.tar'
+          $fixtureTree = Join-Path $env:RUNNER_TEMP 'fixture-tree'
+          New-Item -ItemType Directory -Force -Path $fixtureTree | Out-Null
+          git archive --format=tar "--output=$fixtureTar" v0.2.0 tests/fixtures/webman-neutral
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to archive neutral fixture.' }
+          & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $fixtureTar -C $fixtureTree
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to extract neutral fixture.' }
+          $fixture = Join-Path $fixtureTree 'tests\fixtures\webman-neutral'
+          if (-not (Test-Path -LiteralPath (Join-Path $fixture 'composer.lock') -PathType Leaf)) {
+            throw 'Neutral fixture composer.lock is missing.'
+          }
+          $phpId = & php -r 'echo PHP_VERSION_ID;'
+          if ($LASTEXITCODE -ne 0 -or [int]$phpId -lt 80400) {
+            throw "Composer runner PHP 8.4 is required; found $phpId"
+          }
+          & composer --version
+          if ($LASTEXITCODE -ne 0) { throw 'Composer is unavailable.' }
+          Push-Location $fixture
+          try {
+            Write-Output '[prepare] Installing pinned neutral Webman dependencies ...'
+            & composer install --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction
+            if ($LASTEXITCODE -ne 0) { throw 'Neutral fixture dependencies failed.' }
+          } finally {
+            Pop-Location
+          }
+          Write-Output "[OK] Candidate inputs ready in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
+
+      - name: Build and accept both Windows flavors through the short command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $timer = [Diagnostics.Stopwatch]::StartNew()
+          $version = '0.2.2'
+          $inputs = Join-Path $env:RUNNER_TEMP 'candidate-inputs'
+          $component = Join-Path $inputs "webman-aot-builder-$version-windows-x86_64-components.zip"
+          $built = Join-Path $env:RUNNER_TEMP 'built-installers'
+          $fixture = Join-Path $env:RUNNER_TEMP 'fixture-tree\tests\fixtures\webman-neutral'
+          $oldHome = Join-Path $env:LOCALAPPDATA 'webman-aot'
+          $oldBin = Join-Path $oldHome 'bin'
+          $oldCommand = Join-Path $oldBin 'webman-aot.cmd'
+          $oldMarker = Join-Path $oldHome 'acceptance-sentinel.txt'
+          New-Item -ItemType Directory -Force -Path $oldBin | Out-Null
+          Set-Content -LiteralPath $oldCommand -Encoding ascii -Value @(
+            '@echo off', 'echo webman-aot 0.1.3'
+          )
+          Set-Content -LiteralPath $oldMarker -Value 'preserve-existing-state'
+          $originalProcessPath = $env:Path
+          $originalUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+          try {
+            foreach ($flavor in @('small', 'full')) {
+              $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
+              $name = "webman-aot-builder-$version$suffix-windows-x86_64.zip"
+              $package = Join-Path $built $name
+              Write-Output "[build] Building $name from the candidate commit ..."
+              & .\tools\build-windows-installer.ps1 -Flavor $flavor `
+                -MinimalComponent $component -Output $built
+              if ($LASTEXITCODE -ne 0 -or
+                  -not (Test-Path -LiteralPath $package -PathType Leaf)) {
+                throw "$flavor source build or built-in installation smoke failed."
+              }
+              $packageSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $package).Hash.ToLowerInvariant()
+              Write-Output "[OK] $name SHA-256: $packageSha"
+              $extract = Join-Path $env:RUNNER_TEMP "extract-$flavor"
+              $installRoot = Join-Path $env:RUNNER_TEMP "installed $flavor"
+              $bin = Join-Path $env:RUNNER_TEMP "bin $flavor"
+              if ($installRoot -notmatch ' ' -or $bin -notmatch ' ') {
+                throw 'Acceptance paths must contain spaces.'
+              }
+              New-Item -ItemType Directory -Force -Path $extract | Out-Null
+              & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
+              if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed." }
+              Write-Output "[install] Installing $flavor into a fresh space-containing home ..."
+              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+                (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath
+              if ($LASTEXITCODE -ne 0) { throw "$flavor install failed." }
+              $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+              $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+              $env:Path = "$bin;$oldBin;$originalProcessPath"
+              try {
+                $resolved = (Get-Command webman-aot -ErrorAction Stop).Source
+                $expectedCommand = Join-Path $bin 'webman-aot.cmd'
+                if (-not [string]::Equals(
+                    [IO.Path]::GetFullPath($resolved),
+                    [IO.Path]::GetFullPath($expectedCommand),
+                    [StringComparison]::OrdinalIgnoreCase)) {
+                  throw "$flavor short command resolves to an old PATH entry: $resolved"
+                }
+                $actualVersion = & webman-aot version
+                if ($LASTEXITCODE -ne 0 -or
+                    $actualVersion -ne "webman-aot $version") {
+                  throw "$flavor short command returned: $actualVersion"
+                }
+                Write-Output "[OK] $flavor short command resolves to the new Builder."
+                $downloadCache = Join-Path $installRoot 'toolchains\downloads'
+                $empty = Join-Path $env:RUNNER_TEMP "empty nonproject $flavor"
+                New-Item -ItemType Directory -Force -Path $empty | Out-Null
+                Push-Location $empty
+                try {
+                  Write-Output "[build] Checking $flavor refuses a nonproject directory before preparation ..."
+                  $buildLog = Join-Path $env:RUNNER_TEMP "nonproject-build-$flavor.log"
+                  & webman-aot build *> $buildLog
+                  $buildExit = $LASTEXITCODE
+                  $buildText = Get-Content -Raw -LiteralPath $buildLog
+                  if ($buildExit -eq 0 -or
+                      $buildText -notmatch 'build requires a Webman project root' -or
+                      (Test-Path -LiteralPath (Join-Path $empty 'dist-aot'))) {
+                    throw "$flavor nonproject build was not rejected before work began."
+                  }
+                  if ($flavor -eq 'small' -and
+                      (Test-Path -LiteralPath $downloadCache) -and
+                      @(Get-ChildItem -LiteralPath $downloadCache -File).Count -ne 0) {
+                    throw 'Nonproject build downloaded a minimal component.'
+                  }
+                  Write-Output "[OK] $flavor nonproject build rejected without distribution output."
+                } finally {
+                  Pop-Location
+                }
+                if ($flavor -eq 'small') {
+                  Push-Location $extract
+                  try {
+                    foreach ($mode in @('check', 'json')) {
+                      $doctorArguments = @('--json')
+                      if ($mode -eq 'check') { $doctorArguments = @('--check', '--json') }
+                      Write-Output "[doctor] Small package $mode from installer extraction directory ..."
+                      $doctorJson = & webman-aot doctor @doctorArguments 2>$null
+                      $doctorExit = $LASTEXITCODE
+                      $doctorData = ($doctorJson -join "`n") | ConvertFrom-Json
+                      if ($doctorExit -eq 0 -or $doctorData.healthy -or
+                          $doctorData.schema -ne 'webman-aot-builder-doctor-v1' -or
+                          @($doctorData.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0 -or
+                          ((Test-Path -LiteralPath $downloadCache) -and
+                            @(Get-ChildItem -LiteralPath $downloadCache -File).Count -ne 0)) {
+                        throw "Small package $mode unexpectedly prepared or checked a project."
+                      }
+                    }
+                  } finally {
+                    Pop-Location
+                  }
+                  New-Item -ItemType Directory -Force -Path $downloadCache | Out-Null
+                  Copy-Item -LiteralPath $component -Destination `
+                    (Join-Path $downloadCache (Split-Path -Leaf $component))
+                  Write-Output '[prepare] Light package cache seeded with verified candidate component.'
+                } else {
+                  $generations = @(Get-ChildItem -LiteralPath `
+                    (Join-Path $installRoot 'toolchains\versions') -Directory)
+                  if ($generations.Count -ne 1) {
+                    throw "Complete package did not prepare one offline generation: $($generations.Count)"
+                  }
+                  Write-Output '[OK] Complete package prepared its bundled component during install.'
+                }
+                Push-Location $extract
+                try {
+                  Write-Output "[doctor] Running plain $flavor doctor from the installer extraction directory ..."
+                  $doctorOutput = & webman-aot doctor
+                  if ($LASTEXITCODE -ne 0 -or
+                      ($doctorOutput -join "`n") -notmatch 'Result: healthy' -or
+                      ($doctorOutput -join "`n") -notmatch 'Next: change to your Webman project root') {
+                    throw "$flavor global doctor did not become healthy."
+                  }
+                  $doctor = (& webman-aot doctor --check --json) | ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or -not $doctor.healthy -or
+                      $doctor.schema -ne 'webman-aot-builder-doctor-v1' -or
+                      @($doctor.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+                    throw "$flavor global doctor --check is unhealthy or contains a project check."
+                  }
+                  Write-Output "[OK] $flavor global doctor is healthy from nonproject cwd."
+                } finally {
+                  Pop-Location
+                }
+                $project = Join-Path $env:RUNNER_TEMP "webman-neutral-$flavor"
+                New-Item -ItemType Directory -Force -Path $project | Out-Null
+                Copy-Item -Path (Join-Path $fixture '*') -Destination $project -Recurse -Force
+                $fakeSource = Join-Path $env:RUNNER_TEMP "fake-clang-$flavor.cs"
+                $fakeExe = Join-Path $project 'clang++.exe'
+                $fakeCmd = Join-Path $project 'clang++.cmd'
+                $fakeMarker = Join-Path $env:RUNNER_TEMP "fake-clang-$flavor-invoked.txt"
+                $fakeCode = 'using System; using System.IO; public static class FakeClang { public static int Main(string[] args) { File.WriteAllText(Environment.GetEnvironmentVariable("FAKE_CLANG_MARKER"), String.Join(" ", args)); return 99; } }'
+                Set-Content -LiteralPath $fakeSource -Encoding ascii -Value $fakeCode
+                $compileFake = "Add-Type -Path '$fakeSource' -OutputAssembly '$fakeExe' -OutputType ConsoleApplication"
+                Write-Output '[prepare] Building a marker-writing fake clang++.exe in the project root ...'
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $compileFake
+                if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $fakeExe -PathType Leaf)) {
+                  throw 'Unable to build fake project-root clang++.exe.'
+                }
+                Set-Content -LiteralPath $fakeCmd -Encoding ascii -Value @(
+                  '@echo off', 'echo hijacked > "%FAKE_CLANG_MARKER%"', 'exit /b 99'
+                )
+                $previousFakeMarker = $env:FAKE_CLANG_MARKER
+                $env:FAKE_CLANG_MARKER = $fakeMarker
+                Push-Location $project
+                try {
+                  $doctor = (& webman-aot doctor --check --json) | ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or -not $doctor.healthy -or
+                      $doctor.schema -ne 'webman-aot-builder-doctor-v1') {
+                    throw "$flavor doctor --check is unhealthy."
+                  }
+                  Write-Output "[OK] $flavor doctor stays healthy inside the Webman project."
+                  Write-Output "[build] $flavor compiling neutral Webman project ..."
+                  & webman-aot build
+                  if ($LASTEXITCODE -ne 0) { throw "$flavor Webman build failed." }
+                  $verify = (& webman-aot verify --json) | ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or
+                      $verify.schema -ne 'webman-aot-builder-verify-report-v1' -or
+                      $verify.staticStructure -ne 'pass') {
+                    throw "$flavor dist-aot verification failed."
+                  }
+                  if (Test-Path -LiteralPath $fakeMarker -PathType Leaf) {
+                    throw "$flavor invoked a project-root fake clang instead of the locked compiler."
+                  }
+                  Write-Output "[OK] $flavor build and verify passed ($($verify.files) files)."
+                } finally {
+                  Pop-Location
+                  $env:FAKE_CLANG_MARKER = $previousFakeMarker
+                }
+              } finally {
+                $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
+                $env:Path = $originalProcessPath
+              }
+              Write-Output "[uninstall] Purging $flavor isolated installation ..."
+              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+                (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath -Purge
+              if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $installRoot) -or
+                  (Test-Path -LiteralPath (Join-Path $bin 'webman-aot.cmd'))) {
+                throw "$flavor uninstall failed."
+              }
+              if (-not (Test-Path -LiteralPath $oldMarker) -or
+                  -not (Test-Path -LiteralPath $oldCommand)) {
+                throw "$flavor damaged the legacy installation."
+              }
+              if ([Environment]::GetEnvironmentVariable('Path', 'User') -ne $originalUserPath) {
+                throw "$flavor -NoPath installation changed User PATH."
+              }
+              Write-Output "[OK] $flavor uninstalled; legacy data and PATH preserved."
+            }
+          } finally {
+            $env:Path = $originalProcessPath
+            [Environment]::SetEnvironmentVariable('Path', $originalUserPath, 'User')
+          }
+          Write-Output "[OK] Both flavors passed in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
+            "Windows 0.2.2 candidate: small/full source build, short command, nonproject global doctor, nonproject build rejection, cached-component automatic preparation, full offline preparation, Webman build/verify, and isolated uninstall passed."
+
+      - name: Upgrade light package over an active older Builder generation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $package = Join-Path $env:RUNNER_TEMP `
+            'built-installers\webman-aot-builder-0.2.2-windows-x86_64.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'upgrade-candidate'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'upgrade-installed'
+          $bin = Join-Path $env:RUNNER_TEMP 'upgrade-bin'
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
+          if ($LASTEXITCODE -ne 0) { throw 'Upgrade candidate extraction failed.' }
+          $install = Join-Path $extract 'install.ps1'
+          $uninstall = Join-Path $extract 'uninstall.ps1'
+          Write-Output '[upgrade] Installing a base Builder command ...'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
+            -InstallRoot $installRoot -BinDir $bin -NoPath
+          if ($LASTEXITCODE -ne 0) { throw 'Base Builder install failed.' }
+          $generation = Join-Path $installRoot 'versions\99999999999999-old'
+          $oldEntry = Join-Path $generation 'app\bin\webman-aot-builder.php'
+          $oldVersion = Join-Path $generation 'app\src\Version.php'
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldEntry) | Out-Null
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldVersion) | Out-Null
+          Set-Content -LiteralPath (Join-Path $generation 'manifest.json') `
+            -Encoding utf8 -Value '{"schema":"webman-aot-builder-cli-generation-v1"}'
+          Set-Content -LiteralPath $oldEntry -Encoding utf8 `
+            -Value '<?php echo "webman-aot 0.2.0\n"; exit(0);'
+          Set-Content -LiteralPath $oldVersion -Encoding utf8 -Value '<?php'
+          $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+          $previousPath = $env:Path
+          $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+          $env:Path = "$bin;$previousPath"
+          try {
+            $before = & webman-aot version
+            if ($LASTEXITCODE -ne 0 -or $before -ne 'webman-aot 0.2.0') {
+              throw "Seeded older Builder generation did not take precedence: $before"
+            }
+            Write-Output '[upgrade] Forcing a late installer failure after versions is moved ...'
+            $badBin = Join-Path $installRoot 'versions\bin'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
+              -InstallRoot $installRoot -BinDir $badBin -NoPath
+            if ($LASTEXITCODE -eq 0) {
+              throw 'Fault-injection install unexpectedly succeeded.'
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $generation 'manifest.json'))) {
+              throw 'Failed installation did not restore the older CLI generation.'
+            }
+            $afterFailure = & webman-aot version
+            if ($LASTEXITCODE -ne 0 -or $afterFailure -ne 'webman-aot 0.2.0') {
+              throw "Failed installation did not restore previous behavior: $afterFailure"
+            }
+            Write-Output '[OK] Failed light install restored the active older generation.'
+            Write-Output '[upgrade] Reinstalling the light package with the normal bin directory ...'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
+              -InstallRoot $installRoot -BinDir $bin -NoPath
+            if ($LASTEXITCODE -ne 0) { throw 'Light upgrade install failed.' }
+            $afterUpgrade = & webman-aot version
+            if ($LASTEXITCODE -ne 0 -or $afterUpgrade -ne 'webman-aot 0.2.2') {
+              throw "Light upgrade still boots the older CLI generation: $afterUpgrade"
+            }
+            if (Test-Path -LiteralPath $generation) {
+              throw 'Older CLI generation remained active after light upgrade.'
+            }
+            $backups = @(Get-ChildItem -LiteralPath (Join-Path $installRoot '.install-backups') `
+              -Directory -Filter 'current-*')
+            $saved = @($backups | Where-Object {
+              Test-Path -LiteralPath (Join-Path $_.FullName `
+                'versions\99999999999999-old\manifest.json')
+            })
+            if ($saved.Count -ne 1) {
+              throw 'Older CLI generation was not retained in one upgrade backup.'
+            }
+            Write-Output '[OK] Light upgrade runs 0.2.2 and retains old generation in backup.'
+          } finally {
+            $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
+            $env:Path = $previousPath
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $uninstall `
+            -InstallRoot $installRoot -BinDir $bin -NoPath -Purge
+          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $installRoot)) {
+            throw 'Upgrade test installation was not purged.'
+          }
+
+      - name: Test default PATH precedence over the old command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $oldBin = Join-Path $env:LOCALAPPDATA 'webman-aot\bin'
+          $oldCommand = Join-Path $oldBin 'webman-aot.cmd'
+          $oldMarker = Join-Path $env:LOCALAPPDATA 'webman-aot\acceptance-sentinel.txt'
+          $originalUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+          $testUserPath = "$oldBin;$originalUserPath"
+          [Environment]::SetEnvironmentVariable('Path', $testUserPath, 'User')
+          try {
+            $package = Join-Path $env:RUNNER_TEMP `
+              'built-installers\webman-aot-builder-0.2.2-windows-x86_64.zip'
+            $extract = Join-Path $env:RUNNER_TEMP 'path-candidate'
+            $installRoot = Join-Path $env:RUNNER_TEMP 'path-installed'
+            $bin = Join-Path $env:RUNNER_TEMP 'path-bin'
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
+            if ($LASTEXITCODE -ne 0) { throw 'PATH candidate extraction failed.' }
+            Write-Output '[install] Installing with a legacy webman-aot earlier on User PATH ...'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+              (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin
+            if ($LASTEXITCODE -ne 0) { throw 'PATH conflict installation failed.' }
+            $newUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+            $first = @($newUserPath -split ';' | Where-Object { $_ -ne '' })[0]
+            if ($first -ne $bin -or $newUserPath -notlike "*$oldBin*") {
+              throw 'New command was not placed before the existing User PATH command.'
+            }
+            $savedPath = $env:Path
+            $savedHome = $env:WEBMAN_AOT_BUILDER_HOME
+            try {
+              $env:Path = "$bin;$oldBin;$savedPath"
+              $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+              $actual = & webman-aot version
+              if ($LASTEXITCODE -ne 0 -or $actual -ne 'webman-aot 0.2.2') {
+                throw "PATH selected the wrong command: $actual"
+              }
+            } finally {
+              $env:Path = $savedPath
+              $env:WEBMAN_AOT_BUILDER_HOME = $savedHome
+            }
+            Write-Output '[uninstall] Removing new command while preserving the old command ...'
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+              (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $bin -Purge
+            if ($LASTEXITCODE -ne 0) { throw 'PATH conflict uninstall failed.' }
+            $actualUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+            $expectedParts = @($testUserPath -split ';' | Where-Object { $_ -ne '' })
+            $actualParts = @($actualUserPath -split ';' | Where-Object { $_ -ne '' })
+            $oldCommandKept = Test-Path -LiteralPath $oldCommand -PathType Leaf
+            $oldMarkerKept = Test-Path -LiteralPath $oldMarker -PathType Leaf
+            $newCommandRemoved = -not (Test-Path -LiteralPath (Join-Path $bin 'webman-aot.cmd'))
+            Write-Output "[verify] PATH entries before=$($expectedParts.Count) after=$($actualParts.Count); old command=$oldCommandKept; old marker=$oldMarkerKept; new command removed=$newCommandRemoved"
+            if (($expectedParts -join ';') -ne ($actualParts -join ';') -or
+                -not $oldCommandKept -or -not $oldMarkerKept -or -not $newCommandRemoved) {
+              throw 'Legacy PATH or installation was not preserved.'
+            }
+            Write-Output '[OK] New command won PATH precedence; old installation survived uninstall.'
+          } finally {
+            [Environment]::SetEnvironmentVariable('Path', $originalUserPath, 'User')
+          }
