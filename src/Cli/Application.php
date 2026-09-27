@@ -53,11 +53,6 @@ final class Application
         private readonly ?RunLogger $logger = null
     ) {
         $this->doctorFactory = $doctorFactory ?? function (): Doctor {
-            $project = getcwd();
-            if (!is_string($project) || $project === '') {
-                throw new ConfigurationException('cannot resolve the current project directory');
-            }
-
             $system = new NativeSystemProbe();
             $bundledLock = dirname(__DIR__, 2) . '/toolchain.lock.json';
             $locator = new ToolchainLocator($this->layout);
@@ -65,7 +60,6 @@ final class Application
             return new Doctor(
                 $locator->activeLock($system->hostId(), $bundledLock),
                 $locator->activeArtifacts($system->hostId()),
-                $project,
                 $system,
                 Doctor::MINIMUM_FREE_BYTES,
                 $this->nativePreparer($system->hostId()),
@@ -226,7 +220,7 @@ final class Application
             'Commands:',
             '  help       Show this help',
             '  version    Show the CLI version',
-            '  doctor     Check the host and project; prepare missing toolchain components',
+            '  doctor     Check the host and toolchain; prepare missing components',
             '  build      Compile and verify a Linux amd64 musl distribution',
             '  verify     Independently check dist-aot (use --deployed after editing external resources)',
             '  self-update [--rollback]  Install or roll back a verified CLI generation',
@@ -266,7 +260,15 @@ final class Application
         if (!is_string($project) || $project === '') {
             throw new ConfigurationException('cannot resolve the current project directory');
         }
-        (new ProfileDetector($project))->detect();
+        try {
+            (new ProfileDetector($project))->detect();
+        } catch (ConfigurationException $exception) {
+            throw new ConfigurationException(
+                'build requires a Webman project root; current directory: ' . $project
+                    . '; ' . $exception->getMessage()
+                    . '; change to the project root and run webman-aot build'
+            );
+        }
         $host = (new NativeSystemProbe())->hostId();
         $manager = $this->minimalManager($host);
         $preflight = ($this->doctorFactory)()->inspect();
