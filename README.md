@@ -14,26 +14,74 @@
 | macOS Apple Silicon | [下载 `.tar.gz`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-macos-arm64.tar.gz) | [下载完整 `.tar.gz`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-full-macos-arm64.tar.gz) |
 | Windows x64 | [下载 `.zip`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-windows-x86_64.zip) | [下载完整 `.zip`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-full-windows-x86_64.zip) |
 
-以下命令以**完整包**为例。在 macOS 终端中运行：
+两种包使用同一个安装脚本，区别是下载文件和校验值。只执行与你的开发机及所选包对应的一段命令。
+
+### macOS Apple Silicon：轻量包
 
 ```sh
-mkdir -p "$HOME/Downloads/webman-aot-builder-0.2.0"
-cd "$HOME/Downloads/webman-aot-builder-0.2.0"
-curl -fLO https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-full-macos-arm64.tar.gz
-tar -xzf webman-aot-builder-0.2.0-full-macos-arm64.tar.gz
-./install.sh && "$HOME/.local/bin/webman-aot-builder" version
+(
+  set -e
+  mkdir -p "$HOME/Downloads"
+  cd "$HOME/Downloads"
+  package=webman-aot-builder-0.2.0-macos-arm64.tar.gz
+  curl -fL --progress-bar "https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/$package" -o "$package"
+  printf '%s  %s\n' d3fc01fd706fc200f07fca489990a4c61ca3ec6c341d5b7714a001654e2917e9 "$package" | shasum -a 256 -c -
+  mkdir -p webman-aot-builder-0.2.0-small-install
+  tar -xzf "$package" -C webman-aot-builder-0.2.0-small-install
+  cd webman-aot-builder-0.2.0-small-install
+  ./install.sh
+  "$HOME/.local/bin/webman-aot-builder" version
+)
 ```
 
-在 Windows **PowerShell** 中运行：
+### macOS Apple Silicon：完整包
+
+```sh
+(
+  set -e
+  mkdir -p "$HOME/Downloads"
+  cd "$HOME/Downloads"
+  package=webman-aot-builder-0.2.0-full-macos-arm64.tar.gz
+  curl -fL --progress-bar "https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/$package" -o "$package"
+  printf '%s  %s\n' c49a8d3e4fc482914d5a433fbda5e3f88262327e537baaf59ffa45ed9d450e10 "$package" | shasum -a 256 -c -
+  mkdir -p webman-aot-builder-0.2.0-full-install
+  tar -xzf "$package" -C webman-aot-builder-0.2.0-full-install
+  cd webman-aot-builder-0.2.0-full-install
+  ./install.sh
+  "$HOME/.local/bin/webman-aot-builder" version
+)
+```
+
+### Windows x64：轻量包
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$url = 'https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/webman-aot-builder-0.2.0-full-windows-x86_64.zip'
-$archive = Join-Path $env:USERPROFILE 'Downloads\webman-aot-builder-0.2.0-full-windows-x86_64.zip'
-$package = Join-Path $env:TEMP 'webman-aot-builder-0.2.0'
-Invoke-WebRequest -Uri $url -OutFile $archive
-Expand-Archive -LiteralPath $archive -DestinationPath $package -Force
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $package 'install.ps1')
+$package = 'webman-aot-builder-0.2.0-windows-x86_64.zip'
+$archive = Join-Path $env:TEMP $package
+Invoke-WebRequest -Uri "https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/$package" -OutFile $archive
+$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+if ($actual -ne '375d75b64af0cfc2941000450ae87109276a02734484dcfa836de960e7612ffa') { throw "SHA-256 mismatch: $archive" }
+Write-Output "SHA-256 OK: $archive"
+$extract = Join-Path $env:TEMP 'webman-aot-builder-0.2.0-small-install'
+Expand-Archive -LiteralPath $archive -DestinationPath $extract -Force
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Installation failed.' }
+& (Join-Path $env:LOCALAPPDATA 'webman-aot-builder\bin\webman-aot-builder.cmd') version
+```
+
+### Windows x64：完整包
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$package = 'webman-aot-builder-0.2.0-full-windows-x86_64.zip'
+$archive = Join-Path $env:TEMP $package
+Invoke-WebRequest -Uri "https://github.com/supdger/webman-aot-builder/releases/download/v0.2.0/$package" -OutFile $archive
+$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+if ($actual -ne '0c5f73a7f562582ad73f77594526e508b93865b40fcc063b864389f784d821a5') { throw "SHA-256 mismatch: $archive" }
+Write-Output "SHA-256 OK: $archive"
+$extract = Join-Path $env:TEMP 'webman-aot-builder-0.2.0-full-install'
+Expand-Archive -LiteralPath $archive -DestinationPath $extract -Force
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Installation failed.' }
 & (Join-Path $env:LOCALAPPDATA 'webman-aot-builder\bin\webman-aot-builder.cmd') version
 ```
@@ -51,7 +99,9 @@ webman-aot-builder verify
 ```
 
 SaiAdmin 项目将构建命令改为 `webman-aot-builder build --profile=saiadmin`。
-`doctor` 显示 `Result: healthy` 后再构建；产物在项目的 `dist-aot/`。
+轻量包首次运行 `doctor` 时会自动联网下载并校验组件，无需手动下载 `-components.zip`；
+完整包安装时已离线准备组件。`doctor` 显示 `Result: healthy` 后再构建；
+产物在项目的 `dist-aot/`。
 `verify` 检查产物结构，部署后仍需在目标 Linux 机器验收启动、数据库和业务接口。
 详细步骤、校验值、故障处理及卸载方法见
 [安装与使用说明](https://github.com/supdger/webman-aot-builder/wiki/Install)。
