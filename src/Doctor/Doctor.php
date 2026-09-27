@@ -298,8 +298,14 @@ final class Doctor
             $checks[] = $this->check(
                 'project',
                 false,
-                'project profile detection failed',
-                ['error' => $exception->getMessage()]
+                'current directory ' . $this->projectDirectory
+                    . ' is not a buildable Webman project root: ' . $exception->getMessage()
+                    . '; check your current directory (PowerShell: Get-Location; macOS: pwd), '
+                    . 'then open the Webman project root and run doctor there',
+                [
+                    'directory' => $this->projectDirectory,
+                    'error' => $exception->getMessage(),
+                ]
             );
             return;
         }

@@ -57,6 +57,7 @@ backup_root=''
 new_current=0
 new_toolchains=0
 new_launcher=0
+legacy_launcher_moved=0
 profile_modified=0
 profile_new=0
 complete=0
@@ -74,13 +75,16 @@ cleanup() {
                 mv "$backup_root/profile" "$profile"
             fi
         fi
-        [ "$new_launcher" -eq 0 ] || rm -f -- "$bin_dir/webman-aot-builder"
+        [ "$new_launcher" -eq 0 ] || rm -f -- "$bin_dir/webman-aot"
         [ "$new_toolchains" -eq 0 ] || rm -rf -- "$aot_home/toolchains"
         [ "$new_current" -eq 0 ] || rm -rf -- "$aot_home/current"
-        [ ! -f "$backup_root/webman-aot-builder" ] || mv "$backup_root/webman-aot-builder" "$bin_dir/webman-aot-builder"
+        [ ! -f "$backup_root/webman-aot" ] || mv "$backup_root/webman-aot" "$bin_dir/webman-aot"
         [ ! -d "$backup_root/current" ] || mv "$backup_root/current" "$aot_home/current"
         [ ! -d "$backup_root/toolchains" ] || mv "$backup_root/toolchains" "$aot_home/toolchains"
         [ ! -d "$backup_root/versions" ] || mv "$backup_root/versions" "$aot_home/versions"
+    fi
+    if [ "$complete" -eq 0 ] && [ "$legacy_launcher_moved" -eq 1 ]; then
+        mv "$aot_home/.previous-launcher/webman-aot" "$bin_dir/webman-aot"
     fi
     if [ -d "$candidate" ]; then
         rm -rf -- "$candidate"
@@ -105,6 +109,24 @@ WEBMAN_AOT_BUILDER_HOME="$candidate" \
     "$candidate/current/runtime/bin/php" -n \
     "$candidate/current/app/bin/webman-aot-builder.php" --version >/dev/null
 
+launcher="$bin_dir/webman-aot"
+if [ -e "$launcher" ] || [ -L "$launcher" ]; then
+    [ ! -L "$launcher" ] && [ -f "$launcher" ] || {
+        echo "Cannot replace non-regular command: $launcher" >&2
+        exit 70
+    }
+    if ! grep -F 'WEBMAN_AOT_BUILDER_PUBLIC_LAUNCHER' "$launcher" >/dev/null 2>&1; then
+        [ ! -e "$aot_home/.previous-launcher/webman-aot" ] || {
+            echo "A previous webman-aot command is already backed up; refusing to overwrite: $launcher" >&2
+            exit 70
+        }
+        mkdir -p "$aot_home/.previous-launcher"
+        mv "$launcher" "$aot_home/.previous-launcher/webman-aot"
+        legacy_launcher_moved=1
+        echo "Previous webman-aot command saved in: $aot_home/.previous-launcher/webman-aot"
+    fi
+fi
+
 if [ "$full" -eq 1 ]; then
     WEBMAN_AOT_BUILDER_HOME="$candidate" \
         "$candidate/current/runtime/bin/php" -n \
@@ -115,14 +137,14 @@ if [ "$full" -eq 1 ]; then
     [ ! -d "$aot_home/current" ] || mv "$aot_home/current" "$backup_root/current"
     [ ! -d "$aot_home/toolchains" ] || mv "$aot_home/toolchains" "$backup_root/toolchains"
     [ ! -d "$aot_home/versions" ] || mv "$aot_home/versions" "$backup_root/versions"
-    [ ! -f "$bin_dir/webman-aot-builder" ] || mv "$bin_dir/webman-aot-builder" "$backup_root/webman-aot-builder"
+    [ ! -f "$launcher" ] || mv "$launcher" "$backup_root/webman-aot"
     mv "$candidate/current" "$aot_home/current"
     new_current=1
     mv "$candidate/toolchains" "$aot_home/toolchains"
     new_toolchains=1
-    cp "$package_root/payload/launcher/webman-aot-builder" "$bin_dir/webman-aot-builder"
+    cp "$package_root/payload/launcher/webman-aot" "$launcher"
     new_launcher=1
-    chmod 700 "$bin_dir/webman-aot-builder"
+    chmod 700 "$launcher"
     WEBMAN_AOT_BUILDER_HOME="$aot_home" \
         "$aot_home/current/runtime/bin/php" -n \
         "$aot_home/current/app/installer/offline-prepare.php" \
@@ -131,13 +153,13 @@ else
     backup_root="${aot_home}/.install-backups/current-$(date -u +%Y%m%dT%H%M%SZ)-$$"
     mkdir -p "$backup_root"
     [ ! -d "$aot_home/current" ] || mv "$aot_home/current" "$backup_root/current"
-    [ ! -f "$bin_dir/webman-aot-builder" ] || \
-        mv "$bin_dir/webman-aot-builder" "$backup_root/webman-aot-builder"
+    [ ! -d "$aot_home/versions" ] || mv "$aot_home/versions" "$backup_root/versions"
+    [ ! -f "$launcher" ] || mv "$launcher" "$backup_root/webman-aot"
     mv "$candidate/current" "$aot_home/current"
     new_current=1
-    cp "$package_root/payload/launcher/webman-aot-builder" "$bin_dir/webman-aot-builder"
+    cp "$package_root/payload/launcher/webman-aot" "$launcher"
     new_launcher=1
-    chmod 700 "$bin_dir/webman-aot-builder"
+    chmod 700 "$launcher"
 fi
 
 if [ "$update_path" -eq 1 ]; then
@@ -166,9 +188,13 @@ fi
 complete=1
 trap - EXIT HUP INT TERM
 cleanup
+obsolete_launcher="$bin_dir/webman-aot-builder"
+if [ -f "$obsolete_launcher" ] && grep -F 'WEBMAN_AOT_BUILDER_HOME' "$obsolete_launcher" >/dev/null 2>&1; then
+    rm -f -- "$obsolete_launcher"
+fi
 echo "Webman AOT Builder installed in: $aot_home"
-echo "Command installed as: $bin_dir/webman-aot-builder"
+echo "Command installed as: $launcher"
 if [ "$full" -eq 1 ]; then
-    echo "Complete offline toolchain ready. You may enter a Webman project and run webman-aot-builder build."
+    echo "Complete offline toolchain ready. Enter a Webman project and run webman-aot build."
 fi
 echo "Installation completed in $(($(date +%s) - started_at)) seconds."

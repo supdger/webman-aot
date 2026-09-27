@@ -53,6 +53,6 @@ final class NativeCliSelfChecker implements CliSelfChecker
 
         return $exitCode === 0
             && is_string($stdout)
-            && rtrim($stdout, "\r\n") === 'webman-aot-builder ' . $expectedVersion;
+            && rtrim($stdout, "\r\n") === 'webman-aot ' . $expectedVersion;
     }
 }
