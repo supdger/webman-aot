@@ -120,12 +120,15 @@ jobs:
               $packageSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $package).Hash.ToLowerInvariant()
               Write-Output "[OK] $name SHA-256: $packageSha"
               $extract = Join-Path $env:RUNNER_TEMP "extract-$flavor"
-              $installRoot = Join-Path $env:RUNNER_TEMP "installed-$flavor"
-              $bin = Join-Path $env:RUNNER_TEMP "bin-$flavor"
+              $installRoot = Join-Path $env:RUNNER_TEMP "installed $flavor"
+              $bin = Join-Path $env:RUNNER_TEMP "bin $flavor"
+              if ($installRoot -notmatch ' ' -or $bin -notmatch ' ') {
+                throw 'Acceptance paths must contain spaces.'
+              }
               New-Item -ItemType Directory -Force -Path $extract | Out-Null
               & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
               if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed." }
-              Write-Output "[install] Installing $flavor into a fresh isolated home ..."
+              Write-Output "[install] Installing $flavor into a fresh space-containing home ..."
               & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
                 (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath
               if ($LASTEXITCODE -ne 0) { throw "$flavor install failed." }
