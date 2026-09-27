@@ -20,10 +20,12 @@ $output = $root . '/dist/source-build';
 $compare = null;
 $revision = 'v' . WebmanAot\Version::VALUE;
 $revisionProvided = false;
+$flavor = 'small';
+$minimalComponentInput = null;
 
 foreach (array_slice($argv, 1) as $argument) {
     if ($argument === '--help') {
-        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--compare=<local-zip>] [--output=<directory>] [--revision=<value>]\n");
+        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--flavor=small|full] [--minimal-component=<local-zip>] [--compare=<local-zip>] [--output=<directory>] [--revision=<value>]\n");
         exit(0);
     }
     if (str_starts_with($argument, '--compare=')) {
@@ -33,13 +35,19 @@ foreach (array_slice($argv, 1) as $argument) {
     } elseif (str_starts_with($argument, '--revision=')) {
         $revision = substr($argument, strlen('--revision='));
         $revisionProvided = true;
+    } elseif (str_starts_with($argument, '--flavor=')) {
+        $flavor = substr($argument, strlen('--flavor='));
+    } elseif (str_starts_with($argument, '--minimal-component=')) {
+        $minimalComponentInput = substr($argument, strlen('--minimal-component='));
     } else {
         fwrite(STDERR, "Unknown option: {$argument}\n");
         exit(2);
     }
 }
 
-if ($output === '' || $revision === '' || ($compare !== null && !is_file($compare))) {
+if ($output === '' || $revision === '' || !in_array($flavor, ['small', 'full'], true)
+    || ($compare !== null && !is_file($compare))
+    || ($minimalComponentInput !== null && !is_file($minimalComponentInput))) {
     fwrite(STDERR, "Output and revision must be non-empty; --compare must name an existing ZIP.\n");
     exit(2);
 }
@@ -187,11 +195,14 @@ function zipDigests(string $path): array
             ) {
                 throw new RuntimeException("Unsafe or repeated installer entry: {$name}");
             }
-            $contents = $zip->getFromIndex($index);
-            if (!is_string($contents)) {
+            $stream = $zip->getStream($name);
+            if (!is_resource($stream)) {
                 throw new RuntimeException("Unable to read installer entry: {$name}");
             }
-            $digests[$name] = hash('sha256', $contents);
+            $digest = hash_init('sha256');
+            hash_update_stream($digest, $stream);
+            fclose($stream);
+            $digests[$name] = hash_final($digest);
         }
         ksort($digests, SORT_STRING);
         $manifest = $zip->getFromName('payload-manifest.sha256');
@@ -260,6 +271,17 @@ try {
     $runtimeLock = readLockedJson($root . '/installer/runtime.lock.json');
     $windowsRuntime = $runtimeLock['runtimes']['windows-x86_64'] ?? null;
     $toolchainLock = readLockedJson($root . '/toolchain.lock.json');
+    $minimalLock = readLockedJson($root . '/toolchain/minimal-components.lock.json');
+    $minimalWindows = $minimalLock['components']['windows-x86_64'] ?? null;
+    if (($minimalLock['version'] ?? null) !== WebmanAot\Version::VALUE
+        || ($minimalLock['toolchainLockSha256'] ?? null)
+            !== hash_file('sha256', $root . '/toolchain.lock.json')
+        || !is_array($minimalWindows)
+        || !preg_match('/^[a-f0-9]{64}$/D', (string) ($minimalWindows['sha256'] ?? ''))
+        || !preg_match('/^webman-aot-[a-zA-Z0-9._-]+-components\.zip$/D', (string) ($minimalWindows['archive'] ?? ''))
+    ) {
+        throw new RuntimeException('Locked minimal Windows component is invalid');
+    }
     $typePhp = null;
     foreach ($toolchainLock['components'] ?? [] as $component) {
         if (is_array($component) && ($component['id'] ?? null) === 'typephp-source') {
@@ -282,10 +304,26 @@ try {
         (string) $typePhp['sha256'],
         $inputs
     );
+    if ($minimalComponentInput !== null) {
+        $minimalComponent = realpath($minimalComponentInput);
+        if (!is_string($minimalComponent)
+            || !hash_equals((string) $minimalWindows['sha256'], (string) hash_file('sha256', $minimalComponent))) {
+            throw new RuntimeException('Local minimal Windows component differs from the source lock');
+        }
+        fwrite(STDOUT, "[OK] Reusing SHA-256 verified local minimal Windows component\n");
+    } else {
+        $minimalComponent = verifiedInput(
+            'https://github.com/supdger/webman-aot/releases/download/v'
+                . WebmanAot\Version::VALUE . '/' . $minimalWindows['archive'],
+            (string) $minimalWindows['sha256'],
+            $inputs
+        );
+    }
     if (!is_dir($output) && !mkdir($output, 0700, true) && !is_dir($output)) {
         throw new RuntimeException("Unable to create output directory: {$output}");
     }
-    $archive = $output . '/webman-aot-' . WebmanAot\Version::VALUE . '-windows-x86_64.zip';
+    $archive = $output . '/webman-aot-' . WebmanAot\Version::VALUE
+        . ($flavor === 'full' ? '-full' : '') . '-windows-x86_64.zip';
     if ($compare !== null && is_file($archive) && realpath($archive) === realpath($compare)) {
         throw new RuntimeException('Comparison ZIP must not be the output ZIP');
     }
@@ -302,6 +340,8 @@ try {
         '--platform=windows-x86_64',
         '--windows-runtime-archive=' . $phpArchive,
         '--typephp-source-archive=' . $typePhpArchive,
+        '--minimal-component=' . $minimalComponent,
+        '--flavor=' . $flavor,
         '--output=' . $output,
         '--revision=' . $revision,
     );

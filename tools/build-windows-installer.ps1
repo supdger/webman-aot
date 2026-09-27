@@ -2,7 +2,9 @@
 param(
     [string]$Compare,
     [string]$Output,
-    [string]$Revision
+    [string]$Revision,
+    [ValidateSet('small', 'full')][string]$Flavor = 'small',
+    [string]$MinimalComponent
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,10 @@ if (-not [Environment]::Is64BitOperatingSystem) {
 }
 
 $repository = Split-Path -Parent $PSScriptRoot
+$systemTar = Join-Path $env:SystemRoot 'System32\tar.exe'
+if (-not (Test-Path -LiteralPath $systemTar -PathType Leaf)) {
+    throw 'Windows system tar.exe is unavailable.'
+}
 $runtimeLock = Get-Content -Raw -LiteralPath (Join-Path $repository 'installer\runtime.lock.json') |
     ConvertFrom-Json
 $runtime = $runtimeLock.runtimes.'windows-x86_64'
@@ -120,12 +126,17 @@ if (-not $verified) {
 }
 Write-Output 'Locked Windows PHP runtime SHA-256 verified.'
 
-$temporary = Join-Path $env:TEMP ('waot-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
+$sourceDrive = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($repository))
+$temporary = Join-Path $sourceDrive ('waot-source-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
 New-Item -ItemType Directory -Path $temporary | Out-Null
+$previousTemp = $env:TEMP
+$previousTmp = $env:TMP
+$env:TEMP = $temporary
+$env:TMP = $temporary
 $buildExit = 0
 try {
     Write-Output '[prepare] Extracting temporary PHP runtime ...'
-    tar.exe -xf $archive -C $temporary
+    & $systemTar -xf $archive -C $temporary
     if ($LASTEXITCODE -ne 0) {
         throw 'Unable to extract locked Windows PHP runtime.'
     }
@@ -143,6 +154,8 @@ try {
     if ($Compare) { $arguments += "--compare=$Compare" }
     if ($Output) { $arguments += "--output=$Output" }
     if ($Revision) { $arguments += "--revision=$Revision" }
+    $arguments += "--flavor=$Flavor"
+    if ($MinimalComponent) { $arguments += "--minimal-component=$MinimalComponent" }
     Write-Output '[build] Starting Windows installer source build ...'
     & $php @arguments
     $buildExit = $LASTEXITCODE
@@ -157,7 +170,8 @@ try {
         } else {
             Join-Path $repository 'dist\source-build'
         }
-        $builtZip = Join-Path $packageDir "webman-aot-$version-windows-x86_64.zip"
+        $suffix = if ($Flavor -eq 'full') { '-full' } else { '' }
+        $builtZip = Join-Path $packageDir "webman-aot-$version$suffix-windows-x86_64.zip"
         if (-not (Test-Path -LiteralPath $builtZip -PathType Leaf)) {
             throw "Built installer is missing: $builtZip"
         }
@@ -168,7 +182,7 @@ try {
         $smokeBin = Join-Path $smokeRoot 'b'
         New-Item -ItemType Directory -Force -Path $smokePackage | Out-Null
         Write-Output '[verify] Extracting the built installer into a temporary directory ...'
-        tar.exe -xf $builtZip -C $smokePackage
+        & $systemTar -xf $builtZip -C $smokePackage
         if ($LASTEXITCODE -ne 0) {
             throw 'Unable to extract the built installer for validation.'
         }
@@ -192,8 +206,11 @@ try {
         }
     }
 } finally {
+    $env:TEMP = $previousTemp
+    $env:TMP = $previousTmp
     if (Test-Path -LiteralPath $temporary) {
-        Remove-Item -Recurse -Force -LiteralPath $temporary
+        Write-Output '[cleanup] Removing this build temporary directory ...'
+        Remove-Item -Recurse -Force -LiteralPath ('\\?\' + $temporary)
     }
 }
 if ($buildExit -ne 0) {

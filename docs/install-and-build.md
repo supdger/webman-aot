@@ -1,19 +1,19 @@
 # 安装与构建
 
-> 本分支的 `doctor` 自动准备尚未发布。下方 v0.1.2 安装包仍使用
-> [v0.1.2 原版构建步骤](https://github.com/supdger/webman-aot/blob/v0.1.2/docs/install-and-build.md)
-> 中的 `doctor --repair`；本页第 2 步的单命令流程适用于用本分支源码
-> 构建的新包。发布新版并完成验收前，不应把它描述为 v0.1.2 的行为。
-
-到 [v0.1.2 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
+到 [v0.1.3 Releases 页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
 的 **Assets** 下载你的开发电脑对应的安装包：
 
 | 开发电脑 | 下载文件 |
 | --- | --- |
-| macOS Apple Silicon | `webman-aot-0.1.2-macos-arm64.tar.gz` |
-| Windows x64 | `webman-aot-0.1.2-windows-x86_64.zip` |
+| macOS Apple Silicon，轻量包 | `webman-aot-0.1.3-macos-arm64.tar.gz` |
+| macOS Apple Silicon，完整包 | `webman-aot-0.1.3-full-macos-arm64.tar.gz` |
+| Windows x64，轻量包 | `webman-aot-0.1.3-windows-x86_64.zip` |
+| Windows x64，完整包 | `webman-aot-0.1.3-full-windows-x86_64.zip` |
 
-普通安装只选上表中的一个文件。`macos-php-relink-materials.tar.gz` 是
+同一平台只选一个。轻量包下载小，但第一次 `doctor` 或 `build` 需要联网
+下载经校验的精简编译组件；完整包较大，已携带**完全相同**的精简组件，
+安装后离线可用，不必先执行 `doctor`。两者均不下载完整 LLVM 归档。
+`macos-php-relink-materials.tar.gz` 是
 运行时源码与重链接材料，不是安装包；`SHA256SUMS.txt` 是可选的独立
 复核材料，**都不需要为正常安装下载**。
 
@@ -34,7 +34,7 @@ Linux amd64 musl 程序，Windows 包不生成 Windows exe。安装器仅写入
 ### Windows x64
 
 **方法一：刚下载 ZIP，还没有解压。** 在下载目录找到
-`webman-aot-0.1.2-windows-x86_64.zip`，右键选“全部提取”。打开
+你选的 `webman-aot-0.1.3-...-windows-x86_64.zip`，右键选“全部提取”。打开
 解压出的文件夹，确认能直接看到 `install.ps1` 和 `payload`。在该
 文件夹的地址栏输入 `powershell` 并按回车，执行：
 
@@ -53,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ### macOS Apple Silicon
 
 **方法一：刚下载 tar.gz，还没有解压。** 双击
-`webman-aot-0.1.2-macos-arm64.tar.gz` 解压。进入能直接看到
+你选的 `webman-aot-0.1.3-...-macos-arm64.tar.gz` 解压。进入能直接看到
 `install.sh` 的文件夹，在该文件夹打开终端，执行：
 
 ```sh
@@ -80,7 +80,7 @@ Command installed as: E:\Users\你的用户名\AppData\Local\webman-aot\bin\webm
 webman-aot version
 ```
 
-输出 `webman-aot 0.1.2` 才表示新终端也能找到并运行工具。安装阶段不会
+输出 `webman-aot 0.1.3` 才表示新终端也能找到并运行工具。安装阶段不会
 编译 Webman 项目；下一步才进入项目目录。
 
 ## 第 2 步：编译你的 Webman 项目
@@ -88,11 +88,11 @@ webman-aot version
 在开发电脑进入你自己的后端目录：该目录内应有 `webman` 和
 `composer.json`。不要在工具安装包目录或本仓库源码目录执行。
 
-```sh
-webman-aot doctor
-```
+轻量包首次使用，建议运行 `webman-aot doctor`；完整包安装时已校验并准备
+精简组件，可以直接运行下方 `build`。轻量包也可以直接 `build`，它会自动
+准备组件。只需检查、不下载时运行 `webman-aot doctor --check`。
 
-首次运行若只有编译组件未准备好，`doctor` 会自动下载、校验并准备，
+轻量包首次运行若只有编译组件未准备好，`doctor` 会自动下载、校验并准备，
 不需要再手动运行 `doctor --repair`。它先检查平台、磁盘、锁文件和项目；
 这些检查失败时不会盲目下载。网络 TCP 探测可能受代理影响，即使探测
 失败也会尝试由实际下载器连接，并以下载结果为准。准备过程显示当前组件与下载进度，

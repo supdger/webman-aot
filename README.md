@@ -4,17 +4,11 @@
 Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，构建时不用 Docker。
 
 **这个仓库存放的是 Webman AOT 编译工具的源码，不是要装进 Webman 项目的插件。**
-只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
+只想使用工具，直接从 [Releases](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
 下载安装包；想自行制作安装包，可按[源码构包说明](docs/build-installers.md)
 操作：Windows 有自动准备锁定输入、构包及临时安装自检的命令，Mac 仍须
 备齐锁定的运行时。
 源码 ZIP 本身不是可安装的工具包。
-
-> 当前 `fix/doctor-progress-autoprepare` 分支尚未发布安装包。下面的
-> `doctor` 自动准备行为只适用于用本分支源码构建的新包；下载上方
-> v0.1.2 发布包的用户仍需按
-> [v0.1.2 安装与构建说明](https://github.com/supdger/webman-aot/blob/v0.1.2/docs/install-and-build.md)
-> 执行一次 `webman-aot doctor --repair`。不要把分支源码当成已发布的新版本。
 
 **工具在同一台开发电脑上只需安装一次。** 以后编译另一个项目，或修改项目
 后重新编译，都不用重新安装工具，也不用在项目里 `composer require`；
@@ -31,13 +25,21 @@ Linux amd64 的全静态程序。目标项目不用安装 AOT Composer 插件，
 
 ## 第 1 步：下载并安装工具
 
-到 [v0.1.2 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
-的 **Assets** 下载一个与你的**开发电脑**匹配的文件：
+到 [v0.1.3 安装包页面](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
+的 **Assets** 下载一个与你的**开发电脑**匹配的文件。每个平台有两种包，
+只需选一种；两种包使用**同一份经 SHA-256 校验的精简编译组件**：
 
-- macOS Apple Silicon：`webman-aot-0.1.2-macos-arm64.tar.gz`
-- Windows x64：`webman-aot-0.1.2-windows-x86_64.zip`
+- macOS Apple Silicon 轻量包：`webman-aot-0.1.3-macos-arm64.tar.gz`
+- macOS Apple Silicon 完整包：`webman-aot-0.1.3-full-macos-arm64.tar.gz`
+- Windows x64 轻量包：`webman-aot-0.1.3-windows-x86_64.zip`
+- Windows x64 完整包：`webman-aot-0.1.3-full-windows-x86_64.zip`
 
-普通用户**只下载上面二选一的安装包**。`macos-php-relink-materials.tar.gz`
+网络顺畅选轻量包（两端约 8 MB）；它安装工具后，首次 `doctor` 或 `build`
+会下载精简组件。网络较差、想一次下载好再离线安装的用户选完整包
+（Mac 约 264 MB、Windows 约 341 MB）；它已带同一精简组件，
+安装时会自动准备，之后可以直接 `build`，不必先运行 `doctor`。
+两种包都不下载旧版多 GB 的 LLVM 完整归档。**不要同一平台两个都下载。**
+`macos-php-relink-materials.tar.gz`
 是修改和重链接 PHP 运行时的源码材料，不是第三个平台的安装包；
 `SHA256SUMS.txt` 是可选的独立复核材料，也不用下载才能安装。
 
@@ -64,7 +66,7 @@ webman-aot 命令 + 你的 Webman 项目 → Linux dist-aot/ 发布目录
 Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成 Windows exe。
 **每个平台只选一种情况做一次：**如果还只有 ZIP/tar.gz，先解压再运行
 安装脚本；如果已经解压，直接运行解压文件夹里的脚本，不要再解压。
-当前 v0.1.2 没有双击安装入口。两个方法的逐步说明见
+当前 v0.1.3 没有双击安装入口。两个方法的逐步说明见
 [安装说明](docs/install-and-build.md#第-1-步在开发电脑安装工具)。
 
 - **Windows：**右键下载的 ZIP，选“全部提取”。打开解压出的文件夹，确认
@@ -90,7 +92,7 @@ Windows 安装包最终都编译出 Linux amd64 程序；Windows 包不会生成
 webman-aot version
 ```
 
-看到 `webman-aot 0.1.2`，才表示**命令也能正常使用、工具安装验证通过**。
+看到 `webman-aot 0.1.3`，才表示**命令也能正常使用、工具安装验证通过**。
 此时还没有编译任何项目，也没有生成 `dist-aot/`。安装器只写入当前
 用户目录，不安装系统级 PHP。
 安装包摘要和补充说明见[安装说明](docs/install-and-build.md)。
@@ -101,14 +103,15 @@ webman-aot version
 `webman` 和 `composer.json` 的目录；**不是刚解压的安装包目录，
 也不是本工具的源码目录**。
 
-检查环境并自动准备缺少的编译组件。安装成功不等于组件已经准备好：
+轻量包首次使用时，检查环境并自动准备缺少的精简编译组件：
 
 ```sh
 webman-aot doctor
 ```
 
-首次使用时，`doctor` 会在平台、磁盘、锁文件和项目检查通过后自动下载、
-校验并准备缺少的组件，可能较久；不必再手动输入 `doctor --repair`。
+完整包安装时已准备好组件，可以跳过这一步直接运行下面的 `build`。
+轻量包首次使用时，`doctor` 会在平台、磁盘、锁文件和项目检查通过后
+自动下载、校验并准备组件；不必再手动输入 `doctor --repair`。
 只有最后看到 `Result: healthy` 才能继续编译。若出现 `unhealthy`，
 按具体 `[ERROR]` 和诊断文件排查，不要直接执行 `build`。
 只想检查且不下载时用 `webman-aot doctor --check`。健康后编译并检查产物：

@@ -54,8 +54,17 @@ final class UpstreamProjectGenerator
             $privateCache
         );
         $generatorFile = $generatorRoot . '/src/Compiler/ProjectGenerator.php';
+        $generatorSha256 = $lock['generator']['sourceSha256'];
         $profileFile = $generatorRoot . '/src/Compiler/Profile/SaiAdminProfile.php';
         if ($profile === ProjectProfile::SAIADMIN) {
+            $generatorOverlay = (new SaiAdminGeneratorOverlay())->prepare(
+                $generatorFile,
+                $generatorSha256,
+                $lock['generator']['mainStubSha256'],
+                $privateCache
+            );
+            $generatorFile = $generatorOverlay['path'];
+            $generatorSha256 = $generatorOverlay['sha256'];
             $profileFile = (new SaiAdminProfileOverlay())->prepare(
                 $profileFile,
                 $lock['generator']['profileSha256'],
@@ -68,7 +77,7 @@ final class UpstreamProjectGenerator
         $manifest = (new UpstreamGeneratorBoundary())->run(
             $mirror,
             $generatorFile,
-            $lock['generator']['sourceSha256'],
+            $generatorSha256,
             $lock['packages'],
             $lock['mappings'],
             static function () use ($mirror, $profile, $outputName): void {
@@ -83,6 +92,7 @@ final class UpstreamProjectGenerator
         );
         $adaptations = (new GeneratedProjectAdapter())->apply($mirror, $lock);
         if ($profile === ProjectProfile::SAIADMIN) {
+            $adaptations['saiAdminGeneratorOverlaySha256'] = $generatorSha256;
             $monologPolicy = $lock['optionalAdaptations']['monolog/monolog'] ?? null;
             if (!is_array($monologPolicy)) {
                 throw new ConfigurationException('SaiAdmin Monolog adaptation policy is missing');
