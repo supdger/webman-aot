@@ -96,7 +96,7 @@ final class TypePhpProjectCompiler
             $tools['typephp'] . '/bin/tpc.php',
             $project,
             '--full-static',
-            '--compiler=' . $tools['compiler'],
+            '--compiler=' . self::quotedCompiler($tools['compiler'], PHP_OS_FAMILY),
             '--job=4',
             '--no-progress',
             '--force',
@@ -133,6 +133,34 @@ final class TypePhpProjectCompiler
             throw new \RuntimeException('unable to hash the compiled ELF');
         }
         return ['artifact' => $artifact, 'sha256' => $digest, 'size' => $size];
+    }
+
+    private static function quotedCompiler(string $path, string $host): string
+    {
+        if ($host === 'Windows') {
+            if (preg_match('/^[A-Za-z]:[\\\\\\/][A-Za-z0-9 ._+@\\\\\\/-]+$/D', $path) !== 1) {
+                throw new ConfigurationException(
+                    'locked compiler path contains characters unsupported by TypePHP on Windows; '
+                    . 'reinstall with -InstallRoot set to a writable ASCII path and use the same '
+                    . 'WEBMAN_AOT_BUILDER_HOME'
+                );
+            }
+
+            return '"' . $path . '"';
+        }
+
+        $command = "'" . $path . "'";
+        if (preg_match('/^\\/[A-Za-z0-9 ._+@\\/-]+$/D', $path) !== 1
+            || escapeshellcmd($command) !== $command
+        ) {
+            throw new ConfigurationException(
+                'locked compiler path contains characters unsupported by TypePHP on macOS; '
+                . 'reinstall with --home set to a writable ASCII path and use the same '
+                . 'WEBMAN_AOT_BUILDER_HOME'
+            );
+        }
+
+        return $command;
     }
 
     /** @param list<string> $paths */
