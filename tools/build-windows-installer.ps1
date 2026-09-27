@@ -58,6 +58,12 @@ if (-not $verified) {
     try {
         Write-Output "Downloading locked Windows PHP runtime ..."
         $curlError = $partial + '.stderr'
+        $curlCommand = Get-Command 'curl.exe' -CommandType Application -ErrorAction Stop |
+            Select-Object -First 1
+        $curlPath = [string]$curlCommand.Source
+        if ([string]::IsNullOrWhiteSpace($curlPath)) {
+            throw 'curl.exe application path is unavailable.'
+        }
         for ($pass = 0; $pass -lt 2; $pass++) {
             $resume = (Test-Path -LiteralPath $partial -PathType Leaf) -and
                 ((Get-Item -LiteralPath $partial).Length -gt 0)
@@ -72,7 +78,7 @@ if (-not $verified) {
                 '--proto', '=https', '--proto-redir', '=https',
                 '--output', ('"' + $partial + '"'), ('"' + $runtime.archiveUrl + '"')
             )
-            $curl = Start-Process -FilePath (Get-Command curl.exe -CommandType Application).Source `
+            $curl = Start-Process -FilePath $curlPath `
                 -ArgumentList $curlArgs -NoNewWindow -PassThru -RedirectStandardError $curlError
             $lastBytes = 0L
             $lastWidth = 0

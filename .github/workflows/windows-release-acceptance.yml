@@ -21,13 +21,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Download exact v0.2.0-rc.1 candidate assets
+      - name: Download exact v0.2.0-rc.2 candidate assets
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = 'v0.2.0-rc.1'
+          $tag = 'v0.2.0-rc.2'
           $release = Join-Path $env:RUNNER_TEMP 'release-candidate'
           New-Item -ItemType Directory -Force -Path $release | Out-Null
           $assets = @(
@@ -35,7 +35,7 @@ jobs:
             'webman-aot-builder-0.2.0-windows-x86_64.zip',
             'webman-aot-builder-0.2.0-full-windows-x86_64.zip'
           )
-          Write-Output '[download] Fetching candidate assets from the v0.2.0-rc.1 release ...'
+          Write-Output '[download] Fetching candidate assets from the v0.2.0-rc.2 release ...'
           foreach ($asset in $assets) {
             gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern $asset --dir $release
             if ($LASTEXITCODE -ne 0) {
