@@ -1,11 +1,12 @@
 #!/bin/sh
+# WEBMAN_AOT_BUILDER_PUBLIC_LAUNCHER
 
 set -eu
 
 platform="$(uname -s)"
 architecture="$(uname -m)"
 if [ "$platform" != "Darwin" ] || [ "$architecture" != "arm64" ]; then
-    echo "webman-aot-builder requires macOS ARM64; detected ${platform} ${architecture}." >&2
+    echo "webman-aot requires macOS ARM64; detected ${platform} ${architecture}." >&2
     exit 1
 fi
 
@@ -13,7 +14,7 @@ if [ -n "${WEBMAN_AOT_BUILDER_HOME:-}" ]; then
     aot_home="$WEBMAN_AOT_BUILDER_HOME"
 else
     if [ -z "${HOME:-}" ]; then
-        echo "webman-aot-builder cannot resolve the current user home directory." >&2
+        echo "webman-aot cannot resolve the current user home directory." >&2
         exit 1
     fi
     aot_home="$HOME/Library/Application Support/webman-aot-builder"
@@ -23,11 +24,11 @@ private_php="$aot_home/current/runtime/bin/php"
 application="$aot_home/current/app/bin/webman-aot-builder.php"
 
 if [ ! -x "$private_php" ]; then
-    echo "webman-aot-builder private PHP runtime is missing: $private_php" >&2
+    echo "webman-aot private PHP runtime is missing: $private_php" >&2
     exit 1
 fi
 if [ ! -f "$application" ]; then
-    echo "webman-aot-builder application is missing: $application" >&2
+    echo "webman-aot application is missing: $application" >&2
     exit 1
 fi
 

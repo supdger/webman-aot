@@ -60,6 +60,7 @@ final class DoctorReport
         $missingComponents = 0;
         $repairable = false;
         $otherErrors = false;
+        $networkProbeFailed = false;
         $profile = null;
         foreach ($this->checks as $check) {
             if ($check['status'] === 'ok') {
@@ -73,8 +74,10 @@ final class DoctorReport
                 if ($check['message'] === 'locked component is missing') {
                     $missingComponents++;
                 }
-            } elseif ($check['id'] === 'prepared-toolchain') {
+            } elseif (in_array($check['id'], ['prepared-toolchain', 'minimal-component'], true)) {
                 $repairable = true;
+            } elseif ($check['id'] === 'network-tcp') {
+                $networkProbeFailed = true;
             } else {
                 $otherErrors = true;
             }
@@ -102,15 +105,20 @@ final class DoctorReport
         $lines[] = '';
         $lines[] = $this->healthy() ? 'Result: healthy' : 'Result: unhealthy';
         if ($this->healthy()) {
-            $lines[] = 'Next: run webman-aot-builder build'
+            $lines[] = 'Next: run webman-aot build'
                 . ($profile === 'saiadmin' ? ' --profile=saiadmin' : '')
-                . ', then webman-aot-builder verify.';
+                . ', then webman-aot verify.';
         } else {
-            if ($otherErrors) {
-                $lines[] = 'Fix the other [ERROR] checks above; repair alone may not resolve them.';
+            if ($networkProbeFailed) {
+                $lines[] = 'The TCP probe may fail behind a proxy; an archive download can still succeed.';
             }
-            if ($repairable) {
-                $lines[] = 'Run webman-aot-builder doctor to prepare missing compiler components automatically.';
+            if ($otherErrors) {
+                $lines[] = 'Fix the other [ERROR] checks above before preparing components.';
+            }
+            if ($repairable && !$otherErrors) {
+                $lines[] = 'Run webman-aot doctor to prepare missing compiler components automatically.';
+            } elseif ($repairable) {
+                $lines[] = 'Then run webman-aot doctor to prepare missing compiler components.';
             }
             $lines[] = 'Build only when Result: healthy.';
         }

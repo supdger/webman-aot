@@ -86,17 +86,22 @@ final class TypePhpProjectCompiler
         $environment['PHP_HOME'] = dirname($tools['php']);
         $environment['PHPRC'] = $tools['phprc'];
         $separator = PHP_OS_FAMILY === 'Windows' ? ';' : ':';
-        $environment['PATH'] = dirname($tools['compiler'])
+        $privatePath = dirname($tools['compiler'])
             . $separator . dirname($tools['php'])
             . $separator . (PHP_OS_FAMILY === 'Windows'
                 ? (getenv('SystemRoot') ?: 'C:\\Windows') . '\\System32'
                 : '/usr/bin:/bin');
+        $environment = self::withPrivatePath($environment, $privatePath, PHP_OS_FAMILY);
         $compile = [
             $tools['php'],
             $tools['typephp'] . '/bin/tpc.php',
             $project,
             '--full-static',
-            '--compiler=' . $tools['compiler'],
+            '--compiler=' . self::compilerCommand(
+                $tools['compiler'],
+                PHP_OS_FAMILY,
+                $environment['PATH']
+            ),
             '--job=4',
             '--no-progress',
             '--force',
@@ -133,6 +138,83 @@ final class TypePhpProjectCompiler
             throw new \RuntimeException('unable to hash the compiled ELF');
         }
         return ['artifact' => $artifact, 'sha256' => $digest, 'size' => $size];
+    }
+
+    private static function compilerCommand(string $path, string $host, string $searchPath): string
+    {
+        if ($host === 'Windows') {
+            $normalized = str_replace('\\', '/', $path);
+            if (preg_match('/^[A-Za-z]:\\//', $normalized) !== 1
+                || basename($normalized) !== 'clang++.exe'
+                || str_contains(dirname($normalized), ';')
+                || str_contains($path, "\0")
+            ) {
+                throw new ConfigurationException(
+                    'locked Windows compiler must be an absolute clang++.exe in a directory without ";"; '
+                    . 'reinstall with -InstallRoot set to a writable path without ";" and use the same '
+                    . 'WEBMAN_AOT_BUILDER_HOME'
+                );
+            }
+            $directories = explode(';', $searchPath);
+            if (count($directories) !== 3) {
+                throw new ConfigurationException(
+                    'private compiler PATH contains an empty or relative directory'
+                );
+            }
+            foreach ($directories as $directory) {
+                if (preg_match('/^[A-Za-z]:[\\\\\\/]/', $directory) !== 1) {
+                    throw new ConfigurationException(
+                        'private compiler PATH contains an empty or relative directory'
+                    );
+                }
+            }
+
+            return 'clang++.exe';
+        }
+
+        if (!str_starts_with($path, '/')
+            || basename($path) !== 'clang++'
+            || str_contains(dirname($path), ':')
+            || str_contains($path, "\0")
+        ) {
+            throw new ConfigurationException(
+                'locked macOS compiler must be an absolute clang++ in a directory without ":"; '
+                . 'reinstall with --home set to a writable path without ":" and use the same '
+                . 'WEBMAN_AOT_BUILDER_HOME'
+            );
+        }
+        foreach (explode(':', $searchPath) as $directory) {
+            if ($directory === '' || !str_starts_with($directory, '/')) {
+                throw new ConfigurationException(
+                    'private compiler PATH contains an empty or relative directory'
+                );
+            }
+        }
+
+        return 'clang++';
+    }
+
+    /**
+     * @param array<string, string> $environment
+     * @return array<string, string>
+     */
+    private static function withPrivatePath(array $environment, string $path, string $host): array
+    {
+        if ($host === 'Windows') {
+            foreach (array_keys($environment) as $name) {
+                if (strcasecmp($name, 'PATH') === 0
+                    || strcasecmp($name, 'NoDefaultCurrentDirectoryInExePath') === 0
+                ) {
+                    unset($environment[$name]);
+                }
+            }
+        }
+        $environment['PATH'] = $path;
+        if ($host === 'Windows') {
+            $environment['NoDefaultCurrentDirectoryInExePath'] = '1';
+        }
+
+        return $environment;
     }
 
     /** @param list<string> $paths */

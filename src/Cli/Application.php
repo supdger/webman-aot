@@ -174,7 +174,7 @@ final class Application
         }
 
         throw new UsageException(
-            "Unknown command: {$command}. Run 'webman-aot-builder help' to see available commands."
+            "Unknown command: {$command}. Run 'webman-aot help' to see available commands."
         );
     }
 
@@ -188,7 +188,7 @@ final class Application
             return;
         }
         if ($command === 'version') {
-            fwrite(STDOUT, 'webman-aot-builder ' . Version::VALUE . PHP_EOL);
+            fwrite(STDOUT, 'webman-aot ' . Version::VALUE . PHP_EOL);
             return;
         }
         if ($command === 'doctor') {
@@ -221,7 +221,7 @@ final class Application
             'Webman AOT Builder ' . Version::VALUE,
             '',
             'Usage:',
-            '  webman-aot-builder <command>',
+            '  webman-aot <command>',
             '',
             'Commands:',
             '  help       Show this help',
@@ -275,7 +275,7 @@ final class Application
                 && !in_array($check['id'], ['minimal-component', 'prepared-toolchain'], true)
             ) {
                 throw new UnavailableException(
-                    'build preflight failed: ' . $check['id'] . '; run webman-aot-builder doctor for details'
+                    'build preflight failed: ' . $check['id'] . '; run webman-aot doctor for details'
                 );
             }
         }
@@ -300,12 +300,12 @@ final class Application
         }
         $doctor = ($this->doctorFactory)()->inspect();
         if (!$doctor->healthy()) {
-            throw new UnavailableException('build doctor failed; run webman-aot-builder doctor for details');
+            throw new UnavailableException('build doctor failed; run webman-aot doctor for details');
         }
         $locator = new ToolchainLocator($this->layout);
         $generation = $locator->activeGeneration($host);
         if ($generation === null) {
-            throw new UnavailableException('private toolchain is missing; run webman-aot-builder doctor');
+            throw new UnavailableException('private toolchain is missing; run webman-aot doctor');
         }
         $lockFile = $generation . '/toolchain.lock.json';
         $tools = (new PreparedToolchain())->load(

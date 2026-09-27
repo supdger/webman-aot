@@ -156,8 +156,8 @@ final class InstallerPackager
             }
         }
         $this->createDirectory($stage . '/payload/launcher');
-        copy($this->root . '/bin/webman-aot-builder', $stage . '/payload/launcher/webman-aot-builder');
-        chmod($stage . '/payload/launcher/webman-aot-builder', 0700);
+        copy($this->root . '/bin/webman-aot', $stage . '/payload/launcher/webman-aot');
+        chmod($stage . '/payload/launcher/webman-aot', 0700);
         copy($this->root . '/installer/macos/install.sh', $stage . '/install.sh');
         copy($this->root . '/installer/macos/uninstall.sh', $stage . '/uninstall.sh');
         chmod($stage . '/install.sh', 0700);
@@ -272,7 +272,7 @@ final class InstallerPackager
             $runtimeStage . '/upstream-php.spdx.json'
         );
         $this->createDirectory($stage . '/payload/launcher');
-        copy($this->root . '/bin/webman-aot-builder.cmd', $stage . '/payload/launcher/webman-aot-builder.cmd');
+        copy($this->root . '/bin/webman-aot.cmd', $stage . '/payload/launcher/webman-aot.cmd');
         copy($this->root . '/installer/windows/install.ps1', $stage . '/install.ps1');
         copy($this->root . '/installer/windows/uninstall.ps1', $stage . '/uninstall.ps1');
         $this->stageMinimalComponent($stage, 'windows-x86_64', $minimalComponent, $full);

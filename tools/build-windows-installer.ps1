@@ -202,8 +202,8 @@ try {
         $env:WEBMAN_AOT_BUILDER_HOME = $smokeHome
         try {
             Write-Output '[verify] Running the installed version command ...'
-            $versionOutput = & (Join-Path $smokeBin 'webman-aot-builder.cmd') version
-            if ($LASTEXITCODE -ne 0 -or $versionOutput -ne "webman-aot-builder $version") {
+            $versionOutput = & (Join-Path $smokeBin 'webman-aot.cmd') version
+            if ($LASTEXITCODE -ne 0 -or $versionOutput -ne "webman-aot $version") {
                 throw "Installed tool version check failed: $versionOutput"
             }
             Write-Output "[OK] Temporary installation runs: $versionOutput"
