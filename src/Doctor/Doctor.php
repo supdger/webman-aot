@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace WebmanAotBuilder\Doctor;
 
-use WebmanAotBuilder\Cli\ConfigurationException;
-use WebmanAotBuilder\Project\ProfileDetector;
 use WebmanAotBuilder\Toolchain\LockValidator;
 use WebmanAotBuilder\Toolchain\HostComponentSelector;
 use WebmanAotBuilder\Toolchain\NativeDownloader;
@@ -19,7 +17,6 @@ final class Doctor
     public function __construct(
         private readonly string $lockPath,
         private readonly string $artifactsDirectory,
-        private readonly string $projectDirectory,
         private readonly SystemProbe $system,
         private readonly int $minimumFreeBytes = self::MINIMUM_FREE_BYTES,
         private readonly ?ToolchainPreparer $preparer = null,
@@ -63,7 +60,6 @@ final class Doctor
             }
         }
         $this->inspectPrepared($checks);
-        $this->inspectProject($checks);
 
         return new DoctorReport($host, $checks);
     }
@@ -285,42 +281,6 @@ final class Doctor
                 ]
             );
         }
-    }
-
-    /**
-     * @param list<array{id:string,status:string,message:string,details:array<string,mixed>}> $checks
-     */
-    private function inspectProject(array &$checks): void
-    {
-        try {
-            $profile = (new ProfileDetector($this->projectDirectory))->detect();
-        } catch (ConfigurationException $exception) {
-            $checks[] = $this->check(
-                'project',
-                false,
-                'current directory ' . $this->projectDirectory
-                    . ' is not a buildable Webman project root: ' . $exception->getMessage()
-                    . '; check your current directory (PowerShell: Get-Location; macOS: pwd), '
-                    . 'then open the Webman project root and run doctor there',
-                [
-                    'directory' => $this->projectDirectory,
-                    'error' => $exception->getMessage(),
-                ]
-            );
-            return;
-        }
-        $checks[] = $this->check(
-            'project',
-            true,
-            ($profile->name() === 'saiadmin' ? 'SaiAdmin' : 'Webman') . ' project detected',
-            [
-                'profile' => $profile->name(),
-                'packages' => $profile->packages(),
-                'evidence' => $profile->evidence(),
-                'webmanVersion' => $profile->packages()['workerman/webman-framework'],
-                'saiAdminVersion' => $profile->packages()['saithink/saiadmin'] ?? null,
-            ]
-        );
     }
 
     /**

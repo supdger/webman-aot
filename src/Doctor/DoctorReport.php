@@ -61,12 +61,8 @@ final class DoctorReport
         $repairable = false;
         $otherErrors = false;
         $networkProbeFailed = false;
-        $profile = null;
         foreach ($this->checks as $check) {
             if ($check['status'] === 'ok') {
-                if ($check['id'] === 'project') {
-                    $profile = $check['details']['profile'] ?? null;
-                }
                 continue;
             }
             if (str_starts_with($check['id'], 'component:')) {
@@ -105,9 +101,8 @@ final class DoctorReport
         $lines[] = '';
         $lines[] = $this->healthy() ? 'Result: healthy' : 'Result: unhealthy';
         if ($this->healthy()) {
-            $lines[] = 'Next: run webman-aot build'
-                . ($profile === 'saiadmin' ? ' --profile=saiadmin' : '')
-                . ', then webman-aot verify.';
+            $lines[] = 'Next: change to your Webman project root, run webman-aot build,'
+                . ' then webman-aot verify.';
         } else {
             if ($networkProbeFailed) {
                 $lines[] = 'The TCP probe may fail behind a proxy; an archive download can still succeed.';
