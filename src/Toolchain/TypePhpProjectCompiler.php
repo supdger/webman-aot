@@ -96,7 +96,11 @@ final class TypePhpProjectCompiler
             $tools['typephp'] . '/bin/tpc.php',
             $project,
             '--full-static',
-            '--compiler=' . self::quotedCompiler($tools['compiler'], PHP_OS_FAMILY),
+            '--compiler=' . self::compilerCommand(
+                $tools['compiler'],
+                PHP_OS_FAMILY,
+                $environment['PATH']
+            ),
             '--job=4',
             '--no-progress',
             '--force',
@@ -135,7 +139,7 @@ final class TypePhpProjectCompiler
         return ['artifact' => $artifact, 'sha256' => $digest, 'size' => $size];
     }
 
-    private static function quotedCompiler(string $path, string $host): string
+    private static function compilerCommand(string $path, string $host, string $searchPath): string
     {
         if ($host === 'Windows') {
             if (preg_match('/^[A-Za-z]:[\\\\\\/][A-Za-z0-9 ._+@\\\\\\/-]+$/D', $path) !== 1) {
@@ -149,18 +153,26 @@ final class TypePhpProjectCompiler
             return '"' . $path . '"';
         }
 
-        $command = "'" . $path . "'";
-        if (preg_match('/^\\/[A-Za-z0-9 ._+@\\/-]+$/D', $path) !== 1
-            || escapeshellcmd($command) !== $command
+        if (!str_starts_with($path, '/')
+            || basename($path) !== 'clang++'
+            || str_contains(dirname($path), ':')
+            || str_contains($path, "\0")
         ) {
             throw new ConfigurationException(
-                'locked compiler path contains characters unsupported by TypePHP on macOS; '
-                . 'reinstall with --home set to a writable ASCII path and use the same '
+                'locked macOS compiler must be an absolute clang++ in a directory without ":"; '
+                . 'reinstall with --home set to a writable path without ":" and use the same '
                 . 'WEBMAN_AOT_BUILDER_HOME'
             );
         }
+        foreach (explode(':', $searchPath) as $directory) {
+            if ($directory === '' || !str_starts_with($directory, '/')) {
+                throw new ConfigurationException(
+                    'private compiler PATH contains an empty or relative directory'
+                );
+            }
+        }
 
-        return $command;
+        return 'clang++';
     }
 
     /** @param list<string> $paths */
