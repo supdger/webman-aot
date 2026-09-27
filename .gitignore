@@ -2,6 +2,7 @@
 /build/
 /dist/
 /vendor/
+/tests/fixtures/webman-neutral/vendor/
 .env
 .env.*
 !.env.example
