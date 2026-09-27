@@ -221,9 +221,9 @@ jobs:
             if (Test-Path -LiteralPath 'composer.lock') {
               throw 'Official fixture unexpectedly contains a committed composer.lock; review dependency setup.'
             }
-            Write-Output '[composer] Official source has no lock. Resolving and installing with Webman fixed at v2.2.4; required Webman package scripts stay enabled ...'
+            Write-Output '[composer] Official source has no lock. Resolving with Webman v2.2.4 and supported Carbon 3.14.0; required Webman package scripts stay enabled ...'
             & composer update --with workerman/webman-framework:2.2.4 `
-              --no-interaction --prefer-dist --no-plugins
+              --with nesbot/carbon:3.14.0 --no-interaction --prefer-dist --no-plugins
             if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin Composer resolution/install failed.' }
             if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
               throw 'Composer did not generate a lock file.'
@@ -233,6 +233,11 @@ jobs:
             if ($webmanPackage.Count -ne 1 -or $webmanPackage[0].version -ne 'v2.2.4' -or
                 $webmanPackage[0].source.reference -ne 'b080c9f470f9811999c94ae6fab3871f7792d891') {
               throw 'Composer resolved a different Webman framework.'
+            }
+            $carbonPackage = @($resolved.packages | Where-Object { $_.name -eq 'nesbot/carbon' })
+            if ($carbonPackage.Count -ne 1 -or $carbonPackage[0].version -ne '3.14.0' -or
+                $carbonPackage[0].source.reference -ne '0023eaa2c9110e47446dd512a263c69c40cd41f2') {
+              throw 'Composer resolved a different Carbon release than the supported local fixture.'
             }
             $lockSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'composer.lock').Hash.ToLowerInvariant()
             Write-Output "[OK] Generated fixture composer.lock SHA-256=$lockSha; Webman v2.2.4/b080c9f"
