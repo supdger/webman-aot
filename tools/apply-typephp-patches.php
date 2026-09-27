@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/src/Toolchain/UnifiedPatchApplier.php';
 
-use WebmanAot\Toolchain\UnifiedPatchApplier;
+use WebmanAotBuilder\Toolchain\UnifiedPatchApplier;
 
 /**
  * @return array<string, string>

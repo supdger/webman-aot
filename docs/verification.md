@@ -1,8 +1,10 @@
 # 已验证的范围
 
-这些记录保存在公开的[开发与验证分支](https://github.com/supdger/webman-aot/tree/development/evidence)。
-下面使用固定提交链接，保证以后调整仓库目录时仍能打开。证据文件不进入
-`main` 分支的源码下载 ZIP，也不进入安装包。
+这些记录保存在旧仓库名下的公开
+[开发与验证分支](https://github.com/supdger/webman-aot/tree/development/evidence)。
+表中的固定提交、Actions 运行和文件内容是改名前形成的历史证据，链接保留当时的
+仓库地址，不代表新仓库 URL 已验证。证据文件不进入默认分支的源码下载 ZIP，
+也不进入安装包。
 
 | 检查 | 已有证据 | 边界 |
 | --- | --- | --- |
@@ -15,5 +17,7 @@
 | v0.1.2 Windows 安装包 | [公开验收运行记录](https://github.com/supdger/webman-aot/actions/runs/36217867854) | 用不同修订标识从源码构包后，仅按公开说明传入 `-Compare` 自动读取参考包标识，逐文件对照通过；安装、组件准备、环境检查、中立 Webman 2.2.4 项目编译、`verify` 和卸载均通过。目标 Linux 运行未在此运行中复测 |
 | v0.1.2 源码对照命令 | [Windows 验收运行记录](https://github.com/supdger/webman-aot/actions/runs/36220391835) | GitHub 源码 ZIP 解压后和 Windows Git 检出分别执行固定的 `-CompareRelease` 命令，均自动下载并校验发布包、得到 134 文件 `[MATCH]`；生成包完成安装、版本检查和卸载。此项不重复声称业务或目标 Linux 运行验收 |
 
-`webman-aot verify` 证明包结构和覆盖清单，不等于目标机业务验收。新增插件、
+表格中的 `webman-aot` 命令是历史 v0.1.0–v0.1.2 验收记录里的旧命令。
+当前版本命令为 `webman-aot-builder verify`；它证明包结构和覆盖清单，不等于
+目标机业务验收。新增插件、
 更换依赖版本或修改业务代码后，应重新编译并执行项目自己的接口回归。

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Doctor;
+namespace WebmanAotBuilder\Doctor;
 
 final class NativeSystemProbe implements SystemProbe
 {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Compatibility\UpstreamProjectGenerator;
-use WebmanAot\Toolchain\FullStaticProjectOverlay;
-use WebmanAot\Toolchain\TypePhpPatchManifestFingerprint;
-use WebmanAot\Toolchain\TypePhpProjectCompiler;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Compatibility\UpstreamProjectGenerator;
+use WebmanAotBuilder\Toolchain\FullStaticProjectOverlay;
+use WebmanAotBuilder\Toolchain\TypePhpPatchManifestFingerprint;
+use WebmanAotBuilder\Toolchain\TypePhpProjectCompiler;
 
 final class ProjectBuilder
 {
@@ -93,7 +93,7 @@ final class ProjectBuilder
         $extensionNames = array_keys($extensions);
         sort($extensionNames, SORT_STRING);
         $normalizedInput = [
-            'schema' => 'webman-aot-project-normalized-input-v1',
+            'schema' => 'webman-aot-builder-project-normalized-input-v1',
             'sourceTreeSha256' => $source['sha256'],
             'composerLockSha256' => $composerSha256,
             'profile' => $profile->name(),

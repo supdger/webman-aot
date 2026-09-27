@@ -139,7 +139,7 @@ $systemTar = Join-Path $env:SystemRoot 'System32\tar.exe'
 if (-not (Test-Path -LiteralPath $systemTar -PathType Leaf)) {
     throw "Windows system tar is unavailable: $systemTar"
 }
-$privateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'webman-aot'
+$privateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'webman-aot-builder'
 if ([string]::IsNullOrWhiteSpace($Artifacts)) {
     $Artifacts = Join-Path $privateRoot 'artifacts'
 }
@@ -337,7 +337,7 @@ Assert-LastExitCode 'musl sysroot assembly'
 
 if ($PrepareOnly) {
     $prepared = [ordered] @{
-        schema = 'webman-aot-prepared-toolchain-v1'
+        schema = 'webman-aot-builder-prepared-toolchain-v1'
         host = 'windows-x86_64'
         lockSha256 = (Get-FileHash -LiteralPath $LockFile -Algorithm SHA256).Hash.ToLowerInvariant()
         php = (Get-WorkRelativePath $WorkRoot $php)
@@ -378,16 +378,16 @@ Assert-LastExitCode 'Windows full-static replay'
 
 $artifact = Join-Path $output 'full_static_cross_smoke'
 $result = [ordered] @{
-    schema = 'webman-aot-windows-replay-v1'
+    schema = 'webman-aot-builder-windows-replay-v1'
     host = 'windows-x86_64'
     containerUsed = $false
     normalizedInputSha256 = $normalizedInput.sha256
-    expectedNormalizedInputSha256 = '0e85d7f5082b932a6ef8fecb7730e455ce48f82506bab1d6446278501de4fd7c'
+    expectedNormalizedInputSha256 = 'f18bac511781f372bb65e4fe4b4ac518535792a4d57b896f84b050f540419ba2'
     matchesMacNormalizedInput = $false
     artifact = $artifact
     artifactSize = (Get-Item -LiteralPath $artifact).Length
     artifactSha256 = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    expectedMacArtifactSha256 = '24f0e8efe9b02c4552567aa1ab9aec926dca9e155d3dfd42a672c655e614f5bc'
+    expectedMacArtifactSha256 = '95005fdcfa288464fefa5fd88f32886a0ae4cd30f7fa698103a2647a344f56e3'
     matchesMacArtifact = $false
 }
 $result.matchesMacNormalizedInput = (

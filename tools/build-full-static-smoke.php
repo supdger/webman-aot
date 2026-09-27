@@ -8,9 +8,9 @@ require dirname(__DIR__) . '/src/Toolchain/SdkArchiveGuard.php';
 require dirname(__DIR__) . '/src/Cli/ConfigurationException.php';
 require dirname(__DIR__) . '/src/Toolchain/TypePhpPatchSourceVerifier.php';
 
-use WebmanAot\Toolchain\ElfStaticVerifier;
-use WebmanAot\Toolchain\SdkArchiveGuard;
-use WebmanAot\Toolchain\TypePhpPatchSourceVerifier;
+use WebmanAotBuilder\Toolchain\ElfStaticVerifier;
+use WebmanAotBuilder\Toolchain\SdkArchiveGuard;
+use WebmanAotBuilder\Toolchain\TypePhpPatchSourceVerifier;
 
 /**
  * @return array<string, string>
@@ -210,7 +210,7 @@ build-dir: build
 output: full_static_cross_smoke
 cxx-std: c++17
 target-platform: x86_64-unknown-linux-musl
-reproducible-source-prefix: /usr/src/webman-aot
+reproducible-source-prefix: /usr/src/webman-aot-builder
 cxx-flags: >-
   --sysroot={$sysrootFlag}
   -isystem {$cxxIncludeFlag}

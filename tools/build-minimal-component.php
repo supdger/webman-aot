@@ -223,7 +223,7 @@ try {
         }
     }
     $manifest = [
-        'schema' => 'webman-aot-minimal-component-v1',
+        'schema' => 'webman-aot-builder-minimal-component-v1',
         'host' => $host,
         'toolchainLockSha256' => hash_file('sha256', $generation . '/toolchain.lock.json'),
         'entries' => $entries,

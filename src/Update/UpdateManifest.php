@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
 final class UpdateManifest
 {

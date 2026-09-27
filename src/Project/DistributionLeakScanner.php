@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class DistributionLeakScanner
 {
@@ -134,7 +134,7 @@ final class DistributionLeakScanner
             );
         }
         foreach ($parts as $part) {
-            if (in_array($part, ['.webman-aot', '.typephp', '.git'], true)) {
+            if (in_array($part, ['.webman-aot-builder', '.webman-aot', '.typephp', '.git'], true)) {
                 throw new ConfigurationException(
                     "distribution contains build or source metadata: {$path}"
                 );

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use WebmanAot\Cli\ExitCode;
-use WebmanAot\Cli\Runtime;
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Cli\ExitCode;
+use WebmanAotBuilder\Cli\Runtime;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 $root = dirname(__DIR__);
 $loader = static function (string $class) use ($root): void {
-    $prefix = 'WebmanAot\\';
+    $prefix = 'WebmanAotBuilder\\';
     if (!str_starts_with($class, $prefix)) {
         return;
     }
@@ -21,8 +21,8 @@ $loader = static function (string $class) use ($root): void {
 spl_autoload_register($loader);
 
 try {
-    if (getenv('WEBMAN_AOT_BOOTSTRAPPED') !== '1') {
-        $override = getenv('WEBMAN_AOT_HOME');
+    if (getenv('WEBMAN_AOT_BUILDER_BOOTSTRAPPED') !== '1') {
+        $override = getenv('WEBMAN_AOT_BUILDER_HOME');
         if (is_string($override) && trim($override) !== '') {
             $home = rtrim(str_replace('\\', '/', trim($override)), '/');
         } elseif (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
@@ -31,13 +31,13 @@ try {
                 throw new RuntimeException('cannot resolve the current user home directory');
             }
             $home = rtrim(str_replace('\\', '/', $userHome), '/')
-                . '/Library/Application Support/webman-aot';
+                . '/Library/Application Support/webman-aot-builder';
         } elseif (PHP_OS_FAMILY === 'Windows' && PHP_INT_SIZE === 8) {
             $localAppData = getenv('LOCALAPPDATA');
             if (!is_string($localAppData) || trim($localAppData) === '') {
                 throw new RuntimeException('cannot resolve the current user data directory');
             }
-            $home = rtrim(str_replace('\\', '/', $localAppData), '/') . '/webman-aot';
+            $home = rtrim(str_replace('\\', '/', $localAppData), '/') . '/webman-aot-builder';
         } else {
             throw new RuntimeException(sprintf(
                 'unsupported build host: %s %s',
@@ -63,9 +63,9 @@ try {
                 } catch (JsonException) {
                     continue;
                 }
-                $entry = $generation . '/app/bin/webman-aot.php';
+                $entry = $generation . '/app/bin/webman-aot-builder.php';
                 if (is_array($manifest)
-                    && ($manifest['schema'] ?? null) === 'webman-aot-cli-generation-v1'
+                    && ($manifest['schema'] ?? null) === 'webman-aot-builder-cli-generation-v1'
                     && is_file($entry)
                     && is_file($generation . '/app/src/Version.php')
                 ) {
@@ -81,7 +81,7 @@ try {
             && $resolvedActive !== $currentEntry
         ) {
             spl_autoload_unregister($loader);
-            putenv('WEBMAN_AOT_BOOTSTRAPPED=1');
+            putenv('WEBMAN_AOT_BUILDER_BOOTSTRAPPED=1');
             require $resolvedActive;
             throw new RuntimeException('active CLI generation returned unexpectedly');
         }

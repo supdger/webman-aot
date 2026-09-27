@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Doctor;
+namespace WebmanAotBuilder\Doctor;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Project\ProfileDetector;
-use WebmanAot\Toolchain\LockValidator;
-use WebmanAot\Toolchain\HostComponentSelector;
-use WebmanAot\Toolchain\NativeDownloader;
-use WebmanAot\Toolchain\MinimalComponent;
-use WebmanAot\Toolchain\ToolchainPreparer;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Project\ProfileDetector;
+use WebmanAotBuilder\Toolchain\LockValidator;
+use WebmanAotBuilder\Toolchain\HostComponentSelector;
+use WebmanAotBuilder\Toolchain\NativeDownloader;
+use WebmanAotBuilder\Toolchain\MinimalComponent;
+use WebmanAotBuilder\Toolchain\ToolchainPreparer;
 
 final class Doctor
 {

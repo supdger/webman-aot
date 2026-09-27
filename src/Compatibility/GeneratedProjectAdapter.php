@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class GeneratedProjectAdapter
 {
@@ -16,7 +16,7 @@ final class GeneratedProjectAdapter
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror) || is_link($mirrorDirectory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot/build/project')
+            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
         ) {
             throw new ConfigurationException('generated adaptation requires an isolated project mirror');
         }

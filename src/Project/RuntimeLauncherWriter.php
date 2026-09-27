@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class RuntimeLauncherWriter
 {
@@ -28,7 +28,7 @@ set -eu
 ROOT=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
 cd "$ROOT"
 if [ ! -x ./server ] || [ ! -f ./config/app.php ]; then
-    echo "Incomplete Webman AOT distribution" >&2
+    echo "Incomplete Webman AOT Builder distribution" >&2
     exit 1
 fi
 if [ "$#" -eq 0 ]; then

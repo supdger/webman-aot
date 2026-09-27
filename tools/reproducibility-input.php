@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/src/Toolchain/ReproducibilityInput.php';
 
-use WebmanAot\Toolchain\ReproducibilityInput;
+use WebmanAotBuilder\Toolchain\ReproducibilityInput;
 
 try {
     $result = (new ReproducibilityInput())->describe(dirname(__DIR__));

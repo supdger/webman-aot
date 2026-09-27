@@ -1,0 +1,235 @@
+name: Windows release acceptance
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  # Draft release assets require push-level repository access.
+  contents: write
+
+jobs:
+  windows:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Download exact v0.2.0-rc.2 candidate assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v0.2.0-rc.2'
+          $release = Join-Path $env:RUNNER_TEMP 'release-candidate'
+          New-Item -ItemType Directory -Force -Path $release | Out-Null
+          $assets = @(
+            'webman-aot-builder-0.2.0-windows-x86_64-components.zip',
+            'webman-aot-builder-0.2.0-windows-x86_64.zip',
+            'webman-aot-builder-0.2.0-full-windows-x86_64.zip'
+          )
+          Write-Output '[download] Fetching candidate assets from the v0.2.0-rc.2 release ...'
+          foreach ($asset in $assets) {
+            gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern $asset --dir $release
+            if ($LASTEXITCODE -ne 0) {
+              throw "Unable to download release asset: $asset"
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $release $asset) -PathType Leaf)) {
+              throw "Release asset is missing: $asset"
+            }
+            Write-Output "[OK] Downloaded $asset"
+          }
+          Write-Output '[verify] Checking release tag against the checked-out source tree ...'
+          git fetch --depth=1 origin "refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch release tag.' }
+          $releaseTree = (git rev-parse "${tag}^{tree}").Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to read release source tree.' }
+          $candidateTree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($LASTEXITCODE -ne 0 -or $releaseTree -ne $candidateTree) {
+            throw 'Release tag and candidate source trees differ.'
+          }
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          $component = Join-Path $release $assets[0]
+          $componentSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $component).Hash.ToLowerInvariant()
+          if ($componentSha -ne $lock.components.'windows-x86_64'.sha256) {
+            throw 'Release Windows component SHA-256 differs from the source lock.'
+          }
+          Write-Output "[OK] Release tag source tree and locked component match: $componentSha"
+
+      - name: Compare source builds and install both candidates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $timer = [Diagnostics.Stopwatch]::StartNew()
+          $version = '0.2.0'
+          $repository = (Get-Location).Path
+          $release = Join-Path $env:RUNNER_TEMP 'release-candidate'
+          $component = Join-Path $release "webman-aot-builder-$version-windows-x86_64-components.zip"
+          $built = Join-Path $env:RUNNER_TEMP 'source-built'
+          $hashReport = Join-Path $env:RUNNER_TEMP 'windows-acceptance-hashes.txt'
+          $oldHome = Join-Path $env:LOCALAPPDATA 'webman-aot'
+          $oldMarker = Join-Path $oldHome 'acceptance-sentinel.txt'
+          New-Item -ItemType Directory -Force -Path $oldHome | Out-Null
+          Set-Content -LiteralPath $oldMarker -Value 'preserve-existing-state'
+          $userPathBefore = [Environment]::GetEnvironmentVariable('Path', 'User')
+          foreach ($flavor in @('small', 'full')) {
+            $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
+            $name = "webman-aot-builder-$version$suffix-windows-x86_64.zip"
+            $candidate = Join-Path $release $name
+            Write-Output "[build] Comparing the $flavor source build with $name ..."
+            & .\tools\build-windows-installer.ps1 -Flavor $flavor `
+              -MinimalComponent $component -Compare $candidate -Output $built
+            if ($LASTEXITCODE -ne 0) { throw "$flavor source build or comparison failed." }
+            $rebuilt = Join-Path $built $name
+            if (-not (Test-Path -LiteralPath $rebuilt -PathType Leaf)) {
+              throw "Source-built installer is missing: $name"
+            }
+            $extract = Join-Path $env:RUNNER_TEMP "candidate-$flavor"
+            $installRoot = Join-Path $env:RUNNER_TEMP "installed-$flavor"
+            $bin = Join-Path $env:RUNNER_TEMP "bin-$flavor"
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            Write-Output "[install] Extracting and installing the $flavor release candidate ..."
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $candidate -C $extract
+            if ($LASTEXITCODE -ne 0) { throw "$flavor candidate extraction failed." }
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1') `
+              -InstallRoot $installRoot -BinDir $bin -NoPath
+            if ($LASTEXITCODE -ne 0) { throw "$flavor candidate installation failed." }
+            $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+            $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+            try {
+              $actualVersion = & (Join-Path $bin 'webman-aot-builder.cmd') version
+              if ($LASTEXITCODE -ne 0 -or $actualVersion -ne "webman-aot-builder $version") {
+                throw "$flavor candidate version is unexpected: $actualVersion"
+              }
+              Write-Output "[OK] $flavor candidate runs: $actualVersion"
+              if ($flavor -eq 'full') {
+                $project = Join-Path $env:RUNNER_TEMP 'webman-neutral'
+                $fixture = Join-Path $repository 'tests\fixtures\webman-neutral'
+                New-Item -ItemType Directory -Force -Path $project | Out-Null
+                Copy-Item -Path (Join-Path $fixture '*') -Destination $project -Recurse -Force
+                Write-Output '[prepare] Installing the pinned neutral Webman fixture dependencies ...'
+                Push-Location $project
+                try {
+                  $runnerPhpVersion = & php -r 'echo PHP_VERSION_ID;'
+                  if ($LASTEXITCODE -ne 0 -or [int]$runnerPhpVersion -lt 80400) {
+                    throw "Composer requires runner PHP 8.4 or newer; found PHP_VERSION_ID=$runnerPhpVersion"
+                  }
+                  & composer --version
+                  if ($LASTEXITCODE -ne 0) { throw 'Composer is unavailable on the Windows runner.' }
+                  Write-Output "[prepare] Runner PHP_VERSION_ID=$runnerPhpVersion"
+                  & composer install --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction
+                  if ($LASTEXITCODE -ne 0) { throw 'Pinned fixture Composer install failed.' }
+                  $doctor = (& (Join-Path $bin 'webman-aot-builder.cmd') doctor --check --json) |
+                    ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or -not $doctor.healthy -or
+                      $doctor.schema -ne 'webman-aot-builder-doctor-v1') {
+                    throw 'Full candidate doctor --check failed.'
+                  }
+                  Write-Output '[OK] Full candidate doctor --check is healthy.'
+                  Write-Output '[build] Compiling the neutral Webman project ...'
+                  & (Join-Path $bin 'webman-aot-builder.cmd') build
+                  if ($LASTEXITCODE -ne 0) { throw 'Full candidate Webman build failed.' }
+                  $verify = (& (Join-Path $bin 'webman-aot-builder.cmd') verify --json) |
+                    ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or
+                      $verify.schema -ne 'webman-aot-builder-verify-report-v1' -or
+                      $verify.staticStructure -ne 'pass') {
+                    throw 'Full candidate Webman distribution verification failed.'
+                  }
+                  Write-Output "[OK] Neutral Webman build and verify passed ($($verify.files) files)."
+                } finally {
+                  Pop-Location
+                }
+                $generations = @(Get-ChildItem -LiteralPath (Join-Path $installRoot 'toolchains\versions') -Directory)
+                if ($generations.Count -ne 1) {
+                  throw "Expected one prepared full-package toolchain; found $($generations.Count)."
+                }
+                $prepared = Join-Path $generations[0].FullName 'prepared'
+                $tools = Get-Content -Raw -LiteralPath (Join-Path $prepared 'prepared-toolchain.json') |
+                  ConvertFrom-Json
+                if ($tools.schema -ne 'webman-aot-builder-prepared-toolchain-v1' -or
+                    $tools.host -ne 'windows-x86_64') {
+                  throw 'Full-package prepared toolchain metadata is invalid.'
+                }
+                $php = Join-Path $prepared $tools.php
+                $typephp = Join-Path $prepared $tools.typephp
+                $phpx = Join-Path $prepared $tools.phpx
+                $compiler = Join-Path $prepared $tools.compiler
+                $sysroot = Join-Path $prepared $tools.sysroot
+                $sdk = Join-Path $phpx 'full-static\sdk'
+                $previousPhpHome = $env:PHP_HOME
+                $previousPhpxHome = $env:PHPX_HOME
+                $previousPhprc = $env:PHPRC
+                $previousPath = $env:PATH
+                try {
+                  $env:PHP_HOME = Split-Path -Parent $php
+                  $env:PHPX_HOME = $phpx
+                  $env:PHPRC = Join-Path $prepared $tools.phprc
+                  $env:PATH = "$env:PHP_HOME;$(Split-Path -Parent $compiler);$env:PATH"
+                  $normalized = (& $php (Join-Path $repository 'tools\reproducibility-input.php')) |
+                    ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0 -or
+                      $normalized.sha256 -ne 'f18bac511781f372bb65e4fe4b4ac518535792a4d57b896f84b050f540419ba2') {
+                    throw "Windows normalized input differs from the Mac baseline: $($normalized.sha256)"
+                  }
+                  $smoke = Join-Path $env:RUNNER_TEMP 'full-static-cross-smoke'
+                  Write-Output '[build] Compiling the locked Linux amd64 musl ELF smoke on Windows ...'
+                  & $php (Join-Path $repository 'tools\build-full-static-smoke.php') `
+                    "--typephp=$typephp" "--php=$php" "--phpx=$phpx" `
+                    "--compiler=$compiler" "--sysroot=$sysroot" "--sdk=$sdk" `
+                    "--output=$smoke"
+                  if ($LASTEXITCODE -ne 0) { throw 'Windows full-static ELF smoke failed.' }
+                  $elf = Join-Path $smoke 'full_static_cross_smoke'
+                  $elfSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $elf).Hash.ToLowerInvariant()
+                  if ($elfSha -ne '95005fdcfa288464fefa5fd88f32886a0ae4cd30f7fa698103a2647a344f56e3') {
+                    throw "Windows ELF differs from the Mac baseline: $elfSha"
+                  }
+                  Add-Content -LiteralPath $hashReport -Value "normalized-input $($normalized.sha256)"
+                  Add-Content -LiteralPath $hashReport -Value "full-static-elf $elfSha"
+                  Write-Output "[MATCH] Windows and Mac full-static ELF SHA-256: $elfSha"
+                } finally {
+                  $env:PHP_HOME = $previousPhpHome
+                  $env:PHPX_HOME = $previousPhpxHome
+                  $env:PHPRC = $previousPhprc
+                  $env:PATH = $previousPath
+                }
+              }
+            } finally {
+              $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
+            }
+            Write-Output "[uninstall] Removing the $flavor test installation ..."
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'uninstall.ps1') `
+              -InstallRoot $installRoot -BinDir $bin -NoPath -Purge
+            if ($LASTEXITCODE -ne 0 -or
+                (Test-Path -LiteralPath $installRoot) -or
+                (Test-Path -LiteralPath (Join-Path $bin 'webman-aot-builder.cmd'))) {
+              throw "$flavor candidate uninstall failed."
+            }
+            if (-not (Test-Path -LiteralPath $oldMarker) -or
+                [Environment]::GetEnvironmentVariable('Path', 'User') -ne $userPathBefore) {
+              throw "$flavor candidate changed the previous installation or user PATH."
+            }
+            $candidateSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidate).Hash.ToLowerInvariant()
+            $rebuiltSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $rebuilt).Hash.ToLowerInvariant()
+            Add-Content -LiteralPath $hashReport -Value "$flavor candidate $candidateSha"
+            Add-Content -LiteralPath $hashReport -Value "$flavor source-built $rebuiltSha"
+            Write-Output "[OK] $flavor candidate installed and uninstalled; previous state preserved."
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY `
+            -Value "Windows v$version small/full: source file parity, candidate install/version/uninstall, old-state preservation, full-package Webman doctor/build/verify, and Mac/Windows static ELF parity passed in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
+          Write-Output "[OK] Windows acceptance finished in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) seconds."
+
+      - name: Save acceptance hashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-v0.2.0-acceptance-hashes
+          path: ${{ runner.temp }}/windows-acceptance-hashes.txt
+          if-no-files-found: ignore

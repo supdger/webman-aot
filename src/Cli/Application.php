@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Cli;
+namespace WebmanAotBuilder\Cli;
 
-use WebmanAot\Doctor\Doctor;
-use WebmanAot\Doctor\NativeSystemProbe;
-use WebmanAot\Platform\UserDirectoryLayout;
-use WebmanAot\Project\DistributionVerifier;
-use WebmanAot\Project\ProfileDetector;
-use WebmanAot\Project\ProjectBuilder;
-use WebmanAot\Toolchain\NativeDownloader;
-use WebmanAot\Toolchain\MacosToolchainPreparer;
-use WebmanAot\Toolchain\MinimalComponentLock;
-use WebmanAot\Toolchain\MinimalComponentManager;
-use WebmanAot\Toolchain\PreparedToolchain;
-use WebmanAot\Toolchain\ToolchainLocator;
-use WebmanAot\Toolchain\ToolchainPreparer;
-use WebmanAot\Toolchain\ToolchainRepairer;
-use WebmanAot\Toolchain\WindowsToolchainPreparer;
-use WebmanAot\Update\NativeCliSelfChecker;
-use WebmanAot\Update\UpdateManager;
-use WebmanAot\Update\ZipPackageExtractor;
-use WebmanAot\Version;
+use WebmanAotBuilder\Doctor\Doctor;
+use WebmanAotBuilder\Doctor\NativeSystemProbe;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Project\DistributionVerifier;
+use WebmanAotBuilder\Project\ProfileDetector;
+use WebmanAotBuilder\Project\ProjectBuilder;
+use WebmanAotBuilder\Toolchain\NativeDownloader;
+use WebmanAotBuilder\Toolchain\MacosToolchainPreparer;
+use WebmanAotBuilder\Toolchain\MinimalComponentLock;
+use WebmanAotBuilder\Toolchain\MinimalComponentManager;
+use WebmanAotBuilder\Toolchain\PreparedToolchain;
+use WebmanAotBuilder\Toolchain\ToolchainLocator;
+use WebmanAotBuilder\Toolchain\ToolchainPreparer;
+use WebmanAotBuilder\Toolchain\ToolchainRepairer;
+use WebmanAotBuilder\Toolchain\WindowsToolchainPreparer;
+use WebmanAotBuilder\Update\NativeCliSelfChecker;
+use WebmanAotBuilder\Update\UpdateManager;
+use WebmanAotBuilder\Update\ZipPackageExtractor;
+use WebmanAotBuilder\Version;
 
 final class Application
 {
@@ -174,7 +174,7 @@ final class Application
         }
 
         throw new UsageException(
-            "Unknown command: {$command}. Run 'webman-aot help' to see available commands."
+            "Unknown command: {$command}. Run 'webman-aot-builder help' to see available commands."
         );
     }
 
@@ -188,7 +188,7 @@ final class Application
             return;
         }
         if ($command === 'version') {
-            fwrite(STDOUT, 'webman-aot ' . Version::VALUE . PHP_EOL);
+            fwrite(STDOUT, 'webman-aot-builder ' . Version::VALUE . PHP_EOL);
             return;
         }
         if ($command === 'doctor') {
@@ -218,10 +218,10 @@ final class Application
     private function writeHelp(): void
     {
         $lines = [
-            'Webman AOT ' . Version::VALUE,
+            'Webman AOT Builder ' . Version::VALUE,
             '',
             'Usage:',
-            '  webman-aot <command>',
+            '  webman-aot-builder <command>',
             '',
             'Commands:',
             '  help       Show this help',
@@ -275,7 +275,7 @@ final class Application
                 && !in_array($check['id'], ['minimal-component', 'prepared-toolchain'], true)
             ) {
                 throw new UnavailableException(
-                    'build preflight failed: ' . $check['id'] . '; run webman-aot doctor for details'
+                    'build preflight failed: ' . $check['id'] . '; run webman-aot-builder doctor for details'
                 );
             }
         }
@@ -300,12 +300,12 @@ final class Application
         }
         $doctor = ($this->doctorFactory)()->inspect();
         if (!$doctor->healthy()) {
-            throw new UnavailableException('build doctor failed; run webman-aot doctor for details');
+            throw new UnavailableException('build doctor failed; run webman-aot-builder doctor for details');
         }
         $locator = new ToolchainLocator($this->layout);
         $generation = $locator->activeGeneration($host);
         if ($generation === null) {
-            throw new UnavailableException('private toolchain is missing; run webman-aot doctor');
+            throw new UnavailableException('private toolchain is missing; run webman-aot-builder doctor');
         }
         $lockFile = $generation . '/toolchain.lock.json';
         $tools = (new PreparedToolchain())->load(
@@ -478,14 +478,16 @@ final class Application
         if ($repair) {
             $report = ($this->doctorFactory)()->inspect();
         }
+        $reportData = $report->toArray();
+        $reportData['userDataRoot'] = $this->layout->root();
         if ($json) {
             $payload = $repair
                 ? [
-                    'schema' => 'webman-aot-doctor-repair-v1',
+                    'schema' => 'webman-aot-builder-doctor-repair-v1',
                     'repair' => $repairResult,
-                    'doctor' => $report->toArray(),
+                    'doctor' => $reportData,
                 ]
-                : $report->toArray();
+                : $reportData;
             fwrite(STDOUT, json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
@@ -497,7 +499,7 @@ final class Application
                     'Toolchain generation activated: ' . $repairResult['generation'] . PHP_EOL . PHP_EOL
                 );
             }
-            fwrite(STDOUT, $report->toHuman());
+            fwrite(STDOUT, 'User data: ' . $this->layout->root() . PHP_EOL . $report->toHuman());
         }
         if (!$report->healthy()) {
             throw new UnavailableException('doctor found one or more failed checks');
@@ -542,7 +544,7 @@ final class Application
             strictMutable: !$deployed
         );
         $report = [
-            'schema' => 'webman-aot-verify-report-v1',
+            'schema' => 'webman-aot-builder-verify-report-v1',
             'path' => realpath($path),
             'mode' => $deployed ? 'deployed' : 'package',
             'scope' => $verified['ldd'] === 'static'
@@ -668,7 +670,7 @@ final class Application
     private function parseUpdateOptions(array $options): array
     {
         $rollback = false;
-        $manifest = getenv('WEBMAN_AOT_UPDATE_MANIFEST_URL');
+        $manifest = getenv('WEBMAN_AOT_BUILDER_UPDATE_MANIFEST_URL');
         $trustedKeys = dirname(__DIR__, 2) . '/update-trusted-keys.json';
         foreach ($options as $option) {
             if ($option === '--rollback') {

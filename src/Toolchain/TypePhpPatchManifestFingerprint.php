@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class TypePhpPatchManifestFingerprint
 {

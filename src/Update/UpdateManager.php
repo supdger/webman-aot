@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Platform\UserDirectoryLayout;
-use WebmanAot\Toolchain\Downloader;
-use WebmanAot\Toolchain\ToolchainLocator;
-use WebmanAot\Toolchain\ToolchainPreparer;
-use WebmanAot\Toolchain\ToolchainRepairer;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Toolchain\Downloader;
+use WebmanAotBuilder\Toolchain\ToolchainLocator;
+use WebmanAotBuilder\Toolchain\ToolchainPreparer;
+use WebmanAotBuilder\Toolchain\ToolchainRepairer;
 
 final class UpdateManager
 {

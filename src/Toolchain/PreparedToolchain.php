@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class PreparedToolchain
 {
@@ -42,7 +42,7 @@ final class PreparedToolchain
             ? hash_file('sha256', $lockFile)
             : false;
         if (!is_array($data)
-            || ($data['schema'] ?? null) !== 'webman-aot-prepared-toolchain-v1'
+            || ($data['schema'] ?? null) !== 'webman-aot-builder-prepared-toolchain-v1'
             || ($data['host'] ?? null) !== $host
             || !is_string($lockDigest)
             || ($data['lockSha256'] ?? null) !== $lockDigest

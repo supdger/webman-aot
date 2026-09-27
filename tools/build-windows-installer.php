@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use WebmanAot\Cli\ProgressOutput;
-use WebmanAot\Toolchain\NativeDownloader;
+use WebmanAotBuilder\Cli\ProgressOutput;
+use WebmanAotBuilder\Toolchain\NativeDownloader;
 
 require dirname(__DIR__) . '/src/Cli/ProgressOutput.php';
 require dirname(__DIR__) . '/src/Toolchain/Downloader.php';
@@ -18,7 +18,7 @@ if (PHP_VERSION_ID < 80400 || !extension_loaded('zip') || !extension_loaded('Pha
 $root = dirname(__DIR__);
 $output = $root . '/dist/source-build';
 $compare = null;
-$revision = 'v' . WebmanAot\Version::VALUE;
+$revision = 'v' . WebmanAotBuilder\Version::VALUE;
 $revisionProvided = false;
 $flavor = 'small';
 $minimalComponentInput = null;
@@ -249,8 +249,8 @@ function referenceRevision(string $path): string
     }
     $package = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
     if (!is_array($package)
-        || ($package['schema'] ?? null) !== 'webman-aot-installer-package-v1'
-        || ($package['version'] ?? null) !== WebmanAot\Version::VALUE
+        || ($package['schema'] ?? null) !== 'webman-aot-builder-installer-package-v1'
+        || ($package['version'] ?? null) !== WebmanAotBuilder\Version::VALUE
         || ($package['platform'] ?? null) !== 'windows-x86_64'
         || !is_string($package['revision'] ?? null)
         || preg_match('/^[a-zA-Z0-9._-]{1,128}$/D', $package['revision']) !== 1
@@ -273,12 +273,14 @@ try {
     $toolchainLock = readLockedJson($root . '/toolchain.lock.json');
     $minimalLock = readLockedJson($root . '/toolchain/minimal-components.lock.json');
     $minimalWindows = $minimalLock['components']['windows-x86_64'] ?? null;
-    if (($minimalLock['version'] ?? null) !== WebmanAot\Version::VALUE
+    if (($minimalLock['schema'] ?? null) !== 'webman-aot-builder-minimal-components-lock-v1'
+        || ($minimalLock['version'] ?? null) !== WebmanAotBuilder\Version::VALUE
         || ($minimalLock['toolchainLockSha256'] ?? null)
             !== hash_file('sha256', $root . '/toolchain.lock.json')
         || !is_array($minimalWindows)
         || !preg_match('/^[a-f0-9]{64}$/D', (string) ($minimalWindows['sha256'] ?? ''))
-        || !preg_match('/^webman-aot-[a-zA-Z0-9._-]+-components\.zip$/D', (string) ($minimalWindows['archive'] ?? ''))
+        || ($minimalWindows['archive'] ?? null) !== 'webman-aot-builder-'
+            . WebmanAotBuilder\Version::VALUE . '-windows-x86_64-components.zip'
     ) {
         throw new RuntimeException('Locked minimal Windows component is invalid');
     }
@@ -313,8 +315,8 @@ try {
         fwrite(STDOUT, "[OK] Reusing SHA-256 verified local minimal Windows component\n");
     } else {
         $minimalComponent = verifiedInput(
-            'https://github.com/supdger/webman-aot/releases/download/v'
-                . WebmanAot\Version::VALUE . '/' . $minimalWindows['archive'],
+            'https://github.com/supdger/webman-aot-builder/releases/download/v'
+                . WebmanAotBuilder\Version::VALUE . '/' . $minimalWindows['archive'],
             (string) $minimalWindows['sha256'],
             $inputs
         );
@@ -322,7 +324,7 @@ try {
     if (!is_dir($output) && !mkdir($output, 0700, true) && !is_dir($output)) {
         throw new RuntimeException("Unable to create output directory: {$output}");
     }
-    $archive = $output . '/webman-aot-' . WebmanAot\Version::VALUE
+    $archive = $output . '/webman-aot-builder-' . WebmanAotBuilder\Version::VALUE
         . ($flavor === 'full' ? '-full' : '') . '-windows-x86_64.zip';
     if ($compare !== null && is_file($archive) && realpath($archive) === realpath($compare)) {
         throw new RuntimeException('Comparison ZIP must not be the output ZIP');

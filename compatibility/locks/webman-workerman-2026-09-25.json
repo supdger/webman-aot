@@ -1,5 +1,5 @@
 {
-  "schema": "webman-aot-upstream-generator-lock-v1",
+  "schema": "webman-aot-builder-upstream-generator-lock-v1",
   "status": "prototype-only",
   "packages": {
     "nikic/fast-route": {

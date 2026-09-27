@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class MinimalComponent
 {
@@ -41,7 +41,7 @@ final class MinimalComponent
                 : null;
             $entries = is_array($manifest) ? ($manifest['entries'] ?? null) : null;
             if (!is_array($entries)
-                || ($manifest['schema'] ?? null) !== 'webman-aot-minimal-component-v1'
+                || ($manifest['schema'] ?? null) !== 'webman-aot-builder-minimal-component-v1'
                 || ($manifest['host'] ?? null) !== $host
                 || ($manifest['toolchainLockSha256'] ?? null) !== $expectedLockSha256
             ) {
@@ -157,7 +157,7 @@ final class MinimalComponent
         $manifest = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
         $entries = is_array($manifest) ? ($manifest['entries'] ?? null) : null;
         if (!is_array($entries)
-            || ($manifest['schema'] ?? null) !== 'webman-aot-minimal-component-v1'
+            || ($manifest['schema'] ?? null) !== 'webman-aot-builder-minimal-component-v1'
             || ($manifest['host'] ?? null) !== $host
             || ($manifest['toolchainLockSha256'] ?? null) !== $expectedLockSha256
             || !hash_equals(

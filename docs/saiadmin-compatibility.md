@@ -10,13 +10,13 @@ SaiAdmin 完整重建的 ELF、规范化输入及分发文件摘要与 Mac 产�
 
 ## 使用
 
-目标项目不需要安装 AOT Composer 插件。安装全局 `webman-aot` 后，在
+目标项目不需要安装 AOT Composer 插件。安装 Webman AOT Builder 后，在
 SaiAdmin 后端目录运行：
 
 ```sh
-webman-aot doctor
-webman-aot build --profile=saiadmin
-webman-aot verify --path=dist-aot
+webman-aot-builder doctor
+webman-aot-builder build --profile=saiadmin
+webman-aot-builder verify --path=dist-aot
 ```
 
 `doctor` 在其余环境检查通过后，会自动下载、校验并准备缺少的私有工具链；
@@ -89,5 +89,6 @@ public function __construct($message, $code = 400, ?Throwable $previous = null)
 配置、模板和明确登记的第三方动态文件可以随包；自有业务 PHP 和
 已安装插件的业务 PHP 必须直接编译或由可追溯的 AOT 副本替代。
 新增插件后应重新执行构建和业务验收，不能把 ELF 生成视为功能成功。
-新增插件的直接编译和 Linux / 普通 PHP HTTP 路由对照，见
+新增插件的直接编译和 Linux / 普通 PHP HTTP 路由对照，证据是在仓库更名前生成，
+因此链接保留旧仓库地址，见
 [中立插件验证记录](https://github.com/supdger/webman-aot/blob/2ce04a4c5f6be438bb2c5fb5ff43925b20ab5272/evidence/2026-09-25-neutral-plugin-full-build-runtime.json)。

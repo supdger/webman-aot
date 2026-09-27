@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
 final class RuntimeResourceManifest
 {
@@ -41,7 +41,7 @@ final class RuntimeResourceManifest
     public function toArray(): array
     {
         return [
-            'schema' => 'webman-aot-runtime-resources-v1',
+            'schema' => 'webman-aot-builder-runtime-resources-v1',
             'entries' => $this->entries,
             'counts' => $this->counts(),
         ];

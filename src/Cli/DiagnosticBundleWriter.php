@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Cli;
+namespace WebmanAotBuilder\Cli;
 
-use WebmanAot\Version;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Version;
 
 final class DiagnosticBundleWriter
 {
-    public function __construct(private readonly RunLogger $logger)
-    {
+    public function __construct(
+        private readonly RunLogger $logger,
+        private readonly UserDirectoryLayout $layout
+    ) {
     }
 
     public function write(
@@ -21,10 +24,11 @@ final class DiagnosticBundleWriter
     ): string {
         $path = $this->logger->directory() . '/diagnostic.json';
         $diagnostic = [
-            'schema' => 'webman-aot-diagnostic-v1',
+            'schema' => 'webman-aot-builder-diagnostic-v1',
             'runId' => $this->logger->runId(),
             'version' => Version::VALUE,
             'command' => $command,
+            'userDataRoot' => $this->layout->root(),
             'failedStage' => $failedStage,
             'exitCode' => $exitCode,
             'failure' => [

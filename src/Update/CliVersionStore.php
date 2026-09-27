@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\UnavailableException;
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Cli\UnavailableException;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class CliVersionStore
 {
@@ -26,8 +26,8 @@ final class CliVersionStore
         rsort($directories, SORT_STRING);
         foreach ($directories as $directory) {
             $manifest = $this->manifest($directory);
-            if (($manifest['schema'] ?? null) !== 'webman-aot-cli-generation-v1'
-                || !is_file($directory . '/app/bin/webman-aot.php')
+            if (($manifest['schema'] ?? null) !== 'webman-aot-builder-cli-generation-v1'
+                || !is_file($directory . '/app/bin/webman-aot-builder.php')
                 || !is_file($directory . '/app/src/Version.php')
             ) {
                 continue;
@@ -43,7 +43,7 @@ final class CliVersionStore
     {
         $generation = $this->activeGeneration();
 
-        return $generation === null ? null : $generation . '/app/bin/webman-aot.php';
+        return $generation === null ? null : $generation . '/app/bin/webman-aot-builder.php';
     }
 
     /**
@@ -51,7 +51,7 @@ final class CliVersionStore
      */
     public function promote(string $candidate, string $version, array $metadata): string
     {
-        foreach (['app/bin/webman-aot.php', 'app/src/Version.php'] as $relativePath) {
+        foreach (['app/bin/webman-aot-builder.php', 'app/src/Version.php'] as $relativePath) {
             if (!is_file($candidate . '/' . $relativePath)) {
                 throw new UnavailableException("CLI candidate is incomplete: {$relativePath}");
             }
@@ -60,7 +60,7 @@ final class CliVersionStore
         $this->createDirectory($versions);
         $name = $this->nextGenerationName($versions, $version);
         $manifest = [
-            'schema' => 'webman-aot-cli-generation-v1',
+            'schema' => 'webman-aot-builder-cli-generation-v1',
             'generation' => $name,
             'version' => $version,
             'metadata' => $metadata,
@@ -121,8 +121,8 @@ final class CliVersionStore
                 continue;
             }
             $manifest = $this->manifest($directory);
-            if (($manifest['schema'] ?? null) === 'webman-aot-cli-generation-v1'
-                && is_file($directory . '/app/bin/webman-aot.php')
+            if (($manifest['schema'] ?? null) === 'webman-aot-builder-cli-generation-v1'
+                && is_file($directory . '/app/bin/webman-aot-builder.php')
                 && is_file($directory . '/app/src/Version.php')
             ) {
                 $valid[] = $directory;

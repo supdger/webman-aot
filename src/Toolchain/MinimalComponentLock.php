@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Version;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Version;
 
 final class MinimalComponentLock
 {
@@ -25,7 +25,7 @@ final class MinimalComponentLock
             ? json_decode($contents, true, flags: JSON_THROW_ON_ERROR)
             : null;
         if (!is_array($lock)
-            || ($lock['schema'] ?? null) !== 'webman-aot-minimal-components-lock-v1'
+            || ($lock['schema'] ?? null) !== 'webman-aot-builder-minimal-components-lock-v1'
             || ($lock['version'] ?? null) !== Version::VALUE
             || !is_array($lock['components'] ?? null)
         ) {
@@ -48,7 +48,7 @@ final class MinimalComponentLock
         $sha256 = is_array($component) ? ($component['sha256'] ?? null) : null;
         $manifestSha256 = is_array($component) ? ($component['manifestSha256'] ?? null) : null;
         if (!is_string($archive)
-            || $archive !== 'webman-aot-' . Version::VALUE . '-' . $host . '-components.zip'
+            || $archive !== 'webman-aot-builder-' . Version::VALUE . '-' . $host . '-components.zip'
             || !is_string($sha256) || preg_match('/^[a-f0-9]{64}$/D', $sha256) !== 1
             || !is_string($manifestSha256)
             || preg_match('/^[a-f0-9]{64}$/D', $manifestSha256) !== 1
@@ -60,7 +60,7 @@ final class MinimalComponentLock
             'sha256' => $sha256,
             'manifestSha256' => $manifestSha256,
             'toolchainLockSha256' => $expectedToolchain,
-            'url' => 'https://github.com/supdger/webman-aot/releases/download/v'
+            'url' => 'https://github.com/supdger/webman-aot-builder/releases/download/v'
                 . Version::VALUE . '/' . $archive,
         ];
     }

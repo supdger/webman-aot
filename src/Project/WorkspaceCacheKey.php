@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class WorkspaceCacheKey
 {
@@ -32,7 +32,7 @@ final class WorkspaceCacheKey
             static fn(array $left, array $right): int => $left['path'] <=> $right['path']
         );
         $payload = json_encode([
-            'schema' => 'webman-aot-workspace-cache-key-v1',
+            'schema' => 'webman-aot-builder-workspace-cache-key-v1',
             'profile' => $profile->name(),
             'packages' => $packages,
             'coverage' => $files,

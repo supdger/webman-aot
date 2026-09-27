@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use WebmanAot\Platform\UserDirectoryLayout;
-use WebmanAot\Toolchain\MacosToolchainPreparer;
-use WebmanAot\Toolchain\MinimalComponentLock;
-use WebmanAot\Toolchain\MinimalComponentManager;
-use WebmanAot\Toolchain\NativeDownloader;
-use WebmanAot\Toolchain\WindowsToolchainPreparer;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Toolchain\MacosToolchainPreparer;
+use WebmanAotBuilder\Toolchain\MinimalComponentLock;
+use WebmanAotBuilder\Toolchain\MinimalComponentManager;
+use WebmanAotBuilder\Toolchain\NativeDownloader;
+use WebmanAotBuilder\Toolchain\WindowsToolchainPreparer;
 
 $app = dirname(__DIR__);
 spl_autoload_register(static function (string $class) use ($app): void {
-    $prefix = 'WebmanAot\\';
+    $prefix = 'WebmanAotBuilder\\';
     if (!str_starts_with($class, $prefix)) {
         return;
     }

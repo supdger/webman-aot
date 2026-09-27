@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class ProjectWorkspace
 {
-    private const SCHEMA = 'webman-aot-project-workspace-v1';
+    private const SCHEMA = 'webman-aot-builder-project-workspace-v1';
 
     private readonly string $root;
 
@@ -16,7 +16,7 @@ final class ProjectWorkspace
     {
         $this->root = rtrim($projectDirectory, '/\\')
             . DIRECTORY_SEPARATOR
-            . '.webman-aot';
+            . '.webman-aot-builder';
     }
 
     /**
@@ -102,7 +102,7 @@ final class ProjectWorkspace
         if (!is_string($project)
             || !is_string($workspace)
             || dirname($workspace) !== $project
-            || basename($workspace) !== '.webman-aot'
+            || basename($workspace) !== '.webman-aot-builder'
         ) {
             throw new ConfigurationException('project workspace escaped the project root');
         }

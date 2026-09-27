@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class TrustedKeyStore
 {
@@ -29,7 +29,7 @@ final class TrustedKeyStore
             );
         }
         if (!is_array($document)
-            || ($document['schema'] ?? null) !== 'webman-aot-trusted-update-keys-v1'
+            || ($document['schema'] ?? null) !== 'webman-aot-builder-trusted-update-keys-v1'
             || !is_array($document['keys'] ?? null)
         ) {
             throw new ConfigurationException('trusted update key store is invalid');

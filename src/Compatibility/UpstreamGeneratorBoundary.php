@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class UpstreamGeneratorBoundary
 {
@@ -291,7 +291,7 @@ final class UpstreamGeneratorBoundary
     {
         return str_contains(
             str_replace('\\', '/', $path),
-            '/.webman-aot/build/'
+            '/.webman-aot-builder/build/'
         );
     }
 

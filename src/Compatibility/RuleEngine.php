@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class RuleEngine
 {
@@ -22,7 +22,7 @@ final class RuleEngine
         $projectRoot = realpath($projectDirectory);
         $buildRoot = realpath($buildDirectory);
         if (!is_string($projectRoot) || !is_string($buildRoot) || is_link($buildDirectory)
-            || !str_starts_with($buildRoot, $projectRoot . DIRECTORY_SEPARATOR . '.webman-aot' . DIRECTORY_SEPARATOR)
+            || !str_starts_with($buildRoot, $projectRoot . DIRECTORY_SEPARATOR . '.webman-aot-builder' . DIRECTORY_SEPARATOR)
         ) {
             throw new ConfigurationException('compatibility build directory is not an owned workspace');
         }
@@ -99,6 +99,7 @@ final class RuleEngine
     {
         return preg_match('~^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\.\.(?:/|$))(?!.*\\\\)[A-Za-z0-9_./-]+\.php$~D', $path) === 1
             && !str_contains($path, '//')
+            && !str_starts_with($path, '.webman-aot-builder/')
             && !str_starts_with($path, '.webman-aot/');
     }
 

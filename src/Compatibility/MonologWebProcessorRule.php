@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class MonologWebProcessorRule
 {
@@ -20,7 +20,7 @@ final class MonologWebProcessorRule
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
             || is_link($mirrorDirectory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot/build/project')
+            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
         ) {
             throw new ConfigurationException('Monolog adaptation requires an isolated project mirror');
         }

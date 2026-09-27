@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Cli;
+namespace WebmanAotBuilder\Cli;
 
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class RunLogger
 {

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'webman-aot'),
-    [string]$BinDir = (Join-Path $env:LOCALAPPDATA 'webman-aot\bin'),
+    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'webman-aot-builder'),
+    [string]$BinDir = (Join-Path $env:LOCALAPPDATA 'webman-aot-builder\bin'),
     [switch]$NoPath
 )
 
@@ -22,7 +22,7 @@ if ($installPath.TrimEnd('\') -eq $installDrive.TrimEnd('\') -or
     $installPath.TrimEnd('\') -eq $env:USERPROFILE.TrimEnd('\') -or
     ((Test-Path -LiteralPath $InstallRoot) -and
         ((Get-Item -LiteralPath $InstallRoot).Attributes -band [IO.FileAttributes]::ReparsePoint))) {
-    throw "Unsafe Webman AOT installation directory: $InstallRoot"
+    throw "Unsafe Webman AOT Builder installation directory: $InstallRoot"
 }
 if ($full) {
     $freeBytes = ([IO.DriveInfo]::new($installDrive)).AvailableFreeSpace
@@ -48,40 +48,43 @@ foreach ($line in $manifestLines) {
 Write-Output "Package contents SHA-256 verified: $($manifestLines.Count) files"
 
 $candidate = Join-Path $InstallRoot ('.w-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-$backup = $null
+$smallBackup = $null
 $fullBackup = $null
 $newCurrent = $false
 $newToolchains = $false
 $newLauncher = $false
+$smallLauncherPrepared = $false
+$pathChanged = $false
+$previousUserPath = $null
 try {
     $candidateCurrent = Join-Path $candidate 'current'
     New-Item -ItemType Directory -Force -Path $candidateCurrent | Out-Null
     Copy-Item -Recurse -Force -LiteralPath (Join-Path $packageRoot 'payload\app') -Destination (Join-Path $candidateCurrent 'app')
     Copy-Item -Recurse -Force -LiteralPath (Join-Path $packageRoot 'payload\runtime') -Destination (Join-Path $candidateCurrent 'runtime')
 
-    $previousHome = $env:WEBMAN_AOT_HOME
-    $env:WEBMAN_AOT_HOME = $candidate
+    $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+    $env:WEBMAN_AOT_BUILDER_HOME = $candidate
     try {
         & (Join-Path $candidateCurrent 'runtime\php.exe') `
             -c (Join-Path $candidateCurrent 'runtime\php.ini') `
             -d "extension_dir=$(Join-Path $candidateCurrent 'runtime\ext')" `
-            (Join-Path $candidateCurrent 'app\bin\webman-aot.php') --version | Out-Null
+            (Join-Path $candidateCurrent 'app\bin\webman-aot-builder.php') --version | Out-Null
         if ($LASTEXITCODE -ne 0) {
             throw 'Candidate self-check failed.'
         }
     } finally {
-        $env:WEBMAN_AOT_HOME = $previousHome
+        $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
     }
 
     New-Item -ItemType Directory -Force -Path (Join-Path $InstallRoot '.install-backups') | Out-Null
     $current = Join-Path $InstallRoot 'current'
     New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
-    $launcher = Join-Path $BinDir 'webman-aot.cmd'
+    $launcher = Join-Path $BinDir 'webman-aot-builder.cmd'
     if ($full) {
         $bundle = Join-Path $packageRoot 'payload\minimal-toolchain\component.zip'
         $offlineScript = Join-Path $candidateCurrent 'app\installer\offline-prepare.php'
-        $previousHome = $env:WEBMAN_AOT_HOME
-        $env:WEBMAN_AOT_HOME = $candidate
+        $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+        $env:WEBMAN_AOT_BUILDER_HOME = $candidate
         try {
             & (Join-Path $candidateCurrent 'runtime\php.exe') `
                 -c (Join-Path $candidateCurrent 'runtime\php.ini') `
@@ -89,7 +92,7 @@ try {
                 $offlineScript $bundle
             if ($LASTEXITCODE -ne 0) { throw 'Offline toolchain preparation failed.' }
         } finally {
-            $env:WEBMAN_AOT_HOME = $previousHome
+            $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
         }
         $fullBackup = Join-Path $InstallRoot ('.install-backups\full-' +
             [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-' + $PID)
@@ -101,16 +104,16 @@ try {
             }
         }
         if (Test-Path -LiteralPath $launcher) {
-            Move-Item -LiteralPath $launcher -Destination (Join-Path $fullBackup 'webman-aot.cmd')
+            Move-Item -LiteralPath $launcher -Destination (Join-Path $fullBackup 'webman-aot-builder.cmd')
         }
         Move-Item -LiteralPath $candidateCurrent -Destination $current
         $newCurrent = $true
         Move-Item -LiteralPath (Join-Path $candidate 'toolchains') -Destination (Join-Path $InstallRoot 'toolchains')
         $newToolchains = $true
-        Copy-Item -LiteralPath (Join-Path $packageRoot 'payload\launcher\webman-aot.cmd') -Destination $launcher
+        Copy-Item -LiteralPath (Join-Path $packageRoot 'payload\launcher\webman-aot-builder.cmd') -Destination $launcher
         $newLauncher = $true
-        $previousHome = $env:WEBMAN_AOT_HOME
-        $env:WEBMAN_AOT_HOME = $InstallRoot
+        $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+        $env:WEBMAN_AOT_BUILDER_HOME = $InstallRoot
         try {
             & (Join-Path $current 'runtime\php.exe') `
                 -c (Join-Path $current 'runtime\php.ini') `
@@ -118,22 +121,23 @@ try {
                 (Join-Path $current 'app\installer\offline-prepare.php') $bundle
             if ($LASTEXITCODE -ne 0) { throw 'Activated offline toolchain self-check failed.' }
         } finally {
-            $env:WEBMAN_AOT_HOME = $previousHome
+            $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
         }
     } else {
+        $smallBackup = Join-Path $InstallRoot ('.install-backups\current-' +
+            [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-' + $PID)
+        New-Item -ItemType Directory -Force -Path $smallBackup | Out-Null
         if (Test-Path -LiteralPath $current) {
-            $backup = Join-Path $InstallRoot ('.install-backups\current-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-' + $PID)
-            Move-Item -LiteralPath $current -Destination $backup
+            Move-Item -LiteralPath $current -Destination (Join-Path $smallBackup 'current')
         }
-        try {
-            Move-Item -LiteralPath $candidateCurrent -Destination $current
-        } catch {
-            if ($null -ne $backup -and (Test-Path -LiteralPath $backup)) {
-                Move-Item -LiteralPath $backup -Destination $current
-            }
-            throw
+        if (Test-Path -LiteralPath $launcher) {
+            Move-Item -LiteralPath $launcher -Destination (Join-Path $smallBackup 'webman-aot-builder.cmd')
         }
-        Copy-Item -Force -LiteralPath (Join-Path $packageRoot 'payload\launcher\webman-aot.cmd') -Destination $launcher
+        $smallLauncherPrepared = $true
+        Move-Item -LiteralPath $candidateCurrent -Destination $current
+        $newCurrent = $true
+        Copy-Item -Force -LiteralPath (Join-Path $packageRoot 'payload\launcher\webman-aot-builder.cmd') -Destination $launcher
+        $newLauncher = $true
     }
 
     if (-not $NoPath) {
@@ -141,6 +145,8 @@ try {
         $parts = @($userPath -split ';' | Where-Object { $_ -ne '' })
         if ($parts -notcontains $BinDir) {
             $newPath = (($parts + $BinDir) -join ';')
+            $previousUserPath = $userPath
+            $pathChanged = $true
             [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
         }
         if (($env:Path -split ';') -notcontains $BinDir) {
@@ -148,6 +154,13 @@ try {
         }
     }
 } catch {
+    if ($pathChanged) {
+        try {
+            [Environment]::SetEnvironmentVariable('Path', $previousUserPath, 'User')
+        } catch {
+            Write-Warning 'Unable to restore the previous user PATH; installation files will still be restored.'
+        }
+    }
     if ($full -and $null -ne $fullBackup) {
         Write-Warning 'Complete installation failed; restoring the previous installation.'
         if ($newLauncher -and (Test-Path -LiteralPath $launcher)) {
@@ -165,7 +178,23 @@ try {
                 Move-Item -LiteralPath $saved -Destination (Join-Path $InstallRoot $name)
             }
         }
-        $savedLauncher = Join-Path $fullBackup 'webman-aot.cmd'
+        $savedLauncher = Join-Path $fullBackup 'webman-aot-builder.cmd'
+        if (Test-Path -LiteralPath $savedLauncher) {
+            Move-Item -LiteralPath $savedLauncher -Destination $launcher
+        }
+    } elseif ($null -ne $smallBackup) {
+        Write-Warning 'Installation failed; restoring the previous installation.'
+        if ($newCurrent -and (Test-Path -LiteralPath $current)) {
+            Remove-Item -Recurse -Force -LiteralPath $current
+        }
+        if ($smallLauncherPrepared -and (Test-Path -LiteralPath $launcher)) {
+            Remove-Item -Force -LiteralPath $launcher
+        }
+        $savedCurrent = Join-Path $smallBackup 'current'
+        if (Test-Path -LiteralPath $savedCurrent) {
+            Move-Item -LiteralPath $savedCurrent -Destination $current
+        }
+        $savedLauncher = Join-Path $smallBackup 'webman-aot-builder.cmd'
         if (Test-Path -LiteralPath $savedLauncher) {
             Move-Item -LiteralPath $savedLauncher -Destination $launcher
         }
@@ -177,9 +206,9 @@ try {
     }
 }
 
-Write-Output "Webman AOT installed in: $InstallRoot"
-Write-Output "Command installed as: $(Join-Path $BinDir 'webman-aot.cmd')"
+Write-Output "Webman AOT Builder installed in: $InstallRoot"
+Write-Output "Command installed as: $launcher"
 if ($full) {
-    Write-Output 'Complete offline toolchain ready. Enter a Webman project and run webman-aot build.'
+    Write-Output 'Complete offline toolchain ready. Enter a Webman project and run webman-aot-builder build.'
 }
 Write-Output ('Installation completed in {0:N1} seconds.' -f $installTimer.Elapsed.TotalSeconds)

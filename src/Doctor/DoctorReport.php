@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Doctor;
+namespace WebmanAotBuilder\Doctor;
 
 final class DoctorReport
 {
@@ -47,7 +47,7 @@ final class DoctorReport
     public function toArray(): array
     {
         return [
-            'schema' => 'webman-aot-doctor-v1',
+            'schema' => 'webman-aot-builder-doctor-v1',
             'healthy' => $this->healthy(),
             'host' => $this->host,
             'checks' => $this->checks,
@@ -56,7 +56,7 @@ final class DoctorReport
 
     public function toHuman(): string
     {
-        $lines = ['Webman AOT Doctor', 'Host: ' . $this->host, ''];
+        $lines = ['Webman AOT Builder Doctor', 'Host: ' . $this->host, ''];
         $missingComponents = 0;
         $repairable = false;
         $otherErrors = false;
@@ -102,15 +102,15 @@ final class DoctorReport
         $lines[] = '';
         $lines[] = $this->healthy() ? 'Result: healthy' : 'Result: unhealthy';
         if ($this->healthy()) {
-            $lines[] = 'Next: run webman-aot build'
+            $lines[] = 'Next: run webman-aot-builder build'
                 . ($profile === 'saiadmin' ? ' --profile=saiadmin' : '')
-                . ', then webman-aot verify.';
+                . ', then webman-aot-builder verify.';
         } else {
             if ($otherErrors) {
                 $lines[] = 'Fix the other [ERROR] checks above; repair alone may not resolve them.';
             }
             if ($repairable) {
-                $lines[] = 'Run webman-aot doctor to prepare missing compiler components automatically.';
+                $lines[] = 'Run webman-aot-builder doctor to prepare missing compiler components automatically.';
             }
             $lines[] = 'Build only when Result: healthy.';
         }

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class NativeCliSelfChecker implements CliSelfChecker
 {
@@ -14,7 +14,7 @@ final class NativeCliSelfChecker implements CliSelfChecker
 
     public function check(string $appRoot, string $expectedVersion): bool
     {
-        $entry = $appRoot . '/bin/webman-aot.php';
+        $entry = $appRoot . '/bin/webman-aot-builder.php';
         if (!is_file($entry)) {
             return false;
         }
@@ -24,8 +24,8 @@ final class NativeCliSelfChecker implements CliSelfChecker
                 $environment[$name] = $value;
             }
         }
-        $environment['WEBMAN_AOT_HOME'] = $this->layout->root();
-        $environment['WEBMAN_AOT_BOOTSTRAPPED'] = '1';
+        $environment['WEBMAN_AOT_BUILDER_HOME'] = $this->layout->root();
+        $environment['WEBMAN_AOT_BUILDER_BOOTSTRAPPED'] = '1';
         $command = PHP_OS_FAMILY === 'Windows'
             ? [PHP_BINARY, '-c', dirname(PHP_BINARY) . '/php.ini', $entry, '--version']
             : [PHP_BINARY, '-n', $entry, '--version'];
@@ -53,6 +53,6 @@ final class NativeCliSelfChecker implements CliSelfChecker
 
         return $exitCode === 0
             && is_string($stdout)
-            && rtrim($stdout, "\r\n") === 'webman-aot ' . $expectedVersion;
+            && rtrim($stdout, "\r\n") === 'webman-aot-builder ' . $expectedVersion;
     }
 }

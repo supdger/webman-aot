@@ -58,6 +58,12 @@ if (-not $verified) {
     try {
         Write-Output "Downloading locked Windows PHP runtime ..."
         $curlError = $partial + '.stderr'
+        $curlCommand = Get-Command 'curl.exe' -CommandType Application -ErrorAction Stop |
+            Select-Object -First 1
+        $curlPath = [string]$curlCommand.Source
+        if ([string]::IsNullOrWhiteSpace($curlPath)) {
+            throw 'curl.exe application path is unavailable.'
+        }
         for ($pass = 0; $pass -lt 2; $pass++) {
             $resume = (Test-Path -LiteralPath $partial -PathType Leaf) -and
                 ((Get-Item -LiteralPath $partial).Length -gt 0)
@@ -72,7 +78,7 @@ if (-not $verified) {
                 '--proto', '=https', '--proto-redir', '=https',
                 '--output', ('"' + $partial + '"'), ('"' + $runtime.archiveUrl + '"')
             )
-            $curl = Start-Process -FilePath (Get-Command curl.exe -CommandType Application).Source `
+            $curl = Start-Process -FilePath $curlPath `
                 -ArgumentList $curlArgs -NoNewWindow -PassThru -RedirectStandardError $curlError
             $lastBytes = 0L
             $lastWidth = 0
@@ -127,7 +133,7 @@ if (-not $verified) {
 Write-Output 'Locked Windows PHP runtime SHA-256 verified.'
 
 $sourceDrive = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($repository))
-$temporary = Join-Path $sourceDrive ('waot-source-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
+$temporary = Join-Path $sourceDrive ('webman-aot-builder-source-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
 New-Item -ItemType Directory -Path $temporary | Out-Null
 $previousTemp = $env:TEMP
 $previousTmp = $env:TMP
@@ -171,7 +177,7 @@ try {
             Join-Path $repository 'dist\source-build'
         }
         $suffix = if ($Flavor -eq 'full') { '-full' } else { '' }
-        $builtZip = Join-Path $packageDir "webman-aot-$version$suffix-windows-x86_64.zip"
+        $builtZip = Join-Path $packageDir "webman-aot-builder-$version$suffix-windows-x86_64.zip"
         if (-not (Test-Path -LiteralPath $builtZip -PathType Leaf)) {
             throw "Built installer is missing: $builtZip"
         }
@@ -192,17 +198,17 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw 'Temporary installer self-check failed.'
         }
-        $previousHome = $env:WEBMAN_AOT_HOME
-        $env:WEBMAN_AOT_HOME = $smokeHome
+        $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+        $env:WEBMAN_AOT_BUILDER_HOME = $smokeHome
         try {
             Write-Output '[verify] Running the installed version command ...'
-            $versionOutput = & (Join-Path $smokeBin 'webman-aot.cmd') version
-            if ($LASTEXITCODE -ne 0 -or $versionOutput -ne "webman-aot $version") {
+            $versionOutput = & (Join-Path $smokeBin 'webman-aot-builder.cmd') version
+            if ($LASTEXITCODE -ne 0 -or $versionOutput -ne "webman-aot-builder $version") {
                 throw "Installed tool version check failed: $versionOutput"
             }
             Write-Output "[OK] Temporary installation runs: $versionOutput"
         } finally {
-            $env:WEBMAN_AOT_HOME = $previousHome
+            $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
         }
     }
 } finally {

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class TypePhpProjectCompiler
 {
@@ -27,7 +27,7 @@ final class TypePhpProjectCompiler
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
-            || !str_contains(str_replace('\\', '/', $mirror), '/.webman-aot/build/')
+            || !str_contains(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/')
             || is_link($mirrorDirectory)
             || preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $outputName) !== 1
         ) {
@@ -48,7 +48,7 @@ final class TypePhpProjectCompiler
             ) !== 1
             || !str_contains($contents, "\nbuild-dir: build\n")
             || !str_contains($contents, "\ntarget-platform: x86_64-unknown-linux-musl\n")
-            || !str_contains($contents, 'reproducible-source-prefix: /usr/src/webman-aot')
+            || !str_contains($contents, 'reproducible-source-prefix: /usr/src/webman-aot-builder')
             || $sysrootFlag === ''
             || substr_count($contents, $sysrootFlag) !== 4
         ) {
