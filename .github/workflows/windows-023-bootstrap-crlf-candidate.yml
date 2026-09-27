@@ -221,9 +221,10 @@ jobs:
             if (Test-Path -LiteralPath 'composer.lock') {
               throw 'Official fixture unexpectedly contains a committed composer.lock; review dependency setup.'
             }
-            Write-Output '[composer] Official source has no lock. Resolving with Webman v2.2.4 and supported Carbon 3.14.0; required Webman package scripts stay enabled ...'
+            Write-Output '[composer] Official source has no lock. Resolving with Webman v2.2.4, Carbon 3.14.0 and VarExporter v7.4.18; required Webman package scripts stay enabled ...'
             & composer update --with workerman/webman-framework:2.2.4 `
-              --with nesbot/carbon:3.14.0 --no-interaction --prefer-dist --no-plugins
+              --with nesbot/carbon:3.14.0 --with symfony/var-exporter:7.4.18 `
+              --no-interaction --prefer-dist --no-plugins
             if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin Composer resolution/install failed.' }
             if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
               throw 'Composer did not generate a lock file.'
@@ -238,6 +239,12 @@ jobs:
             if ($carbonPackage.Count -ne 1 -or $carbonPackage[0].version -ne '3.14.0' -or
                 $carbonPackage[0].source.reference -ne '0023eaa2c9110e47446dd512a263c69c40cd41f2') {
               throw 'Composer resolved a different Carbon release than the supported local fixture.'
+            }
+            $exporterPackage = @($resolved.packages | Where-Object { $_.name -eq 'symfony/var-exporter' })
+            if ($exporterPackage.Count -ne 1 -or $exporterPackage[0].version -ne 'v7.4.18' -or
+                $exporterPackage[0].source.reference -ne 'd6a87acbe48cbc707b9aba7f1a6c2215aab02603' -or
+                @($resolved.packages | Where-Object { $_.name -eq 'symfony/polyfill-deepclone' }).Count -ne 0) {
+              throw 'Composer resolved unsupported Symfony deep-clone sources.'
             }
             $lockSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'composer.lock').Hash.ToLowerInvariant()
             Write-Output "[OK] Generated fixture composer.lock SHA-256=$lockSha; Webman v2.2.4/b080c9f"
