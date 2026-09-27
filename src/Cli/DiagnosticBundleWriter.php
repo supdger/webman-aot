@@ -43,7 +43,8 @@ final class DiagnosticBundleWriter
         ];
         $encoded = json_encode(
             $diagnostic,
-            JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE
+                | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
         if (file_put_contents($path, $encoded . "\n", LOCK_EX) === false) {
             throw new \RuntimeException('unable to write diagnostic bundle');

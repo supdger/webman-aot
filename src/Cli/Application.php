@@ -8,9 +8,12 @@ use WebmanAot\Doctor\Doctor;
 use WebmanAot\Doctor\NativeSystemProbe;
 use WebmanAot\Platform\UserDirectoryLayout;
 use WebmanAot\Project\DistributionVerifier;
+use WebmanAot\Project\ProfileDetector;
 use WebmanAot\Project\ProjectBuilder;
 use WebmanAot\Toolchain\NativeDownloader;
 use WebmanAot\Toolchain\MacosToolchainPreparer;
+use WebmanAot\Toolchain\MinimalComponentLock;
+use WebmanAot\Toolchain\MinimalComponentManager;
 use WebmanAot\Toolchain\PreparedToolchain;
 use WebmanAot\Toolchain\ToolchainLocator;
 use WebmanAot\Toolchain\ToolchainPreparer;
@@ -66,7 +69,12 @@ final class Application
                 $system,
                 Doctor::MINIMUM_FREE_BYTES,
                 $this->nativePreparer($system->hostId()),
-                $locator->activeGeneration($system->hostId())
+                $locator->activeGeneration($system->hostId()),
+                (new MinimalComponentLock())->forHost(
+                    dirname(__DIR__, 2) . '/toolchain/minimal-components.lock.json',
+                    $bundledLock,
+                    $system->hostId()
+                )
             );
         };
         $this->repairFactory = $repairFactory ?? function (): ToolchainRepairer {
@@ -114,6 +122,25 @@ final class Application
             dirname(__DIR__, 2) . '/tools/windows-replay.ps1',
             $this->layout->root()
         );
+    }
+
+    private function minimalManager(string $host): ?MinimalComponentManager
+    {
+        $component = (new MinimalComponentLock())->forHost(
+            dirname(__DIR__, 2) . '/toolchain/minimal-components.lock.json',
+            dirname(__DIR__, 2) . '/toolchain.lock.json',
+            $host
+        );
+        $preparer = $this->nativePreparer($host);
+        return $component !== null && $preparer !== null
+            ? new MinimalComponentManager(
+                $this->layout,
+                $host,
+                $component,
+                $preparer,
+                new NativeDownloader()
+            )
+            : null;
     }
 
     /**
@@ -199,7 +226,7 @@ final class Application
             'Commands:',
             '  help       Show this help',
             '  version    Show the CLI version',
-            '  doctor     Check the host, project, and locked toolchain',
+            '  doctor     Check the host and project; prepare missing toolchain components',
             '  build      Compile and verify a Linux amd64 musl distribution',
             '  verify     Independently check dist-aot (use --deployed after editing external resources)',
             '  self-update [--rollback]  Install or roll back a verified CLI generation',
@@ -239,15 +266,46 @@ final class Application
         if (!is_string($project) || $project === '') {
             throw new ConfigurationException('cannot resolve the current project directory');
         }
+        (new ProfileDetector($project))->detect();
+        $host = (new NativeSystemProbe())->hostId();
+        $manager = $this->minimalManager($host);
+        $preflight = ($this->doctorFactory)()->inspect();
+        foreach ($preflight->toArray()['checks'] as $check) {
+            if ($check['status'] !== 'ok'
+                && !in_array($check['id'], ['minimal-component', 'prepared-toolchain'], true)
+            ) {
+                throw new UnavailableException(
+                    'build preflight failed: ' . $check['id'] . '; run webman-aot doctor for details'
+                );
+            }
+        }
+        if ($manager !== null) {
+            $output = new ProgressOutput(STDERR);
+            try {
+                $manager->ensure(
+                    null,
+                    static function (string $message) use ($output): void {
+                        $output->message('[prepare] ' . $message);
+                    },
+                    static function (int $bytes, ?int $total) use ($output): void {
+                        $status = $total === null
+                            ? sprintf('[prepare] %.1f MiB received', $bytes / 1048576)
+                            : sprintf('[prepare] %.1f%%', min(99.9, $bytes * 100 / $total));
+                        $output->update($status);
+                    }
+                );
+            } finally {
+                $output->finish();
+            }
+        }
         $doctor = ($this->doctorFactory)()->inspect();
         if (!$doctor->healthy()) {
             throw new UnavailableException('build doctor failed; run webman-aot doctor for details');
         }
-        $host = (new NativeSystemProbe())->hostId();
         $locator = new ToolchainLocator($this->layout);
         $generation = $locator->activeGeneration($host);
         if ($generation === null) {
-            throw new UnavailableException('private toolchain is missing; run webman-aot doctor --repair');
+            throw new UnavailableException('private toolchain is missing; run webman-aot doctor');
         }
         $lockFile = $generation . '/toolchain.lock.json';
         $tools = (new PreparedToolchain())->load(
@@ -336,6 +394,7 @@ final class Application
     {
         $json = false;
         $repair = false;
+        $checkOnly = false;
         foreach ($options as $option) {
             if ($option === '--json' || $option === '--format=json') {
                 $json = true;
@@ -345,17 +404,80 @@ final class Application
                 $repair = true;
                 continue;
             }
+            if ($option === '--check') {
+                $checkOnly = true;
+                continue;
+            }
             throw new UsageException("Unknown doctor option: {$option}");
         }
-
-        $progress = function (string $message) use ($json): void {
-            $this->logger?->event('info', 'toolchain.progress', 'doctor', $message);
-            if (!$json) {
-                fwrite(STDERR, '[repair] ' . $message . PHP_EOL);
-            }
-        };
-        $repairResult = $repair ? ($this->repairFactory)()->repair($progress) : null;
+        if ($repair && $checkOnly) {
+            throw new UsageException('doctor --repair and --check cannot be combined');
+        }
         $report = ($this->doctorFactory)()->inspect();
+        $checks = $report->toArray()['checks'];
+        $repairable = false;
+        $otherFailure = false;
+        foreach ($checks as $check) {
+            if ($check['status'] === 'ok') {
+                continue;
+            }
+            if (str_starts_with($check['id'], 'component:')
+                || $check['id'] === 'prepared-toolchain'
+                || $check['id'] === 'minimal-component'
+            ) {
+                $repairable = true;
+            } elseif ($check['id'] === 'network-tcp') {
+                // A TCP probe can fail behind a proxy even when curl can download.
+                continue;
+            } else {
+                $otherFailure = true;
+            }
+        }
+        $repair = !$otherFailure && ($repair || (!$json && !$checkOnly && $repairable));
+        $output = new ProgressOutput(STDERR);
+        $progress = function (string $message) use ($output): void {
+            $this->logger?->event('info', 'toolchain.progress', 'doctor', $message);
+            $output->message('[repair] ' . $message);
+        };
+        $lastStep = '';
+        $lastBytes = 0;
+        $downloadProgress = function (string $step, int $bytes, ?int $total) use (
+            $output,
+            &$lastStep,
+            &$lastBytes
+        ): void {
+            $status = $total === null
+                ? sprintf('[repair] %s: %.1f MiB received', $step, $bytes / 1048576)
+                : sprintf('[repair] %s: %.1f%%', $step, min(99.9, $bytes * 100 / $total));
+            if ($step === $lastStep && $bytes < $lastBytes) {
+                $status .= ' (retrying from start)';
+            }
+            $output->update($status);
+            $lastStep = $step;
+            $lastBytes = $bytes;
+        };
+        try {
+            $manager = $this->minimalManager((new NativeSystemProbe())->hostId());
+            if ($repair && $manager !== null) {
+                $generation = $manager->ensure(
+                    null,
+                    $progress,
+                    static function (int $bytes, ?int $total) use ($downloadProgress): void {
+                        $downloadProgress('minimal component', $bytes, $total);
+                    }
+                );
+                $repairResult = ['generation' => basename($generation)];
+            } else {
+                $repairResult = $repair
+                    ? ($this->repairFactory)()->repair($progress, $downloadProgress)
+                    : null;
+            }
+        } finally {
+            $output->finish();
+        }
+        if ($repair) {
+            $report = ($this->doctorFactory)()->inspect();
+        }
         if ($json) {
             $payload = $repair
                 ? [
@@ -469,7 +591,23 @@ final class Application
             );
             return;
         }
-        $result = $manager->selfUpdate($parsed['manifest'], $parsed['trustedKeys']);
+        $output = new ProgressOutput(STDERR);
+        try {
+            $result = $manager->selfUpdate(
+                $parsed['manifest'],
+                $parsed['trustedKeys'],
+                static function (string $name, int $bytes, ?int $total) use ($output): void {
+                    $output->update($total === null
+                        ? sprintf('[update] %s: %.1f MiB received', $name, $bytes / 1048576)
+                        : sprintf('[update] %s: %.1f%%', $name, min(99.9, $bytes * 100 / $total)));
+                },
+                static function (string $message) use ($output): void {
+                    $output->message('[update] ' . $message);
+                }
+            );
+        } finally {
+            $output->finish();
+        }
         fwrite(
             STDOUT,
             sprintf(
@@ -496,7 +634,23 @@ final class Application
             );
             return;
         }
-        $result = $manager->updateToolchain($parsed['manifest'], $parsed['trustedKeys']);
+        $output = new ProgressOutput(STDERR);
+        try {
+            $result = $manager->updateToolchain(
+                $parsed['manifest'],
+                $parsed['trustedKeys'],
+                static function (string $name, int $bytes, ?int $total) use ($output): void {
+                    $output->update($total === null
+                        ? sprintf('[update] %s: %.1f MiB received', $name, $bytes / 1048576)
+                        : sprintf('[update] %s: %.1f%%', $name, min(99.9, $bytes * 100 / $total)));
+                },
+                static function (string $stage) use ($output): void {
+                    $output->message('[update] ' . $stage);
+                }
+            );
+        } finally {
+            $output->finish();
+        }
         fwrite(
             STDOUT,
             sprintf(

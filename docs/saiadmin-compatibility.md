@@ -15,12 +15,12 @@ SaiAdmin 后端目录运行：
 
 ```sh
 webman-aot doctor
-webman-aot doctor --repair
 webman-aot build --profile=saiadmin
 webman-aot verify --path=dist-aot
 ```
 
-`doctor` 只检查；只有 `--repair` 才下载、校验并准备私有工具链。
+`doctor` 在其余环境检查通过后，会自动下载、校验并准备缺少的私有工具链；
+只检查不下载可用 `doctor --check`。
 `build` 会在隔离副本里生成 AOT 适配，不改普通 PHP 源码。Mac ARM64
 和 Windows x64 都以同一套源码构建 Linux amd64 musl 全静态产物；
 Windows 可执行文件不是本阶段目标。`verify` 证明包完整性和静态结构，
@@ -75,6 +75,10 @@ public function __construct($message, $code = 400, ?Throwable $previous = null)
 用户信息和权限拒绝四条路径均通过；一次性数据库及账号已清理，
 隔离副本的源码已恢复。工具不会擅自修改目标项目。
 回归时应保留 `E_ALL`，不要靠关闭弃用警告掩盖这个问题。
+若项目已做此修复，AOT 适配规则接受原始和已修复的两种明确写法；
+缺失、重复或混用仍会报错。SaiAdmin 安装期 vendor 模板与实际
+`plugin/saiadmin/` 副本若不一致，构建仍会拒绝静默排除模板；
+应在项目的依赖补丁或上游版本中维护一致性。
 
 ## 新代码约束
 

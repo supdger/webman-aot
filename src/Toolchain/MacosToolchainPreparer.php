@@ -60,12 +60,29 @@ final class MacosToolchainPreparer implements ToolchainPreparer
         $tail = '';
         $exit = null;
         $nextHeartbeat = microtime(true) + 30;
+        $pendingStages = '';
+        $reportStages = static function (string $chunk) use ($progress, &$pendingStages): void {
+            if ($progress === null) {
+                return;
+            }
+            $pendingStages .= $chunk;
+            while (($newline = strpos($pendingStages, "\n")) !== false) {
+                $line = trim(substr($pendingStages, 0, $newline));
+                $pendingStages = substr($pendingStages, $newline + 1);
+                if (str_starts_with($line, '[prepare] ')) {
+                    $progress(substr($line, 10));
+                }
+            }
+        };
         while (true) {
             $status = proc_get_status($process);
             foreach ([1, 2] as $index) {
                 $chunk = stream_get_contents($pipes[$index]);
                 if (is_string($chunk) && $chunk !== '') {
                     $tail = substr($tail . $chunk, -8192);
+                    if ($index === 2) {
+                        $reportStages($chunk);
+                    }
                 }
             }
             if (!$status['running']) {
@@ -83,6 +100,9 @@ final class MacosToolchainPreparer implements ToolchainPreparer
             $chunk = stream_get_contents($pipes[$index]);
             if (is_string($chunk) && $chunk !== '') {
                 $tail = substr($tail . $chunk, -8192);
+                if ($index === 2) {
+                    $reportStages($chunk);
+                }
             }
             fclose($pipes[$index]);
         }

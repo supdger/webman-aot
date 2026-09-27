@@ -173,6 +173,7 @@ function prepare(array $arguments): void
         throw new RuntimeException('private PHP driver version differs from locked PHP');
     }
 
+    fwrite(STDERR, "[prepare] Extracting locked TypePHP and PHPX sources\n");
     $host = extractArchive($tar, $archives['typephp-macos-arm64'], $workRoot . '/typephp-host');
     $typephp = extractArchive($tar, $archives['typephp-source'], $workRoot . '/typephp-source');
     run(['/bin/cp', '-R', $host . '/vendor', $typephp . '/vendor']);
@@ -186,12 +187,14 @@ function prepare(array $arguments): void
     if (!rename($phpxSource, $phpx)) {
         throw new RuntimeException('unable to install locked PHPX source');
     }
+    fwrite(STDERR, "[prepare] Extracting Linux static SDK\n");
     $sdkSource = extractArchive($tar, $archives['phpx-sdk-linux-x64'], $workRoot . '/sdk-extract');
     makeDirectory($phpx . '/full-static');
     $sdk = $phpx . '/full-static/sdk';
     if (!rename($sdkSource, $sdk)) {
         throw new RuntimeException('unable to install locked Linux static SDK');
     }
+    fwrite(STDERR, "[prepare] Extracting private LLVM\n");
     $llvmSource = extractArchive($tar, $archives['llvm-macos-arm64'], $workRoot . '/llvm-extract');
     $llvm = $workRoot . '/llvm';
     if (!rename($llvmSource, $llvm)) {
@@ -205,6 +208,7 @@ function prepare(array $arguments): void
         throw new RuntimeException('locked private LLVM is incomplete or has the wrong version');
     }
 
+    fwrite(STDERR, "[prepare] Stripping and verifying static SDK\n");
     $repository = dirname(__DIR__);
     $stripped = json_decode(
         run([
@@ -226,6 +230,7 @@ function prepare(array $arguments): void
     putenv("PHPX_HOME={$phpx}");
     putenv("PHPRC={$phprc}");
     putenv('PATH=' . $phpHome . ':' . $llvm . '/bin:' . (getenv('PATH') ?: ''));
+    fwrite(STDERR, "[prepare] Applying guarded compiler patches\n");
     run([
         $php,
         $repository . '/tools/apply-typephp-patches.php',
@@ -233,6 +238,7 @@ function prepare(array $arguments): void
         "--phpx={$phpx}",
     ]);
 
+    fwrite(STDERR, "[prepare] Assembling locked Linux sysroot\n");
     $sysroot = $workRoot . '/sysroot';
     run([
         $php,

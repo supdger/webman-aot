@@ -34,12 +34,14 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
 不要强行覆盖；改用当前源码 ZIP，解压到**新文件夹**运行。
 
 **不用下载发布安装包或 `SHA256SUMS.txt`，也不用修改命令中的路径和版本。**
-首次运行会下载并校验锁定的 Windows PHP 和 TypePHP 源码输入；以后会复用
+首次运行会下载并校验锁定的 Windows PHP、TypePHP 源码与精简编译组件；
+精简组件也可用 `-MinimalComponent` 指定已下载且与锁文件摘要一致的本地 ZIP。
+以后会复用
 摘要符合锁文件的缓存。随后脚本从本仓库源码生成
-`dist/source-build/webman-aot-0.1.2-windows-x86_64.zip`，检查 ZIP 内的
+`dist/source-build/webman-aot-0.1.3-windows-x86_64.zip`，检查 ZIP 内的
 文件清单，在一次性目录解压、安装并运行 `webman-aot version`。过程会
 显示 `[prepare]`、`[download]`、`[build]`、`[verify]` 状态和耗时；
-只有看到 `[OK] Temporary installation runs: webman-aot 0.1.2` 且命令
+只有看到 `[OK] Temporary installation runs: webman-aot 0.1.3` 且命令
 退出码为 0，才算**工具安装包构建与本机安装自检通过**。一次性安装目录
 会清理，不会改你的用户 `PATH`；生成的 ZIP 留在 `dist/source-build/`。
 
@@ -50,12 +52,21 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
 
 Mac 安装包仍需下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责
 Windows 安装包。
+需要把同一精简组件放入 Windows 完整包时，在同一源码目录运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -Flavor full
+```
+
+完整包输出文件名含 `-full-`；轻量包和完整包通过同一个
+`toolchain/minimal-components.lock.json` 校验相同组件。首次准备组件需要联网；
+已在本地准备过时，两个命令会复用已校验的缓存。
 
 ## macOS Apple Silicon：先选你要做的事
 
 **只想在 Mac 上使用工具编译 Webman 项目：**不需要本页的源码构包步骤。
-到 [v0.1.2 Release](https://github.com/supdger/webman-aot/releases/tag/v0.1.2)
-下载 `webman-aot-0.1.2-macos-arm64.tar.gz`，按
+到 [v0.1.3 Release](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
+下载 `webman-aot-0.1.3-macos-arm64.tar.gz`，按
 [Mac 安装步骤](install-and-build.md#macos-apple-silicon)解压、安装，再回到
 [首页第 2 步](../README.md#第-2-步编译你的项目)使用 `webman-aot`。
 
@@ -78,6 +89,7 @@ Windows 安装包。
 | `dist/installer-inputs/v0.9.2.tar.gz` | 同一锁文件的 `typephp-source` 源码归档 |
 | `dist/installer-inputs/php-macos-upstream` | 用 `static-php-cli 2.8.5` 在锁定的 `/private/tmp/webman-aot-spc-2.8.5` 路径构建的原始 Mac CLI PHP |
 | `dist/installer-inputs/source-licenses/` | **同一次** CLI 构建产出的第三方许可文件目录，不能是空目录 |
+| `dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip` | 本仓库同版本 Release 的 Mac 精简组件，或用 `tools/build-minimal-component.php` 从已验证的本机完整工具链生成；下方命令会按锁文件核验摘要 |
 
 前两个公开归档可以直接在源码根目录下载；`curl` 会显示下载进度，后续脚本
 仍会核对锁定的 SHA-256：
@@ -90,16 +102,19 @@ curl -fL --retry 3 \
 curl -fL --retry 3 \
   https://codeload.github.com/swoole/typephp/tar.gz/refs/tags/v0.9.2 \
   -o dist/installer-inputs/v0.9.2.tar.gz
+curl -fL --retry 3 \
+  https://github.com/supdger/webman-aot/releases/download/v0.1.3/webman-aot-0.1.3-macos-arm64-components.zip \
+  -o dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip
 ```
 
-后两项**不能靠上述下载命令得到**。如果还没有锁定的 Mac CLI 和同次
+Mac CLI 与同次构建的许可文件**不能靠上述下载命令得到**。如果还没有锁定的 Mac CLI 和同次
 构建的许可文件，到这里就应停止：当前仓库没有可照抄的完整复建命令。
 [Mac 运行时源码与重链接材料](macos-runtime-source.md)供需要审查或修改
 LGPL 组件的人使用，但不是现成的安装包构建输入。
 
 ### 2. 转换已备齐的 Mac 输入
 
-下面两条命令分别生成 `php-compiler`（打包时使用的编译驱动）和
+下面两条命令分别生成 `php-compiler`（只负责转换）和
 `php-macos`（规范化后的工具运行时）。Mac 须有 Xcode 命令行工具及脚本
 使用的系统构建依赖。`driver-work` 必须是新建的空目录，两个输出文件
 必须事先不存在：
@@ -124,18 +139,24 @@ dist/installer-inputs/php-compiler tools/sanitize-macos-cli-runtime.php \
 四项原始输入和两个转换结果都备齐后，在同一源码根目录执行：
 
 ```sh
-dist/installer-inputs/php-compiler tools/package-installers.php \
+dist/installer-inputs/php-macos -n tools/package-installers.php \
   --platform=macos-arm64 \
   --mac-runtime=dist/installer-inputs/php-macos \
   --mac-compiler-driver=dist/installer-inputs/php-compiler \
   --mac-runtime-license-dir=dist/installer-inputs/source-licenses \
   --php-source-archive=dist/installer-inputs/php-8.4.25.tar.xz \
   --typephp-source-archive=dist/installer-inputs/v0.9.2.tar.gz \
+  --minimal-component=dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip \
+  --flavor=small \
   --output=dist/installers \
   --revision=source-build
 ```
 
-成功后应出现 `dist/installers/webman-aot-0.1.2-macos-arm64.tar.gz`，命令输出
+要生成完整包，用同一命令把 `--flavor=small` 改成 `--flavor=full`；
+其余输入和精简组件不变。`php-macos` 含打包所需的 ZIP 扩展，
+不能把上面命令的 PHP 换成不含 ZIP 的 `php-compiler`。
+
+成功后应出现 `dist/installers/webman-aot-0.1.3-macos-arm64.tar.gz`，命令输出
 路径、大小和 SHA-256；没有 `[ERROR]` 且退出码为 0 才算打包步骤通过。
 `--platform=macos-arm64` 表示**不需要 Windows PHP ZIP，也不会生成 Windows
 安装包**。想同时制作两个平台的安装包，另需锁定的 Windows PHP ZIP；
@@ -144,6 +165,17 @@ Windows 单独构包请用上面的 Windows 命令。
 `dist/` 被 Git 忽略：本机生成归档**不等于已经发布**。公开分发前还须核对
 第三方许可，对新归档做安装及构建验收，再由维护者上传到
 [Releases](https://github.com/supdger/webman-aot/releases)。
+
+## 精简组件如何维护
+
+组件不是第二套编译器，也不需要另建仓库。维护者只在锁定的 TypePHP、
+LLVM、PHPx SDK 或相关依赖确需升级时，用
+`tools/build-minimal-component.php` 从已经按 `toolchain.lock.json` 验证
+并准备好的本机工具链生成对应平台 ZIP。脚本会再次核对上游原始归档
+SHA-256，并只收录已验证编译所需文件。把两个 ZIP 的摘要写入
+`toolchain/minimal-components.lock.json` 后，轻量包按此锁下载，完整包
+按此锁内置；同一版本的两种包不得使用不同组件。更新组件必须重做
+Mac/Windows 安装、SaiAdmin 编译和 Linux 产物验收，不按日历无故重发。
 
 ## 验证新安装包
 

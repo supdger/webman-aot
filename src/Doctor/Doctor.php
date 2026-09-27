@@ -9,6 +9,7 @@ use WebmanAot\Project\ProfileDetector;
 use WebmanAot\Toolchain\LockValidator;
 use WebmanAot\Toolchain\HostComponentSelector;
 use WebmanAot\Toolchain\NativeDownloader;
+use WebmanAot\Toolchain\MinimalComponent;
 use WebmanAot\Toolchain\ToolchainPreparer;
 
 final class Doctor
@@ -22,7 +23,8 @@ final class Doctor
         private readonly SystemProbe $system,
         private readonly int $minimumFreeBytes = self::MINIMUM_FREE_BYTES,
         private readonly ?ToolchainPreparer $preparer = null,
-        private readonly ?string $generation = null
+        private readonly ?string $generation = null,
+        private readonly ?array $minimalComponent = null
     ) {
     }
 
@@ -53,13 +55,59 @@ final class Doctor
 
         $lock = $this->readLock($checks);
         if ($lock !== null) {
-            $this->inspectArtifacts($lock, $host, $checks);
-            $this->inspectNetwork($lock, $checks);
+            if ($this->minimalComponent !== null) {
+                $this->inspectMinimalComponent($host, $checks);
+            } else {
+                $this->inspectArtifacts($lock, $host, $checks);
+                $this->inspectNetwork($lock, $host, $checks);
+            }
         }
         $this->inspectPrepared($checks);
         $this->inspectProject($checks);
 
         return new DoctorReport($host, $checks);
+    }
+
+    /**
+     * @param list<array{id:string,status:string,message:string,details:array<string,mixed>}> $checks
+     */
+    private function inspectMinimalComponent(string $host, array &$checks): void
+    {
+        if ($this->generation === null
+            || !is_file($this->generation . '/minimal-component.json')
+        ) {
+            $checks[] = $this->check(
+                'minimal-component',
+                false,
+                'minimal toolchain component is not installed; preparation is required'
+            );
+            return;
+        }
+        try {
+            (new MinimalComponent())->verifyGeneration(
+                $this->generation,
+                $host,
+                $this->minimalComponent['manifestSha256'],
+                $this->minimalComponent['toolchainLockSha256']
+            );
+            $checks[] = $this->check(
+                'minimal-component',
+                true,
+                'installed minimal toolchain files match the locked manifest'
+            );
+            $checks[] = $this->check(
+                'network',
+                true,
+                'network is not required; the minimal toolchain is installed'
+            );
+        } catch (\Throwable $exception) {
+            $checks[] = $this->check(
+                'minimal-component',
+                false,
+                'installed minimal toolchain is incomplete or damaged',
+                ['error' => $exception->getMessage()]
+            );
+        }
     }
 
     /**
@@ -74,7 +122,7 @@ final class Doctor
             $checks[] = $this->check(
                 'prepared-toolchain',
                 false,
-                'private compiler tools are not prepared; run doctor --repair'
+                'private compiler tools are not prepared'
             );
             return;
         }
@@ -89,7 +137,7 @@ final class Doctor
             $checks[] = $this->check(
                 'prepared-toolchain',
                 false,
-                'private compiler tools are incomplete; run doctor --repair',
+                'private compiler tools are incomplete',
                 ['error' => $exception->getMessage()]
             );
         }
@@ -141,7 +189,7 @@ final class Doctor
      * @param array<string, mixed> $lock
      * @param list<array{id:string,status:string,message:string,details:array<string,mixed>}> $checks
      */
-    private function inspectNetwork(array $lock, array &$checks): void
+    private function inspectNetwork(array $lock, string $host, array &$checks): void
     {
         $missingArtifact = false;
         foreach ($checks as $check) {
@@ -162,7 +210,11 @@ final class Doctor
             return;
         }
         $urls = [];
-        foreach ($lock['components'] ?? [] as $component) {
+        $components = (new HostComponentSelector())->select(
+            is_array($lock['components'] ?? null) ? $lock['components'] : [],
+            $host
+        );
+        foreach ($components as $component) {
             if (is_array($component) && is_string($component['sourceUrl'] ?? null)) {
                 $url = NativeDownloader::sourceDownloadUrl($component['sourceUrl']);
                 $host = parse_url($url, PHP_URL_HOST);

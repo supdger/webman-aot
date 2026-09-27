@@ -110,9 +110,9 @@ final class DoctorReport
                 $lines[] = 'Fix the other [ERROR] checks above; repair alone may not resolve them.';
             }
             if ($repairable) {
-                $lines[] = 'Next: run webman-aot doctor --repair to download and prepare compiler components.';
+                $lines[] = 'Run webman-aot doctor to prepare missing compiler components automatically.';
             }
-            $lines[] = 'Run webman-aot doctor again. Build only when Result: healthy.';
+            $lines[] = 'Build only when Result: healthy.';
         }
 
         return implode(PHP_EOL, $lines) . PHP_EOL;

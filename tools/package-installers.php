@@ -24,6 +24,13 @@ final class InstallerPackager
             throw new RuntimeException('installer runtime lock is invalid');
         }
         $toolchainLock = $this->readJson($this->root . '/toolchain.lock.json');
+        $minimalComponent = $this->requiredOption('minimal-component');
+        $flavor = $this->options['flavor'] ?? 'small';
+        if (!in_array($flavor, ['small', 'full'], true)
+            || !is_file($minimalComponent) || is_link($minimalComponent)
+        ) {
+            throw new InvalidArgumentException('minimal component or installer flavor is invalid');
+        }
         $typePhpSource = $this->requiredOption('typephp-source-archive');
         $typePhpComponent = null;
         foreach ($toolchainLock['components'] ?? [] as $component) {
@@ -67,7 +74,9 @@ final class InstallerPackager
                     $this->requiredOption('mac-runtime-license-dir'),
                     $this->requiredOption('php-source-archive'),
                     $typePhpLicense,
-                    $lock['runtimes']['macos-arm64'] ?? null
+                    $lock['runtimes']['macos-arm64'] ?? null,
+                    $minimalComponent,
+                    $flavor === 'full'
                 );
             }
             if ($platform !== 'macos-arm64') {
@@ -76,7 +85,9 @@ final class InstallerPackager
                     $output,
                     $this->requiredOption('windows-runtime-archive'),
                     $typePhpLicense,
-                    $lock['runtimes']['windows-x86_64'] ?? null
+                    $lock['runtimes']['windows-x86_64'] ?? null,
+                    $minimalComponent,
+                    $flavor === 'full'
                 );
             }
         } finally {
@@ -102,7 +113,9 @@ final class InstallerPackager
         string $runtimeLicenseDirectory,
         string $phpSourceArchive,
         string $typePhpLicense,
-        ?array $runtime
+        ?array $runtime,
+        string $minimalComponent,
+        bool $full
     ): array {
         if (!is_array($runtime)
             || ($runtime['binarySha256'] ?? null) !== $this->digest($runtimePath)
@@ -149,9 +162,11 @@ final class InstallerPackager
         copy($this->root . '/installer/macos/uninstall.sh', $stage . '/uninstall.sh');
         chmod($stage . '/install.sh', 0700);
         chmod($stage . '/uninstall.sh', 0700);
-        $this->writeMetadata($stage, 'macos-arm64', $runtime);
+        $this->stageMinimalComponent($stage, 'macos-arm64', $minimalComponent, $full);
+        $this->writeMetadata($stage, 'macos-arm64', $runtime, $full);
 
-        $archive = $output . '/webman-aot-' . $this->version() . '-macos-arm64.tar.gz';
+        $archive = $output . '/webman-aot-' . $this->version()
+            . ($full ? '-full' : '') . '-macos-arm64.tar.gz';
         $tarPath = substr($archive, 0, -3);
         if (is_file($tarPath)) {
             unlink($tarPath);
@@ -161,8 +176,34 @@ final class InstallerPackager
         }
         $tar = new PharData($tarPath);
         $this->addTreeToTar($tar, $stage, '');
-        $tar->compress(Phar::GZ);
         unset($tar);
+        $source = fopen($tarPath, 'rb');
+        $compressed = gzopen($archive, 'wb6');
+        if (!is_resource($source) || $compressed === false) {
+            throw new RuntimeException('unable to start streaming macOS installer compression');
+        }
+        $bytes = 0;
+        try {
+            while (!feof($source)) {
+                $chunk = fread($source, 1048576);
+                if (!is_string($chunk)) {
+                    throw new RuntimeException('unable to read macOS installer tar');
+                }
+                if ($chunk === '') {
+                    continue;
+                }
+                if (gzwrite($compressed, $chunk) !== strlen($chunk)) {
+                    throw new RuntimeException('unable to compress macOS installer tar');
+                }
+                $bytes += strlen($chunk);
+                if ($bytes % (64 * 1048576) < 1048576) {
+                    fwrite(STDERR, sprintf("[package] Compressed %.0f MiB from tar\n", $bytes / 1048576));
+                }
+            }
+        } finally {
+            fclose($source);
+            gzclose($compressed);
+        }
         unlink($tarPath);
 
         return $this->packageResult('macos-arm64', $archive);
@@ -177,7 +218,9 @@ final class InstallerPackager
         string $output,
         string $runtimeArchive,
         string $typePhpLicense,
-        ?array $runtime
+        ?array $runtime,
+        string $minimalComponent,
+        bool $full
     ): array {
         if (!is_array($runtime)
             || ($runtime['archiveSha256'] ?? null) !== $this->digest($runtimeArchive)
@@ -232,9 +275,11 @@ final class InstallerPackager
         copy($this->root . '/bin/webman-aot.cmd', $stage . '/payload/launcher/webman-aot.cmd');
         copy($this->root . '/installer/windows/install.ps1', $stage . '/install.ps1');
         copy($this->root . '/installer/windows/uninstall.ps1', $stage . '/uninstall.ps1');
-        $this->writeMetadata($stage, 'windows-x86_64', $runtime);
+        $this->stageMinimalComponent($stage, 'windows-x86_64', $minimalComponent, $full);
+        $this->writeMetadata($stage, 'windows-x86_64', $runtime, $full);
 
-        $archive = $output . '/webman-aot-' . $this->version() . '-windows-x86_64.zip';
+        $archive = $output . '/webman-aot-' . $this->version()
+            . ($full ? '-full' : '') . '-windows-x86_64.zip';
         if (is_file($archive)) {
             unlink($archive);
         }
@@ -251,6 +296,58 @@ final class InstallerPackager
         return $this->packageResult('windows-x86_64', $archive);
     }
 
+    private function stageMinimalComponent(
+        string $stage,
+        string $host,
+        string $source,
+        bool $full
+    ): void {
+        $lock = $this->readJson($this->root . '/toolchain/minimal-components.lock.json');
+        $component = $lock['components'][$host] ?? null;
+        if (($lock['schema'] ?? null) !== 'webman-aot-minimal-components-lock-v1'
+            || ($lock['version'] ?? null) !== $this->version()
+            || ($lock['toolchainLockSha256'] ?? null)
+                !== $this->digest($this->root . '/toolchain.lock.json')
+            || !is_array($component)
+            || ($component['sha256'] ?? null) !== $this->digest($source)
+        ) {
+            throw new RuntimeException("minimal {$host} component does not match its source lock");
+        }
+        $zip = new ZipArchive();
+        if ($zip->open($source) !== true) {
+            throw new RuntimeException('minimal component ZIP cannot be opened');
+        }
+        try {
+            $manifest = $zip->getFromName('minimal-component.json');
+            if (!is_string($manifest)
+                || hash('sha256', $manifest) !== ($component['manifestSha256'] ?? null)
+            ) {
+                throw new RuntimeException('minimal component file manifest differs from its source lock');
+            }
+        } finally {
+            $zip->close();
+        }
+        $this->createDirectory($stage . '/payload/app/installer');
+        $this->copyRequiredFile(
+            $this->root . '/installer/offline-prepare.php',
+            $stage . '/payload/app/installer/offline-prepare.php'
+        );
+        if ($full) {
+            $destination = $stage . '/payload/minimal-toolchain';
+            $this->createDirectory($destination);
+            $this->copyRequiredFile(
+                $source,
+                $destination . '/component.zip'
+            );
+        }
+        fwrite(STDERR, sprintf(
+            "[package] %s %s uses one verified minimal component (%d bytes)\n",
+            $host,
+            $full ? 'full installer' : 'small installer',
+            filesize($source)
+        ));
+    }
+
     private function stageApplication(string $stage, string $typePhpLicense): void
     {
         $app = $stage . '/payload/app';
@@ -258,6 +355,11 @@ final class InstallerPackager
         copy($this->root . '/bin/webman-aot.php', $app . '/bin/webman-aot.php');
         $this->copyDirectory($this->root . '/src', $app . '/src', ['php']);
         copy($this->root . '/toolchain.lock.json', $app . '/toolchain.lock.json');
+        $this->createDirectory($app . '/toolchain');
+        copy(
+            $this->root . '/toolchain/minimal-components.lock.json',
+            $app . '/toolchain/minimal-components.lock.json'
+        );
         $this->createDirectory($app . '/installer');
         copy($this->root . '/installer/runtime.lock.json', $app . '/installer/runtime.lock.json');
         $this->createDirectory($app . '/tools');
@@ -291,12 +393,27 @@ final class InstallerPackager
             $typePhpLicense,
             $app . '/THIRD_PARTY_LICENSES/TypePHP-GPL-3.0.txt'
         );
+        $llvmLicense = $this->root . '/toolchain/licenses/LLVM-19.1.7.txt';
+        if ($this->digest($llvmLicense)
+            !== '3340babe8ac7bc6ae294d93aa01c310a250d43d5b760e5c12954882d4e5c83c7'
+        ) {
+            throw new RuntimeException('locked LLVM 19.1.7 license text differs');
+        }
+        $this->copyRequiredFile(
+            $llvmLicense,
+            $app . '/THIRD_PARTY_LICENSES/LLVM-Apache-2.0-with-exceptions.txt'
+        );
     }
 
     /**
      * @param array<string, mixed> $runtime
      */
-    private function writeMetadata(string $stage, string $platform, array $runtime): void
+    private function writeMetadata(
+        string $stage,
+        string $platform,
+        array $runtime,
+        bool $complete = false
+    ): void
     {
         $manifest = [];
         $payload = $stage . '/payload';
@@ -315,6 +432,7 @@ final class InstallerPackager
                 'version' => $this->version(),
                 'revision' => $this->options['revision'] ?? 'unknown',
                 'platform' => $platform,
+                'flavor' => $complete ? 'complete' : 'small',
                 'runtime' => $runtime,
                 'payloadFiles' => count($manifest),
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"

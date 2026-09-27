@@ -1,0 +1,267 @@
+<?php
+
+declare(strict_types=1);
+
+namespace WebmanAot\Toolchain;
+
+use WebmanAot\Cli\ConfigurationException;
+use WebmanAot\Cli\UnavailableException;
+
+final class MinimalComponent
+{
+    /**
+     * @param \Closure(string):void|null $progress
+     */
+    public function extract(
+        string $archive,
+        string $expectedArchiveSha256,
+        string $candidate,
+        string $host,
+        string $expectedLockSha256,
+        ?\Closure $progress = null
+    ): string {
+        if (!is_file($archive) || is_link($archive)
+            || !hash_equals($expectedArchiveSha256, (string) hash_file('sha256', $archive))
+        ) {
+            throw new UnavailableException('minimal toolchain component is missing or its SHA-256 differs');
+        }
+        if (file_exists($candidate) || is_link($candidate)
+            || !mkdir($candidate, 0700, true)
+        ) {
+            throw new ConfigurationException('minimal toolchain candidate is not an empty new directory');
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($archive) !== true) {
+            throw new UnavailableException('minimal toolchain component ZIP cannot be opened');
+        }
+        try {
+            $manifestJson = $zip->getFromName('minimal-component.json');
+            $manifest = is_string($manifestJson)
+                ? json_decode($manifestJson, true, flags: JSON_THROW_ON_ERROR)
+                : null;
+            $entries = is_array($manifest) ? ($manifest['entries'] ?? null) : null;
+            if (!is_array($entries)
+                || ($manifest['schema'] ?? null) !== 'webman-aot-minimal-component-v1'
+                || ($manifest['host'] ?? null) !== $host
+                || ($manifest['toolchainLockSha256'] ?? null) !== $expectedLockSha256
+            ) {
+                throw new ConfigurationException('minimal toolchain component host or lock differs');
+            }
+            $this->assertEntries($entries);
+            $names = [];
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $name = $zip->getNameIndex($index);
+                if (!is_string($name) || isset($names[$name])
+                    || ($name !== 'minimal-component.json'
+                        && (($entries[$name]['type'] ?? null) !== 'file'))
+                ) {
+                    throw new ConfigurationException('minimal component ZIP has an unknown or repeated entry');
+                }
+                $names[$name] = true;
+            }
+            foreach ($entries as $name => $entry) {
+                if ($entry['type'] === 'file' && !isset($names[$name])) {
+                    throw new ConfigurationException("minimal component ZIP is missing {$name}");
+                }
+            }
+            foreach ($entries as $name => $entry) {
+                if ($entry['type'] !== 'directory') {
+                    continue;
+                }
+                $directory = $candidate . '/' . $name;
+                if (!is_dir($directory)
+                    && !mkdir($directory, 0700, true) && !is_dir($directory)
+                ) {
+                    throw new \RuntimeException("cannot create minimal component directory: {$name}");
+                }
+            }
+            $done = 0;
+            $total = count(array_filter(
+                $entries,
+                static fn (array $entry): bool => $entry['type'] === 'file'
+            ));
+            foreach ($entries as $name => $entry) {
+                if ($entry['type'] !== 'file') {
+                    continue;
+                }
+                $target = $candidate . '/' . $name;
+                $directory = dirname($target);
+                if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+                    throw new \RuntimeException("cannot create minimal component directory: {$name}");
+                }
+                $source = $zip->getStream($name);
+                $destination = fopen($target, 'xb');
+                if (!is_resource($source) || !is_resource($destination)) {
+                    throw new \RuntimeException("cannot extract minimal component file: {$name}");
+                }
+                try {
+                    $copied = stream_copy_to_stream($source, $destination);
+                } finally {
+                    fclose($source);
+                    fclose($destination);
+                }
+                if ($copied !== $entry['size']
+                    || !hash_equals($entry['sha256'], (string) hash_file('sha256', $target))
+                    || !chmod($target, $entry['executable'] ? 0700 : 0600)
+                ) {
+                    throw new UnavailableException("minimal component file failed SHA-256 verification: {$name}");
+                }
+                $done++;
+                if ($done % 250 === 0 || $done === $total) {
+                    $progress?->__invoke("Extracted {$done}/{$total} verified entries");
+                }
+            }
+            foreach ($entries as $name => $entry) {
+                if ($entry['type'] !== 'link') {
+                    continue;
+                }
+                $target = $candidate . '/' . $name;
+                $directory = dirname($target);
+                if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+                    throw new \RuntimeException("cannot create minimal component link directory: {$name}");
+                }
+                if (!symlink($entry['target'], $target)) {
+                    throw new \RuntimeException("cannot restore minimal component link: {$name}");
+                }
+            }
+            if (file_put_contents($candidate . '/minimal-component.json', $manifestJson, LOCK_EX) === false) {
+                throw new \RuntimeException('cannot preserve minimal component manifest');
+            }
+            $this->verifyGeneration(
+                $candidate,
+                $host,
+                hash('sha256', $manifestJson),
+                $expectedLockSha256
+            );
+            $progress?->__invoke('Minimal component SHA-256 verification complete');
+
+            return hash('sha256', $manifestJson);
+        } finally {
+            $zip->close();
+        }
+    }
+
+    public function verifyGeneration(
+        string $generation,
+        string $host,
+        string $expectedManifestSha256,
+        string $expectedLockSha256
+    ): void {
+        $path = $generation . '/minimal-component.json';
+        $json = is_file($path) && !is_link($path) ? file_get_contents($path) : false;
+        if (!is_string($json)
+            || !hash_equals($expectedManifestSha256, hash('sha256', $json))
+        ) {
+            throw new UnavailableException('installed minimal component manifest differs');
+        }
+        $manifest = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $entries = is_array($manifest) ? ($manifest['entries'] ?? null) : null;
+        if (!is_array($entries)
+            || ($manifest['schema'] ?? null) !== 'webman-aot-minimal-component-v1'
+            || ($manifest['host'] ?? null) !== $host
+            || ($manifest['toolchainLockSha256'] ?? null) !== $expectedLockSha256
+            || !hash_equals(
+                $expectedLockSha256,
+                (string) hash_file('sha256', $generation . '/toolchain.lock.json')
+            )
+        ) {
+            throw new ConfigurationException('installed minimal component host or lock differs');
+        }
+        $this->assertEntries($entries);
+        foreach ($entries as $name => $entry) {
+            $path = $generation . '/' . $name;
+            if ($entry['type'] === 'directory') {
+                if (!is_dir($path) || is_link($path)) {
+                    throw new UnavailableException("installed minimal component directory differs: {$name}");
+                }
+                continue;
+            }
+            if ($entry['type'] === 'link') {
+                if (!is_link($path) || readlink($path) !== $entry['target']) {
+                    throw new UnavailableException("installed minimal component link differs: {$name}");
+                }
+                continue;
+            }
+            $digest = is_file($path) && !is_link($path) ? hash_file('sha256', $path) : false;
+            if (!is_string($digest) || !hash_equals($entry['sha256'], $digest)
+                || filesize($path) !== $entry['size']
+                || is_executable($path) !== $entry['executable']
+            ) {
+                throw new UnavailableException("installed minimal component file differs: {$name}");
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $entries
+     */
+    private function assertEntries(array $entries): void
+    {
+        if ($entries === []) {
+            throw new ConfigurationException('minimal component has no files');
+        }
+        foreach ($entries as $name => $entry) {
+            if (!is_string($name) || !$this->safeName($name)
+                || $name === 'minimal-component.json' || !is_array($entry)
+            ) {
+                throw new ConfigurationException('minimal component path is unsafe');
+            }
+            if (($entry['type'] ?? null) === 'directory') {
+                continue;
+            }
+            if (($entry['type'] ?? null) === 'file') {
+                if (!is_string($entry['sha256'] ?? null)
+                    || preg_match('/^[a-f0-9]{64}$/D', $entry['sha256']) !== 1
+                    || !is_int($entry['size'] ?? null) || $entry['size'] < 0
+                    || !is_bool($entry['executable'] ?? null)
+                ) {
+                    throw new ConfigurationException("minimal component file metadata is invalid: {$name}");
+                }
+                continue;
+            }
+            if (($entry['type'] ?? null) !== 'link'
+                || !is_string($entry['target'] ?? null)
+                || !$this->safeLinkTarget($name, $entry['target'], $entries)
+            ) {
+                throw new ConfigurationException("minimal component link is unsafe: {$name}");
+            }
+        }
+    }
+
+    private function safeName(string $name): bool
+    {
+        return $name !== '' && !str_starts_with($name, '/')
+            && !str_contains($name, '\\') && !str_contains($name, "\0")
+            && preg_match('/^[A-Za-z]:/', $name) !== 1
+            && !in_array('', explode('/', $name), true)
+            && !in_array('.', explode('/', $name), true)
+            && !in_array('..', explode('/', $name), true);
+    }
+
+    /**
+     * @param array<string, mixed> $entries
+     */
+    private function safeLinkTarget(string $name, string $target, array $entries): bool
+    {
+        if ($target === '' || str_starts_with($target, '/')
+            || str_contains($target, '\\') || str_contains($target, "\0")
+        ) {
+            return false;
+        }
+        $resolved = [];
+        foreach (explode('/', dirname($name) . '/' . $target) as $segment) {
+            if ($segment === '.' || $segment === '') {
+                continue;
+            }
+            if ($segment === '..') {
+                if ($resolved === []) {
+                    return false;
+                }
+                array_pop($resolved);
+            } else {
+                $resolved[] = $segment;
+            }
+        }
+        return isset($entries[implode('/', $resolved)]);
+    }
+}
