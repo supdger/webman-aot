@@ -146,7 +146,7 @@ jobs:
           Write-Output "[OK] Two final Windows packages built and verified in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
           Get-Content -LiteralPath $shaPath
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
-            "Windows 0.2.2 packages from final main $revision: small/full built, installed, metadata and all payload SHA-256 verified."
+            "Windows 0.2.2 packages from final main ${revision}: small/full built, installed, metadata and all payload SHA-256 verified."
 
       - name: Upload verified Windows release assets
         uses: actions/upload-artifact@v4
