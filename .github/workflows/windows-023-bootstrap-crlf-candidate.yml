@@ -168,9 +168,33 @@ jobs:
             if (Test-Path -LiteralPath 'composer.lock') {
               throw 'Official fixture unexpectedly contains a committed composer.lock; review dependency setup.'
             }
+            $composerExtra = @()
+            $gdLoaded = & php -r 'echo extension_loaded("gd") ? "yes" : "no";'
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to probe runner PHP GD extension.' }
+            if ($gdLoaded -ne 'yes') {
+              $phpExe = (Get-Command php -CommandType Application -ErrorAction Stop).Source
+              $gdDll = Join-Path (Split-Path -Parent $phpExe) 'ext\php_gd.dll'
+              Write-Output "[prepare] Checking runner PHP GD module: $gdDll"
+              if (Test-Path -LiteralPath $gdDll -PathType Leaf) {
+                $phpIni = & php -r 'echo php_ini_loaded_file();'
+                if ($LASTEXITCODE -ne 0 -or -not $phpIni -or
+                    -not (Test-Path -LiteralPath $phpIni -PathType Leaf)) {
+                  throw 'Runner has php_gd.dll but no usable php.ini for enabling it.'
+                }
+                Add-Content -LiteralPath $phpIni -Value "`r`nextension=gd"
+                $gdLoaded = & php -r 'echo extension_loaded("gd") ? "yes" : "no";'
+                if ($LASTEXITCODE -ne 0 -or $gdLoaded -ne 'yes') {
+                  throw 'Runner php_gd.dll exists but could not be enabled.'
+                }
+                Write-Output '[OK] Enabled the runner PHP GD module for Composer.'
+              } else {
+                $composerExtra = @('--ignore-platform-req=ext-gd')
+                Write-Output '[fixture] Runner PHP has no GD module; ignoring ext-gd only for dependency installation in this static-build regression. This does not validate SaiAdmin runtime/captcha.'
+              }
+            }
             Write-Output '[composer] Official source has no lock. Resolving and installing with Webman fixed at v2.2.4; required Webman package scripts stay enabled ...'
             & composer update --with workerman/webman-framework:2.2.4 `
-              --no-interaction --prefer-dist --no-plugins
+              --no-interaction --prefer-dist --no-plugins @composerExtra
             if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin Composer resolution/install failed.' }
             if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
               throw 'Composer did not generate a lock file.'
