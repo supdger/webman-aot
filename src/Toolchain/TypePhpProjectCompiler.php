@@ -91,6 +91,14 @@ final class TypePhpProjectCompiler
             . $separator . (PHP_OS_FAMILY === 'Windows'
                 ? (getenv('SystemRoot') ?: 'C:\\Windows') . '\\System32'
                 : '/usr/bin:/bin');
+        if (PHP_OS_FAMILY === 'Windows') {
+            foreach (array_keys($environment) as $name) {
+                if (strcasecmp($name, 'NoDefaultCurrentDirectoryInExePath') === 0) {
+                    unset($environment[$name]);
+                }
+            }
+            $environment['NoDefaultCurrentDirectoryInExePath'] = '1';
+        }
         $compile = [
             $tools['php'],
             $tools['typephp'] . '/bin/tpc.php',
@@ -142,15 +150,33 @@ final class TypePhpProjectCompiler
     private static function compilerCommand(string $path, string $host, string $searchPath): string
     {
         if ($host === 'Windows') {
-            if (preg_match('/^[A-Za-z]:[\\\\\\/][A-Za-z0-9 ._+@\\\\\\/-]+$/D', $path) !== 1) {
+            $normalized = str_replace('\\', '/', $path);
+            if (preg_match('/^[A-Za-z]:\\//', $normalized) !== 1
+                || basename($normalized) !== 'clang++.exe'
+                || str_contains(dirname($normalized), ';')
+                || str_contains($path, "\0")
+            ) {
                 throw new ConfigurationException(
-                    'locked compiler path contains characters unsupported by TypePHP on Windows; '
-                    . 'reinstall with -InstallRoot set to a writable ASCII path and use the same '
+                    'locked Windows compiler must be an absolute clang++.exe in a directory without ";"; '
+                    . 'reinstall with -InstallRoot set to a writable path without ";" and use the same '
                     . 'WEBMAN_AOT_BUILDER_HOME'
                 );
             }
+            $directories = explode(';', $searchPath);
+            if (count($directories) !== 3) {
+                throw new ConfigurationException(
+                    'private compiler PATH contains an empty or relative directory'
+                );
+            }
+            foreach ($directories as $directory) {
+                if (preg_match('/^[A-Za-z]:[\\\\\\/]/', $directory) !== 1) {
+                    throw new ConfigurationException(
+                        'private compiler PATH contains an empty or relative directory'
+                    );
+                }
+            }
 
-            return '"' . $path . '"';
+            return 'clang++.exe';
         }
 
         if (!str_starts_with($path, '/')
