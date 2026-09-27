@@ -1,4 +1,4 @@
-name: Windows 0.2.2 final main package build
+name: Windows 0.2.2 public light online acceptance
 
 on:
   pull_request:
@@ -8,153 +8,180 @@ permissions:
   contents: read
 
 jobs:
-  windows:
+  public-windows-light:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-2022
     timeout-minutes: 90
     steps:
-      - name: Check out exact final main source
+      - name: Check out exact final product source
         uses: actions/checkout@v4
         with:
           ref: 0f52bac70e9464eb1f34fa936f570eae82007e61
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify source and prepare locked Windows component
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Download and validate public light installer
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-          $revision = '0f52bac70e9464eb1f34fa936f570eae82007e61'
-          $actualRevision = (& git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $actualRevision -ne $revision) {
-            throw "Checkout differs from final main source: $actualRevision"
+          $expectedRevision = '0f52bac70e9464eb1f34fa936f570eae82007e61'
+          if ((& git rev-parse HEAD).Trim() -ne $expectedRevision) { throw 'Product checkout revision differs.' }
+          $baseUrl = 'https://github.com/supdger/webman-aot-builder/releases/download/v0.2.2'
+          $name = 'webman-aot-builder-0.2.2-windows-x86_64.zip'
+          $download = Join-Path $env:RUNNER_TEMP 'public-download'
+          New-Item -ItemType Directory -Force -Path $download | Out-Null
+          foreach ($asset in @($name, 'SHA256SUMS')) {
+            Write-Output "[download] Public asset: $asset"
+            & curl.exe -L --fail --show-error --progress-bar `
+              --output (Join-Path $download $asset) "$baseUrl/$asset"
+            if ($LASTEXITCODE -ne 0) { throw "Public download failed: $asset" }
           }
-          if (@(& git status --porcelain).Count -ne 0) {
-            throw 'Final main checkout is not clean.'
+          $expected = 'b22d6025783b6e18dc6d47b10cfdfc62fd92a12dd9ebb301f8f827928ff88f54'
+          $sumFile = Join-Path $download 'SHA256SUMS'
+          $sumSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $sumFile).Hash.ToLowerInvariant()
+          if ($sumSha -ne 'bc97ed4c517f188b3d15c50e9fff09fa9d38c83d935385910f7bfbfc59ad25c6') {
+            throw 'Public SHA256SUMS differs from verified release asset.'
           }
-          if (Test-Path -LiteralPath '.github/workflows' -PathType Container) {
-            throw 'Final main source unexpectedly contains a workflow directory.'
+          $line = @(Get-Content -LiteralPath $sumFile | Where-Object { $_.EndsWith("  $name") })
+          if ($line.Count -ne 1 -or $line[0].Substring(0,64) -ne $expected) {
+            throw 'Public checksum line differs from verified release asset.'
           }
-          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
-          if ($lock.version -ne '0.2.2') { throw 'Minimal component lock version differs.' }
-          $toolchainSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'toolchain.lock.json').Hash.ToLowerInvariant()
-          if ($toolchainSha -ne $lock.toolchainLockSha256) { throw 'Toolchain lock SHA-256 differs.' }
-          $sourceName = 'webman-aot-builder-0.2.1-windows-x86_64-components.zip'
-          $targetName = 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
-          if ($lock.components.'windows-x86_64'.archive -ne $targetName) {
-            throw '0.2.2 component filename differs from lock.'
-          }
-          $inputs = Join-Path $env:RUNNER_TEMP 'windows-022-inputs'
-          New-Item -ItemType Directory -Force -Path $inputs | Out-Null
-          Write-Output '[download] Fetching published component bytes from v0.2.1 ...'
-          gh release download v0.2.1 --repo $env:GITHUB_REPOSITORY `
-            --pattern $sourceName --dir $inputs
-          if ($LASTEXITCODE -ne 0) { throw 'Component download failed.' }
-          $source = Join-Path $inputs $sourceName
-          $component = Join-Path $inputs $targetName
-          $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
-          if ($sourceSha -ne $lock.components.'windows-x86_64'.sha256) {
-            throw 'Published component bytes differ from 0.2.2 lock.'
-          }
-          Copy-Item -LiteralPath $source -Destination $component
-          $targetSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $component).Hash.ToLowerInvariant()
-          if ($targetSha -ne $sourceSha) { throw 'Renamed component differs.' }
-          Write-Output "[OK] Final source $actualRevision; component SHA-256 $targetSha"
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $download $name)).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw 'Public installer checksum differs.' }
+          Write-Output "[OK] Public light installer SHA-256: $actual"
 
-      - name: Build and inspect both Windows release packages
-        shell: pwsh
+      - name: Install from PowerShell and run real online doctor
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
           $timer = [Diagnostics.Stopwatch]::StartNew()
-          $revision = '0f52bac70e9464eb1f34fa936f570eae82007e61'
-          $version = '0.2.2'
-          $component = Join-Path $env:RUNNER_TEMP `
-            'windows-022-inputs\webman-aot-builder-0.2.2-windows-x86_64-components.zip'
-          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
-          $output = Join-Path $env:RUNNER_TEMP 'windows-022-release'
-          New-Item -ItemType Directory -Force -Path $output | Out-Null
-          $shaLines = @()
-          foreach ($flavor in @('small', 'full')) {
-            $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
-            $name = "webman-aot-builder-$version$suffix-windows-x86_64.zip"
-            $archive = Join-Path $output $name
-            Write-Output "[build] Packaging $name from exact final main revision $revision ..."
-            & .\tools\build-windows-installer.ps1 -Flavor $flavor `
-              -MinimalComponent $component -Output $output -Revision $revision
-            if ($LASTEXITCODE -ne 0 -or
-                -not (Test-Path -LiteralPath $archive -PathType Leaf)) {
-              throw "$flavor release package build or built-in install smoke failed."
+          $archive = Join-Path $env:RUNNER_TEMP 'public-download\webman-aot-builder-0.2.2-windows-x86_64.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'public extract'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'public installed builder'
+          $bin = Join-Path $env:RUNNER_TEMP 'public bin'
+          $empty = Join-Path $env:RUNNER_TEMP 'empty nonproject'
+          foreach ($path in @($extract, $empty)) { New-Item -ItemType Directory -Force -Path $path | Out-Null }
+          & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archive -C $extract
+          if ($LASTEXITCODE -ne 0) { throw 'Light installer extraction failed.' }
+          $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
+          if ($metadata.version -ne '0.2.2' -or
+              $metadata.revision -ne '0f52bac70e9464eb1f34fa936f570eae82007e61' -or
+              $metadata.flavor -ne 'small') { throw 'Public package metadata differs.' }
+          Write-Output '[install] Installing public light package using Windows PowerShell 5.1 ...'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1') `
+            -InstallRoot $installRoot -BinDir $bin -NoPath
+          if ($LASTEXITCODE -ne 0) { throw 'Public light installer failed.' }
+          $downloads = Join-Path $installRoot 'toolchains\downloads'
+          if (Test-Path -LiteralPath $downloads) {
+            if (@(Get-ChildItem -LiteralPath $downloads -File).Count -ne 0) {
+              throw 'Light installer unexpectedly preseeded the component.'
             }
-            $extract = Join-Path $env:RUNNER_TEMP "verify-022-$flavor"
-            New-Item -ItemType Directory -Force -Path $extract | Out-Null
-            Write-Output "[verify] Extracting and checking metadata and payload manifest for $name ..."
-            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archive -C $extract
-            if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed." }
-            $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
-            $expectedFlavor = if ($flavor -eq 'full') { 'complete' } else { 'small' }
-            if ($metadata.schema -ne 'webman-aot-builder-installer-package-v1' -or
-                $metadata.version -ne $version -or
-                $metadata.revision -ne $revision -or
-                $metadata.platform -ne 'windows-x86_64' -or
-                $metadata.flavor -ne $expectedFlavor) {
-              throw "$flavor package metadata differs from final main source."
-            }
-            $manifest = @(Get-Content -LiteralPath (Join-Path $extract 'payload-manifest.sha256'))
-            if ($manifest.Count -eq 0 -or $manifest.Count -ne $metadata.payloadFiles) {
-              throw "$flavor payload manifest count differs from package metadata."
-            }
-            $verified = 0
-            foreach ($line in $manifest) {
-              if ($line -notmatch '^([a-f0-9]{64})  (payload/.+)$') {
-                throw "$flavor payload manifest has malformed entry."
-              }
-              $expectedSha = $Matches[1]
-              $relative = $Matches[2]
-              if (@($relative -split '/' | Where-Object { $_ -eq '..' }).Count -ne 0) {
-                throw "$flavor payload manifest contains traversal."
-              }
-              $file = Join-Path $extract ($relative.Replace('/', '\'))
-              if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
-                throw "$flavor payload file is missing: $relative"
-              }
-              $actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant()
-              if ($actualSha -ne $expectedSha) {
-                throw "$flavor payload SHA-256 mismatch: $relative"
-              }
-              $verified++
-            }
-            $bundledComponent = Join-Path $extract 'payload\minimal-toolchain\component.zip'
-            if ($flavor -eq 'full') {
-              if (-not (Test-Path -LiteralPath $bundledComponent -PathType Leaf) -or
-                  (Get-FileHash -Algorithm SHA256 -LiteralPath $bundledComponent).Hash.ToLowerInvariant() -ne
-                    $lock.components.'windows-x86_64'.sha256) {
-                throw 'Full installer bundled component differs from source lock.'
-              }
-            } elseif (Test-Path -LiteralPath $bundledComponent) {
-              throw 'Small installer unexpectedly bundles the component.'
-            }
-            $archiveSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
-            $shaLines += "$archiveSha  $name"
-            Write-Output "[OK] $name revision=$revision; payload=$verified files; SHA-256=$archiveSha"
           }
-          $shaPath = Join-Path $output 'SHA256SUMS-windows'
-          Set-Content -LiteralPath $shaPath -Value $shaLines -Encoding ascii
-          Write-Output "[OK] Two final Windows packages built and verified in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
-          Get-Content -LiteralPath $shaPath
-          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
-            "Windows 0.2.2 packages from final main ${revision}: small/full built, installed, metadata and all payload SHA-256 verified."
+          $oldBin = Join-Path $env:RUNNER_TEMP 'old command bin'
+          New-Item -ItemType Directory -Force -Path $oldBin | Out-Null
+          Set-Content -LiteralPath (Join-Path $oldBin 'webman-aot.cmd') -Encoding ascii `
+            -Value @('@echo off', 'echo webman-aot 0.1.3')
+          $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+          $env:Path = "$bin;$oldBin;$env:Path"
+          $check = Join-Path $env:RUNNER_TEMP 'check-new-command.ps1'
+          Set-Content -LiteralPath $check -Encoding ascii -Value @(
+            '$ErrorActionPreference = ''Stop''',
+            '$expected = $env:EXPECTED_WEBMAN_COMMAND',
+            '$resolved = (Get-Command webman-aot -ErrorAction Stop).Source',
+            'if (-not [string]::Equals([IO.Path]::GetFullPath($resolved), [IO.Path]::GetFullPath($expected), [StringComparison]::OrdinalIgnoreCase)) { throw "Old command won PATH: $resolved" }',
+            '$version = & webman-aot version',
+            'if ($LASTEXITCODE -ne 0 -or $version -ne ''webman-aot 0.2.2'') { throw "Wrong version: $version" }',
+            'Write-Output "[OK] New PowerShell process resolves $resolved and $version"'
+          )
+          $env:EXPECTED_WEBMAN_COMMAND = Join-Path $bin 'webman-aot.cmd'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $check
+          if ($LASTEXITCODE -ne 0) { throw 'New PowerShell process resolves wrong command.' }
+          Push-Location $empty
+          try {
+            Write-Output '[doctor] Read-only checks in nonproject cwd, before any component download ...'
+            foreach ($mode in @('check', 'json')) {
+              $argsForDoctor = @('--json')
+              if ($mode -eq 'check') { $argsForDoctor = @('--check', '--json') }
+              $json = & webman-aot doctor @argsForDoctor 2>$null
+              $report = ($json -join "`n") | ConvertFrom-Json
+              if ($report.healthy -or @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+                throw 'Read-only doctor unexpectedly became healthy or checked project.'
+              }
+              if ((Test-Path -LiteralPath $downloads) -and
+                  @(Get-ChildItem -LiteralPath $downloads -File).Count -ne 0) {
+                throw 'Read-only doctor downloaded a component.'
+              }
+            }
+            Write-Output '[build] Nonproject build should reject before downloading ...'
+            & webman-aot build
+            if ($LASTEXITCODE -eq 0 -or (Test-Path -LiteralPath 'dist-aot')) {
+              throw 'Nonproject build unexpectedly succeeded.'
+            }
+            if ((Test-Path -LiteralPath $downloads) -and
+                @(Get-ChildItem -LiteralPath $downloads -File).Count -ne 0) {
+              throw 'Nonproject build downloaded a component.'
+            }
+            Write-Output '[doctor] Plain doctor must fetch the PUBLIC v0.2.2 Windows component online ...'
+            & webman-aot doctor
+            if ($LASTEXITCODE -ne 0) { throw 'Public light package online doctor failed.' }
+            $report = ((& webman-aot doctor --check --json) -join "`n") | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or -not $report.healthy -or
+                @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+              throw 'Public light package doctor did not become healthy in nonproject cwd.'
+            }
+            $component = Join-Path $downloads 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+            if (-not (Test-Path -LiteralPath $component -PathType Leaf)) {
+              throw 'Doctor did not download the public v0.2.2 component.'
+            }
+            $componentSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $component).Hash.ToLowerInvariant()
+            if ($componentSha -ne 'cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae') {
+              throw 'Downloaded public component differs from lock.'
+            }
+            Write-Output "[OK] Online global doctor healthy, downloaded component SHA-256=$componentSha"
+          } finally {
+            Pop-Location
+          }
+          Write-Output "[OK] Public download, install, and online doctor: $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
 
-      - name: Upload verified Windows release assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-022-main-0f52bac
-          path: |
-            ${{ runner.temp }}/windows-022-release/*.zip
-            ${{ runner.temp }}/windows-022-release/SHA256SUMS-windows
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 3
+      - name: Build and verify neutral Webman project
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $timer = [Diagnostics.Stopwatch]::StartNew()
+          $bin = Join-Path $env:RUNNER_TEMP 'public bin'
+          $env:WEBMAN_AOT_BUILDER_HOME = Join-Path $env:RUNNER_TEMP 'public installed builder'
+          $env:Path = "$bin;$env:Path"
+          Write-Output '[fixture] Restoring neutral Webman fixture from v0.2.0 tag ...'
+          git fetch --depth=1 origin 'refs/tags/v0.2.0:refs/tags/v0.2.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Fixture tag fetch failed.' }
+          $fixtureTar = Join-Path $env:RUNNER_TEMP 'fixture-v0.2.0.tar'
+          $fixtureTree = Join-Path $env:RUNNER_TEMP 'fixture-tree'
+          New-Item -ItemType Directory -Force -Path $fixtureTree | Out-Null
+          git archive --format=tar "--output=$fixtureTar" v0.2.0 tests/fixtures/webman-neutral
+          if ($LASTEXITCODE -ne 0) { throw 'Fixture archive failed.' }
+          & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $fixtureTar -C $fixtureTree
+          if ($LASTEXITCODE -ne 0) { throw 'Fixture extraction failed.' }
+          $project = Join-Path $fixtureTree 'tests\fixtures\webman-neutral'
+          foreach ($entry in @('composer.json', 'composer.lock', 'start.php', 'app')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $project $entry))) {
+              throw "Neutral Webman fixture missing $entry"
+            }
+          }
+          Push-Location $project
+          try {
+            $phpId = & php -r 'echo PHP_VERSION_ID;'
+            if ($LASTEXITCODE -ne 0 -or [int]$phpId -lt 80400) { throw "Runner PHP 8.4 required: $phpId" }
+            & composer install --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction
+            if ($LASTEXITCODE -ne 0) { throw 'Neutral fixture dependencies failed.' }
+            Write-Output '[build] Compiling Webman fixture from its project root ...'
+            & webman-aot build
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath 'dist-aot' -PathType Container)) {
+              throw 'Neutral Webman build failed.'
+            }
+            Write-Output '[verify] Checking built distribution ...'
+            & webman-aot verify
+            if ($LASTEXITCODE -ne 0) { throw 'Neutral Webman verify failed.' }
+          } finally {
+            Pop-Location
+          }
+          Write-Output "[OK] Public Windows light end-to-end acceptance in $([math]::Round($timer.Elapsed.TotalSeconds, 1)) s."
