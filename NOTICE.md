@@ -19,7 +19,7 @@ compiler-driver uses macOS system libraries. PHP's bundled `libmbfl` in the
 Mac CLI and `libbcmath` in the compiler-driver use LGPL-2.1; their license
 texts are included in the Mac installer. Corresponding source and relinking
 materials are in a separate v0.1.3 Release asset, described in
-[Mac runtime source and relinking](docs/macos-runtime-source.md).
+[Mac runtime source and relinking](https://github.com/supdger/webman-aot-builder/wiki/MacOS-Runtime-Source).
 The Windows installer includes
 a selected subset of the official PHP 8.4.25 x64 distribution and its license,
 redist notice, and upstream SBOM. Both installers include TypePHP's GPL-3.0
@@ -36,8 +36,8 @@ text is included in both installers under `THIRD_PARTY_LICENSES/`.
 
 The historical v0.1.3 [Release assets](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
 contain checksums for that release. They retain the old `webman-aot` package
-identity and are not checksums for the Webman AOT Builder candidate. The
-[verification record](docs/verification.md) describes what was tested; a
+identity and are not checksums for the Webman AOT Builder v0.2.0 release. The
+[verification record](https://github.com/supdger/webman-aot-builder/wiki/Verification) describes what was tested; a
 passing package check is not a claim about every target server or third-party
 plugin.
 
@@ -52,7 +52,7 @@ The relinking-material asset is named
 `webman-aot-builder-0.2.0-macos-php-relink-materials.tar.gz`
 (137,607,655 bytes; SHA-256
 `380880904e1aaa444d1c3485eb0a2733d47bc4fd8ec6e2fd7499ed45d384eeda`).
-The candidate archive generated on 2026-09-27 contained 59,944 files and 1,447
+The archive generated on 2026-09-27 contained 59,944 files and 1,447
 directories; all entries matched the embedded member manifest and passed the
 path-safety audit. In an isolated extraction, both the modified CLI and
 compiler-driver sources were rebuilt and relinked; 934 generated metadata files
@@ -62,5 +62,5 @@ do not represent the locked release binaries. For current online publication
 status and asset links, see the
 [v0.2.0 GitHub Release page](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.0).
 See
-[v0.2.0 macOS runtime source and relinking materials](docs/macos-runtime-source.md)
+[v0.2.0 macOS runtime source and relinking materials](https://github.com/supdger/webman-aot-builder/wiki/MacOS-Runtime-Source)
 for archive contents, exact commands, and the limits of the relinking evidence.
