@@ -120,17 +120,17 @@ jobs:
               $packageSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $package).Hash.ToLowerInvariant()
               Write-Output "[OK] $name SHA-256: $packageSha"
               $extract = Join-Path $env:RUNNER_TEMP "extract-$flavor"
-              $home = Join-Path $env:RUNNER_TEMP "installed-$flavor"
+              $installRoot = Join-Path $env:RUNNER_TEMP "installed-$flavor"
               $bin = Join-Path $env:RUNNER_TEMP "bin-$flavor"
               New-Item -ItemType Directory -Force -Path $extract | Out-Null
               & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
               if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed." }
               Write-Output "[install] Installing $flavor into a fresh isolated home ..."
               & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-                (Join-Path $extract 'install.ps1') -InstallRoot $home -BinDir $bin -NoPath
+                (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath
               if ($LASTEXITCODE -ne 0) { throw "$flavor install failed." }
               $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
-              $env:WEBMAN_AOT_BUILDER_HOME = $home
+              $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
               $env:Path = "$bin;$oldBin;$originalProcessPath"
               try {
                 $resolved = (Get-Command webman-aot -ErrorAction Stop).Source
@@ -148,14 +148,14 @@ jobs:
                 }
                 Write-Output "[OK] $flavor short command resolves to the new Builder."
                 if ($flavor -eq 'small') {
-                  $downloadCache = Join-Path $home 'toolchains\downloads'
+                  $downloadCache = Join-Path $installRoot 'toolchains\downloads'
                   New-Item -ItemType Directory -Force -Path $downloadCache | Out-Null
                   Copy-Item -LiteralPath $component -Destination `
                     (Join-Path $downloadCache (Split-Path -Leaf $component))
                   Write-Output '[prepare] Light package cache seeded with verified candidate component.'
                 } else {
                   $generations = @(Get-ChildItem -LiteralPath `
-                    (Join-Path $home 'toolchains\versions') -Directory)
+                    (Join-Path $installRoot 'toolchains\versions') -Directory)
                   if ($generations.Count -ne 1) {
                     throw "Complete package did not prepare one offline generation: $($generations.Count)"
                   }
@@ -196,8 +196,8 @@ jobs:
               }
               Write-Output "[uninstall] Purging $flavor isolated installation ..."
               & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-                (Join-Path $extract 'uninstall.ps1') -InstallRoot $home -BinDir $bin -NoPath -Purge
-              if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $home) -or
+                (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath -Purge
+              if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $installRoot) -or
                   (Test-Path -LiteralPath (Join-Path $bin 'webman-aot.cmd'))) {
                 throw "$flavor uninstall failed."
               }
@@ -226,7 +226,7 @@ jobs:
           $package = Join-Path $env:RUNNER_TEMP `
             'built-installers\webman-aot-builder-0.2.1-windows-x86_64.zip'
           $extract = Join-Path $env:RUNNER_TEMP 'upgrade-candidate'
-          $home = Join-Path $env:RUNNER_TEMP 'upgrade-installed'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'upgrade-installed'
           $bin = Join-Path $env:RUNNER_TEMP 'upgrade-bin'
           New-Item -ItemType Directory -Force -Path $extract | Out-Null
           & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
@@ -235,9 +235,9 @@ jobs:
           $uninstall = Join-Path $extract 'uninstall.ps1'
           Write-Output '[upgrade] Installing a base Builder command ...'
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
-            -InstallRoot $home -BinDir $bin -NoPath
+            -InstallRoot $installRoot -BinDir $bin -NoPath
           if ($LASTEXITCODE -ne 0) { throw 'Base Builder install failed.' }
-          $generation = Join-Path $home 'versions\99999999999999-old'
+          $generation = Join-Path $installRoot 'versions\99999999999999-old'
           $oldEntry = Join-Path $generation 'app\bin\webman-aot-builder.php'
           $oldVersion = Join-Path $generation 'app\src\Version.php'
           New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldEntry) | Out-Null
@@ -249,7 +249,7 @@ jobs:
           Set-Content -LiteralPath $oldVersion -Encoding utf8 -Value '<?php'
           $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
           $previousPath = $env:Path
-          $env:WEBMAN_AOT_BUILDER_HOME = $home
+          $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
           $env:Path = "$bin;$previousPath"
           try {
             $before = & webman-aot version
@@ -257,9 +257,9 @@ jobs:
               throw "Seeded older Builder generation did not take precedence: $before"
             }
             Write-Output '[upgrade] Forcing a late installer failure after versions is moved ...'
-            $badBin = Join-Path $home 'versions\bin'
+            $badBin = Join-Path $installRoot 'versions\bin'
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
-              -InstallRoot $home -BinDir $badBin -NoPath
+              -InstallRoot $installRoot -BinDir $badBin -NoPath
             if ($LASTEXITCODE -eq 0) {
               throw 'Fault-injection install unexpectedly succeeded.'
             }
@@ -273,7 +273,7 @@ jobs:
             Write-Output '[OK] Failed light install restored the active older generation.'
             Write-Output '[upgrade] Reinstalling the light package with the normal bin directory ...'
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $install `
-              -InstallRoot $home -BinDir $bin -NoPath
+              -InstallRoot $installRoot -BinDir $bin -NoPath
             if ($LASTEXITCODE -ne 0) { throw 'Light upgrade install failed.' }
             $afterUpgrade = & webman-aot version
             if ($LASTEXITCODE -ne 0 -or $afterUpgrade -ne 'webman-aot 0.2.1') {
@@ -282,7 +282,7 @@ jobs:
             if (Test-Path -LiteralPath $generation) {
               throw 'Older CLI generation remained active after light upgrade.'
             }
-            $backups = @(Get-ChildItem -LiteralPath (Join-Path $home '.install-backups') `
+            $backups = @(Get-ChildItem -LiteralPath (Join-Path $installRoot '.install-backups') `
               -Directory -Filter 'current-*')
             $saved = @($backups | Where-Object {
               Test-Path -LiteralPath (Join-Path $_.FullName `
@@ -297,8 +297,8 @@ jobs:
             $env:Path = $previousPath
           }
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $uninstall `
-            -InstallRoot $home -BinDir $bin -NoPath -Purge
-          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $home)) {
+            -InstallRoot $installRoot -BinDir $bin -NoPath -Purge
+          if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $installRoot)) {
             throw 'Upgrade test installation was not purged.'
           }
 
@@ -317,14 +317,14 @@ jobs:
             $package = Join-Path $env:RUNNER_TEMP `
               'built-installers\webman-aot-builder-0.2.1-windows-x86_64.zip'
             $extract = Join-Path $env:RUNNER_TEMP 'path-candidate'
-            $home = Join-Path $env:RUNNER_TEMP 'path-installed'
+            $installRoot = Join-Path $env:RUNNER_TEMP 'path-installed'
             $bin = Join-Path $env:RUNNER_TEMP 'path-bin'
             New-Item -ItemType Directory -Force -Path $extract | Out-Null
             & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $package -C $extract
             if ($LASTEXITCODE -ne 0) { throw 'PATH candidate extraction failed.' }
             Write-Output '[install] Installing with a legacy webman-aot earlier on User PATH ...'
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-              (Join-Path $extract 'install.ps1') -InstallRoot $home -BinDir $bin
+              (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin
             if ($LASTEXITCODE -ne 0) { throw 'PATH conflict installation failed.' }
             $newUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
             $first = @($newUserPath -split ';' | Where-Object { $_ -ne '' })[0]
@@ -335,7 +335,7 @@ jobs:
             $savedHome = $env:WEBMAN_AOT_BUILDER_HOME
             try {
               $env:Path = "$bin;$oldBin;$savedPath"
-              $env:WEBMAN_AOT_BUILDER_HOME = $home
+              $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
               $actual = & webman-aot version
               if ($LASTEXITCODE -ne 0 -or $actual -ne 'webman-aot 0.2.1') {
                 throw "PATH selected the wrong command: $actual"
@@ -346,7 +346,7 @@ jobs:
             }
             Write-Output '[uninstall] Removing new command while preserving the old command ...'
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-              (Join-Path $extract 'uninstall.ps1') -InstallRoot $home -BinDir $bin -Purge
+              (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $bin -Purge
             if ($LASTEXITCODE -ne 0) { throw 'PATH conflict uninstall failed.' }
             if ([Environment]::GetEnvironmentVariable('Path', 'User') -ne $testUserPath -or
                 -not (Test-Path -LiteralPath $oldCommand) -or
