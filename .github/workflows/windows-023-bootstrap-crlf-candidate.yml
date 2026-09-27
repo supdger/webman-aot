@@ -1,0 +1,267 @@
+name: Windows 0.2.3 SaiAdmin CRLF candidate
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-saiadmin:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/bootstrap-crlf'
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate locks and prepare Windows component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          if ($lock.version -ne '0.2.3') { throw "Expected v0.2.3 lock, found $($lock.version)" }
+          $actualToolchainSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'toolchain.lock.json').Hash.ToLowerInvariant()
+          if ($actualToolchainSha -ne $lock.toolchainLockSha256 -or
+              $actualToolchainSha -ne 'a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f') {
+            throw 'Toolchain lock digest drifted.'
+          }
+          $runtimeLock = Get-Content -Raw -LiteralPath 'installer/runtime.lock.json' | ConvertFrom-Json
+          $windowsRuntime = $runtimeLock.runtimes.'windows-x86_64'
+          if ($windowsRuntime.phpVersion -ne '8.4.25' -or
+              $windowsRuntime.archiveSha256 -ne '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c') {
+            throw 'Locked Windows PHP runtime drifted.'
+          }
+          $expectedComponentSha = 'cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae'
+          $componentName = 'webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          if ($lock.components.'windows-x86_64'.archive -ne $componentName -or
+              $lock.components.'windows-x86_64'.sha256 -ne $expectedComponentSha -or
+              $lock.components.'windows-x86_64'.manifestSha256 -ne '38e2b3007d7a664528ef42268c9e77a19ab0f924a22cd4f132dcd42bce36c8f2') {
+            throw 'Candidate component does not reuse the verified v0.2.2 Windows bytes.'
+          }
+          $inputs = Join-Path $env:RUNNER_TEMP 'candidate-inputs'
+          New-Item -ItemType Directory -Force -Path $inputs | Out-Null
+          Write-Output '[download] Fetching the published, locked Windows component from v0.2.2 ...'
+          gh release download v0.2.2 --repo $env:GITHUB_REPOSITORY `
+            --pattern 'webman-aot-builder-0.2.2-windows-x86_64-components.zip' --dir $inputs
+          if ($LASTEXITCODE -ne 0) { throw 'Component download failed.' }
+          $published = Join-Path $inputs 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+          $actualComponentSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $published).Hash.ToLowerInvariant()
+          if ($actualComponentSha -ne $expectedComponentSha) { throw 'Published component hash differs.' }
+          Copy-Item -LiteralPath $published -Destination (Join-Path $inputs $componentName)
+          Write-Output "[OK] Windows component SHA-256: $actualComponentSha"
+
+      - name: Build, install and inspect both candidate packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $candidate = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $candidate -ne '${{ github.event.pull_request.head.sha }}') {
+            throw 'Candidate checkout is not the PR head commit.'
+          }
+          $component = Join-Path $env:RUNNER_TEMP `
+            'candidate-inputs\webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          $packages = Join-Path $env:RUNNER_TEMP 'candidate-packages'
+          $paths = @{}
+          foreach ($flavor in @('small', 'full')) {
+            $timer = [Diagnostics.Stopwatch]::StartNew()
+            Write-Output "[build] Packaging $flavor from candidate $candidate ..."
+            & .\tools\build-windows-installer.ps1 -Flavor $flavor `
+              -MinimalComponent $component -Output $packages -Revision $candidate
+            if ($LASTEXITCODE -ne 0) { throw "$flavor package build failed." }
+            $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
+            $archive = Join-Path $packages "webman-aot-builder-0.2.3$suffix-windows-x86_64.zip"
+            if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "$flavor archive missing." }
+            $extract = Join-Path $env:RUNNER_TEMP "extracted $flavor"
+            $installRoot = Join-Path $env:RUNNER_TEMP "installed $flavor"
+            $bin = Join-Path $env:RUNNER_TEMP "bin $flavor"
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archive -C $extract
+            if ($LASTEXITCODE -ne 0) { throw "$flavor extraction failed." }
+            $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
+            $expectedFlavor = if ($flavor -eq 'full') { 'complete' } else { 'small' }
+            if ($metadata.version -ne '0.2.3' -or $metadata.revision -ne $candidate -or
+                $metadata.flavor -ne $expectedFlavor) { throw "$flavor package metadata drifted." }
+            Write-Output "[install] Installing $flavor into space-containing paths ..."
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+              (Join-Path $extract 'install.ps1') -InstallRoot $installRoot -BinDir $bin -NoPath
+            if ($LASTEXITCODE -ne 0) { throw "$flavor install failed." }
+            $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+            $env:Path = "$bin;$env:Path"
+            $version = & webman-aot version
+            if ($LASTEXITCODE -ne 0 -or $version -ne 'webman-aot 0.2.3') {
+              throw "$flavor installed command returned $version"
+            }
+            if ($flavor -eq 'small') {
+              $download = Join-Path $installRoot 'toolchains\downloads'
+              New-Item -ItemType Directory -Force -Path $download | Out-Null
+              Copy-Item -LiteralPath $component -Destination `
+                (Join-Path $download (Split-Path -Leaf $component))
+              Write-Output '[prepare] Seeded light package with the checked component.'
+            } else {
+              $generations = @(Get-ChildItem -LiteralPath (Join-Path $installRoot 'toolchains\versions') -Directory)
+              if ($generations.Count -ne 1) { throw 'Full package did not prepare its offline generation.' }
+            }
+            $nonproject = Join-Path $env:RUNNER_TEMP "nonproject $flavor"
+            New-Item -ItemType Directory -Force -Path $nonproject | Out-Null
+            Push-Location $nonproject
+            try {
+              Write-Output "[doctor] Checking installed $flavor outside a project ..."
+              & webman-aot doctor
+              if ($LASTEXITCODE -ne 0) { throw "$flavor doctor failed." }
+              $report = (& webman-aot doctor --check --json) | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or -not $report.healthy -or
+                  @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+                throw "$flavor global doctor is unhealthy or checks project state."
+              }
+            } finally { Pop-Location }
+            $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+            Write-Output "[OK] $flavor package SHA-256=$sha; $([math]::Round($timer.Elapsed.TotalSeconds,1)) s"
+            $paths[$flavor] = @{ home = $installRoot; bin = $bin; extract = $extract }
+          }
+          "SMALL_HOME=$($paths.small.home)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SMALL_BIN=$($paths.small.bin)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
+            'v0.2.3 candidate: both Windows packages built from the PR head; small/full install, version, and global doctor passed.'
+
+      - name: Restore pinned official SaiAdmin and resolve its Composer dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $official = '8f5f6fa57b75c63c5cf370b4f4541e9e529eb306'
+          $checkout = Join-Path $env:RUNNER_TEMP 'saiadmin6.x'
+          Write-Output "[checkout] Official saithink/saiadmin6.x at $official ..."
+          & git clone --filter=blob:none --no-checkout `
+            https://github.com/saithink/saiadmin6.x.git $checkout
+          if ($LASTEXITCODE -ne 0) { throw 'SaiAdmin clone failed.' }
+          Push-Location $checkout
+          try {
+            & git config core.autocrlf true
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to configure the fixture Git CRLF checkout.' }
+            & git sparse-checkout set server
+            if ($LASTEXITCODE -ne 0) { throw 'SaiAdmin sparse-checkout failed.' }
+            & git checkout --detach $official
+            if ($LASTEXITCODE -ne 0 -or (& git rev-parse HEAD).Trim() -ne $official) {
+              throw 'Official SaiAdmin commit checkout failed.'
+            }
+          } finally { Pop-Location }
+          $server = Join-Path $checkout 'server'
+          Push-Location $server
+          try {
+            $phpId = & php -r 'echo PHP_VERSION_ID;'
+            if ($LASTEXITCODE -ne 0 -or [int]$phpId -lt 80400) {
+              throw "Composer requires PHP 8.4; runner has $phpId"
+            }
+            if (Test-Path -LiteralPath 'composer.lock') {
+              throw 'Official fixture unexpectedly contains a committed composer.lock; review dependency setup.'
+            }
+            Write-Output '[composer] Official source has no lock. Resolving and installing with Webman fixed at v2.2.4; required Webman package scripts stay enabled ...'
+            & composer update --with workerman/webman-framework:2.2.4 `
+              --no-interaction --prefer-dist --no-plugins
+            if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin Composer resolution/install failed.' }
+            if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
+              throw 'Composer did not generate a lock file.'
+            }
+            $resolved = Get-Content -Raw -LiteralPath 'composer.lock' | ConvertFrom-Json
+            $webmanPackage = @($resolved.packages | Where-Object { $_.name -eq 'workerman/webman-framework' })
+            if ($webmanPackage.Count -ne 1 -or $webmanPackage[0].version -ne 'v2.2.4' -or
+                $webmanPackage[0].source.reference -ne 'b080c9f470f9811999c94ae6fab3871f7792d891') {
+              throw 'Composer resolved a different Webman framework.'
+            }
+            $lockSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'composer.lock').Hash.ToLowerInvariant()
+            Write-Output "[OK] Generated fixture composer.lock SHA-256=$lockSha; Webman v2.2.4/b080c9f"
+            if (-not (Test-Path -LiteralPath 'plugin\saiadmin\basic\BaseController.php' -PathType Leaf)) {
+              throw 'Required Webman package-install script did not install the SaiAdmin plugin.'
+            }
+            $bootstrap = Join-Path $server 'support\bootstrap.php'
+            $vendor = Join-Path $server 'vendor\workerman\webman-framework\src\support\bootstrap.php'
+            if (-not (Test-Path -LiteralPath $vendor)) { throw 'Locked vendor bootstrap missing.' }
+            $vendorSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $vendor).Hash.ToLowerInvariant()
+            if ($vendorSha -ne '0c71c1e472e9c7873f2560b9345350347638c78116aee18c69a9f47c9b59229f') {
+              throw 'Composer resolved a different Webman bootstrap.'
+            }
+            $utf8 = [Text.UTF8Encoding]::new($false, $true)
+            $bytes = [IO.File]::ReadAllBytes($bootstrap)
+            $content = $utf8.GetString($bytes).Replace("`r`n", "`n").Replace("`n", "`r`n")
+            [IO.File]::WriteAllBytes($bootstrap, $utf8.GetBytes($content))
+            $sourceSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
+            if ($sourceSha -ne '450a31711a248ec1b243fa43861a4299c77b2f05b6cf4b810a4caee16aeaeb62') {
+              throw "Official Windows project bootstrap differs: $sourceSha"
+            }
+            if ($utf8.GetString([IO.File]::ReadAllBytes($bootstrap)).Replace("`r`n", "`n") -ne
+                $utf8.GetString([IO.File]::ReadAllBytes($vendor))) {
+              throw 'CRLF-normalized project bootstrap differs from locked vendor bytes.'
+            }
+            $eol = & git ls-files --eol -- support/bootstrap.php
+            if ($LASTEXITCODE -ne 0 -or $eol -notmatch 'i/lf\s+w/crlf') { throw "Wrong Git line endings: $eol" }
+            if (@(& git status --short -- support/bootstrap.php).Count -ne 0) {
+              throw 'Git considers the official CRLF checkout modified.'
+            }
+            Write-Output "[OK] Official SaiAdmin $official; project CRLF SHA-256=$sourceSha; vendor LF SHA-256=$vendorSha"
+          } finally { Pop-Location }
+          "SAIADMIN_SERVER=$server" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Reject changed CRLF bootstrap and build the unchanged official source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $env:WEBMAN_AOT_BUILDER_HOME = $env:SMALL_HOME
+          $env:Path = "$env:SMALL_BIN;$env:Path"
+          Push-Location $env:SAIADMIN_SERVER
+          try {
+            $bootstrap = Join-Path $env:SAIADMIN_SERVER 'support\bootstrap.php'
+            $original = [IO.File]::ReadAllBytes($bootstrap)
+            $originalSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
+            if ($originalSha -ne '450a31711a248ec1b243fa43861a4299c77b2f05b6cf4b810a4caee16aeaeb62') {
+              throw 'Original official CRLF bytes changed before build.'
+            }
+            $utf8 = [Text.UTF8Encoding]::new($false, $true)
+            try {
+              $changed = $utf8.GetString($original) + "`r`nthrow new \RuntimeException('changed startup behavior');`r`n"
+              [IO.File]::WriteAllBytes($bootstrap, $utf8.GetBytes($changed))
+              Write-Output '[negative] Building with a substantive CRLF startup change; rejection is required ...'
+              & webman-aot build --profile=saiadmin 2>&1 | Tee-Object -Variable negativeOutput
+              $negativeExit = $LASTEXITCODE
+              if ($negativeExit -eq 0 -or
+                  ($negativeOutput -join "`n") -notmatch 'project bootstrap differs from the locked Webman startup source') {
+                throw 'Changed CRLF bootstrap was not rejected by the intended guard.'
+              }
+              Write-Output '[OK] Changed CRLF bootstrap rejected by the source guard.'
+            } finally {
+              [IO.File]::WriteAllBytes($bootstrap, $original)
+            }
+            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant() -ne $originalSha) {
+              throw 'Negative test failed to restore official source bytes.'
+            }
+            Write-Output '[build] Compiling the unchanged official CRLF SaiAdmin project ...'
+            & webman-aot build --profile=saiadmin
+            if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin static build failed.' }
+            Write-Output '[verify] Verifying the SaiAdmin distribution ...'
+            & webman-aot verify
+            if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin distribution verification failed.' }
+            $afterSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
+            if ($afterSha -ne $originalSha) { throw 'Builder changed official source bytes.' }
+            $eol = & git ls-files --eol -- support/bootstrap.php
+            $status = @(& git status --short -- support/bootstrap.php)
+            if ($eol -notmatch 'i/lf\s+w/crlf' -or $status.Count -ne 0) {
+              throw 'Builder changed the official bootstrap Git state.'
+            }
+            Write-Output "[OK] SaiAdmin build/verify passed; original CRLF source SHA-256 unchanged: $afterSha"
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
+              'Official SaiAdmin 8f5f6fa on Windows: changed CRLF bootstrap rejected; unchanged CRLF bootstrap built and verified; original source bytes and Git state preserved.'
+          } finally { Pop-Location }
