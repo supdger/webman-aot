@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class FullStaticProjectOverlay
 {
@@ -73,7 +73,7 @@ final class FullStaticProjectOverlay
 build-dir: build
 php-version: "8.4"
 target-platform: x86_64-unknown-linux-musl
-reproducible-source-prefix: /usr/src/webman-aot
+reproducible-source-prefix: /usr/src/webman-aot-builder
 cxx-std: c++17
 cxx-flags: >-
   --sysroot="{$target}"

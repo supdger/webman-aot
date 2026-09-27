@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class SignedManifestVerifier
 {
@@ -22,7 +22,7 @@ final class SignedManifestVerifier
             throw new UnavailableException('update manifest is invalid JSON', previous: $exception);
         }
         if (!is_array($document)
-            || ($document['schema'] ?? null) !== 'webman-aot-update-manifest-v1'
+            || ($document['schema'] ?? null) !== 'webman-aot-builder-update-manifest-v1'
             || !is_array($document['payload'] ?? null)
             || !is_array($document['signatures'] ?? null)
         ) {

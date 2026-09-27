@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class DistributionAssembler
 {
@@ -54,7 +54,7 @@ final class DistributionAssembler
             || is_link($mirrorDirectory)
             || is_link($elfFile)
             || $this->normalizePath($mirror)
-                !== $this->normalizePath($project) . '/.webman-aot/build/project'
+                !== $this->normalizePath($project) . '/.webman-aot-builder/build/project'
             || $this->normalizePath(dirname($elf))
                 !== $this->normalizePath($mirror) . '/build'
             || !is_file($elf)
@@ -63,10 +63,10 @@ final class DistributionAssembler
                 'distribution assembly requires an owned mirror and compiled ELF'
             );
         }
-        $workspace = $project . '/.webman-aot/workspace.json';
+        $workspace = $project . '/.webman-aot-builder/workspace.json';
         $metadata = $this->readJson($workspace);
         $source = (new SourceTreeSnapshot($project))->capture();
-        if (($metadata['schema'] ?? null) !== 'webman-aot-project-workspace-v1'
+        if (($metadata['schema'] ?? null) !== 'webman-aot-builder-project-workspace-v1'
             || ($metadata['sourceSha256'] ?? null) !== $source['sha256']
             || ($inputs['sourceTreeSha256'] ?? null) !== $source['sha256']
             || ($inputs['composerLockSha256'] ?? null)
@@ -113,7 +113,7 @@ final class DistributionAssembler
             }
         }
 
-        $build = $project . '/.webman-aot/build';
+        $build = $project . '/.webman-aot-builder/build';
         $candidate = $build . '/dist-candidate-' . bin2hex(random_bytes(8));
         $beforeStage?->__invoke('candidate');
         if (!mkdir($candidate, 0700)) {

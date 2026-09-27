@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class CompilerCoverageAudit
 {
@@ -22,7 +22,7 @@ final class CompilerCoverageAudit
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
-            || !str_contains(str_replace('\\', '/', $mirror), '/.webman-aot/build/')
+            || !str_contains(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/')
             || is_link($mirrorDirectory)
         ) {
             throw new ConfigurationException('compiler coverage requires an isolated build mirror');

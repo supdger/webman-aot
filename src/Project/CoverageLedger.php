@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
 final class CoverageLedger
 {
@@ -47,7 +47,7 @@ final class CoverageLedger
     public function toArray(): array
     {
         return [
-            'schema' => 'webman-aot-coverage-ledger-v1',
+            'schema' => 'webman-aot-builder-coverage-ledger-v1',
             'counts' => $this->counts(),
             'files' => $this->files,
         ];

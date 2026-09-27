@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class UpstreamGeneratorArchive
 {

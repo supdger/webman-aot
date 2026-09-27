@@ -1,0 +1,10 @@
+{
+    "name": "webman-aot-builder/minimal-webman-fixture",
+    "description": "Minimal Webman fixture for Webman AOT Builder acceptance",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "workerman/webman-framework": "^2.2"
+    }
+}

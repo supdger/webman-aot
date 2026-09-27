@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Project\ProjectProfile;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Project\ProjectProfile;
 
 final class UpstreamProjectGenerator
 {
@@ -40,7 +40,7 @@ final class UpstreamProjectGenerator
             );
         }
         if (!is_array($lock)
-            || ($lock['schema'] ?? null) !== 'webman-aot-upstream-generator-lock-v1'
+            || ($lock['schema'] ?? null) !== 'webman-aot-builder-upstream-generator-lock-v1'
             || !is_array($lock['generator'] ?? null)
             || !is_array($lock['packages'] ?? null)
             || !is_array($lock['mappings'] ?? null)

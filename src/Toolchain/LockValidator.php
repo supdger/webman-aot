@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
 final class LockValidator
 {
@@ -14,7 +14,7 @@ final class LockValidator
     {
         $errors = [];
 
-        if (($lock['schema'] ?? null) !== 'webman-aot-toolchain-lock-v1') {
+        if (($lock['schema'] ?? null) !== 'webman-aot-builder-toolchain-lock-v1') {
             $errors[] = 'unsupported or missing lock schema';
         }
 

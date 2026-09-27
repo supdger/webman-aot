@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class MacosToolchainPreparer implements ToolchainPreparer
 {

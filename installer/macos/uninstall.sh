@@ -2,7 +2,7 @@
 
 set -eu
 
-aot_home="${HOME}/Library/Application Support/webman-aot"
+aot_home="${HOME}/Library/Application Support/webman-aot-builder"
 bin_dir="${HOME}/.local/bin"
 purge=0
 update_path=1
@@ -35,12 +35,12 @@ done
 
 case "$aot_home" in
     ''|'/'|"$HOME")
-        echo "Refusing unsafe Webman AOT home: $aot_home" >&2
+        echo "Refusing unsafe Webman AOT Builder home: $aot_home" >&2
         exit 78
         ;;
 esac
 
-rm -f -- "$bin_dir/webman-aot"
+rm -f -- "$bin_dir/webman-aot-builder"
 if [ "$purge" -eq 1 ]; then
     rm -rf -- "$aot_home"
 else
@@ -48,13 +48,13 @@ else
 fi
 
 if [ "$update_path" -eq 1 ] && [ -f "${HOME}/.zprofile" ]; then
-    temporary="${HOME}/.zprofile.webman-aot.$$"
+    temporary="${HOME}/.zprofile.webman-aot-builder.$$"
     awk '
-        $0 == "# >>> webman-aot >>>" { skip = 1; next }
-        $0 == "# <<< webman-aot <<<" { skip = 0; next }
+        $0 == "# >>> webman-aot-builder >>>" { skip = 1; next }
+        $0 == "# <<< webman-aot-builder <<<" { skip = 0; next }
         !skip { print }
     ' "${HOME}/.zprofile" >"$temporary"
     mv "$temporary" "${HOME}/.zprofile"
 fi
 
-echo "Webman AOT uninstalled."
+echo "Webman AOT Builder uninstalled."

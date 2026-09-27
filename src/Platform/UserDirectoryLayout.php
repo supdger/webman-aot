@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Platform;
+namespace WebmanAotBuilder\Platform;
 
 final class UserDirectoryLayout
 {
@@ -12,7 +12,7 @@ final class UserDirectoryLayout
 
     public static function detect(): self
     {
-        $override = getenv('WEBMAN_AOT_HOME');
+        $override = getenv('WEBMAN_AOT_BUILDER_HOME');
         if (is_string($override) && trim($override) !== '') {
             return new self(self::normalize($override));
         }
@@ -23,7 +23,7 @@ final class UserDirectoryLayout
                 throw new \RuntimeException('cannot resolve the current user home directory');
             }
 
-            return new self(self::normalize($home . '/Library/Application Support/webman-aot'));
+            return new self(self::normalize($home . '/Library/Application Support/webman-aot-builder'));
         }
 
         if (PHP_OS_FAMILY === 'Windows' && PHP_INT_SIZE === 8) {
@@ -32,7 +32,7 @@ final class UserDirectoryLayout
                 throw new \RuntimeException('cannot resolve the current user data directory');
             }
 
-            return new self(self::normalize($localAppData . '/webman-aot'));
+            return new self(self::normalize($localAppData . '/webman-aot-builder'));
         }
 
         throw new \RuntimeException(sprintf(

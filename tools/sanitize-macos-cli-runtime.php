@@ -25,8 +25,8 @@ try {
         throw new RuntimeException('upstream private CLI PHP does not match the runtime lock');
     }
     $binary = file_get_contents($argv[1]);
-    $buildPrefix = '/private/tmp/webman-aot-spc-2.8.5';
-    $publicPrefix = '/usr/src/webman-aot/spc-2.8.5/src';
+    $buildPrefix = '/private/tmp/webman-aot-builder-spc-2.8.5';
+    $publicPrefix = '/usr/src/webman-aot-builder/spc-2.8.5/src';
     if (!is_string($binary)
         || strlen($buildPrefix) !== strlen($publicPrefix)
         || substr_count($binary, $buildPrefix) !== 17
@@ -57,7 +57,7 @@ try {
             '--sign',
             '-',
             '--identifier',
-            'org.webman-aot.cli-php',
+            'org.webman-aot-builder.cli-php',
             $argv[2],
         ],
         [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
@@ -78,7 +78,7 @@ try {
         throw new RuntimeException('normalized CLI PHP did not execute as PHP 8.4.25');
     }
     echo json_encode([
-        'schema' => 'webman-aot-macos-cli-runtime-normalization-v1',
+        'schema' => 'webman-aot-builder-macos-cli-runtime-normalization-v1',
         'upstreamSha256' => $actual,
         'binarySha256' => hash_file('sha256', $argv[2]),
         'replacedBuildPathOccurrences' => 17,

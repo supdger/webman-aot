@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class DistributionPublisher
 {
@@ -33,12 +33,12 @@ final class DistributionPublisher
         $project = realpath($this->projectDirectory);
         $candidate = realpath($candidateDirectory);
         $build = is_string($project)
-            ? realpath($project . '/.webman-aot/build')
+            ? realpath($project . '/.webman-aot-builder/build')
             : false;
         if (!is_string($project)
             || !is_string($candidate)
             || !is_string($build)
-            || is_link($project . '/.webman-aot')
+            || is_link($project . '/.webman-aot-builder')
             || is_link($candidateDirectory)
             || dirname($candidate) !== $build
             || preg_match('/^dist-candidate-[a-f0-9]{16}$/D', basename($candidate)) !== 1
@@ -64,7 +64,7 @@ final class DistributionPublisher
             return ['path' => $destination, 'previous' => null];
         }
 
-        $releases = $project . '/.webman-aot/releases';
+        $releases = $project . '/.webman-aot-builder/releases';
         if (is_link($releases)
             || (!is_dir($releases) && !mkdir($releases, 0700))
         ) {
@@ -93,7 +93,7 @@ final class DistributionPublisher
 
     private function ownedWorkspace(string $project): bool
     {
-        $metadata = $project . '/.webman-aot/workspace.json';
+        $metadata = $project . '/.webman-aot-builder/workspace.json';
         $contents = is_file($metadata) && !is_link($metadata)
             ? file_get_contents($metadata)
             : false;
@@ -106,7 +106,7 @@ final class DistributionPublisher
             return false;
         }
         return is_array($decoded)
-            && ($decoded['schema'] ?? null) === 'webman-aot-project-workspace-v1';
+            && ($decoded['schema'] ?? null) === 'webman-aot-builder-project-workspace-v1';
     }
 
     private function assertMarked(string $directory): void
@@ -124,7 +124,7 @@ final class DistributionPublisher
             $manifest = null;
         }
         if (!is_array($manifest)
-            || ($manifest['schema'] ?? null) !== 'webman-aot-distribution-v1'
+            || ($manifest['schema'] ?? null) !== 'webman-aot-builder-distribution-v1'
         ) {
             throw new ConfigurationException('distribution manifest marker is invalid');
         }

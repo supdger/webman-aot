@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot;
+namespace WebmanAotBuilder;
 
 final class Version
 {
-    public const VALUE = '0.1.3';
+    public const VALUE = '0.2.0';
 }

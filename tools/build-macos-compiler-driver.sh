@@ -30,6 +30,7 @@ actual=$(shasum -a 256 "$archive" | awk '{print $1}')
     exit 64
 }
 
+workspace=$(cd "$workspace" && pwd -P)
 /usr/bin/tar -xf "$archive" -C "$workspace"
 source_root="$workspace/php-8.4.25"
 [ -f "$source_root/configure" ] || {
@@ -37,8 +38,8 @@ source_root="$workspace/php-8.4.25"
     exit 78
 }
 sdk=$(xcrun --show-sdk-path)
-prefix=/opt/webman-aot/compiler-php
-export CFLAGS="-O2 -ffile-prefix-map=$source_root=/usr/src/webman-aot/php-8.4.25"
+prefix=/opt/webman-aot-builder/compiler-php
+export CFLAGS="-O2 -ffile-prefix-map=$source_root=/usr/src/webman-aot-builder/php-8.4.25"
 export SOURCE_DATE_EPOCH=0
 
 (

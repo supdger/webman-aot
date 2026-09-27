@@ -1,6 +1,6 @@
 # Source licensing and upstream attribution
 
-The original Webman AOT application code is provided under this repository's
+The Webman AOT Builder application code is provided under this repository's
 [MIT license](LICENSE).
 
 The files in `toolchain/patches/typephp/0.9.2/` are diffs against
@@ -34,7 +34,33 @@ not relicense them. LLVM/Clang 19.1.7 is covered by
 [Apache-2.0 with LLVM exceptions](https://llvm.org/LICENSE.txt); the license
 text is included in both installers under `THIRD_PARTY_LICENSES/`.
 
-The release [Assets](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
-contain checksums. The [verification record](docs/verification.md) describes
-what was tested; a passing package check is not a claim about every target
-server or third-party plugin.
+The historical v0.1.3 [Release assets](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
+contain checksums for that release. They retain the old `webman-aot` package
+identity and are not checksums for the Webman AOT Builder candidate. The
+[verification record](docs/verification.md) describes what was tested; a
+passing package check is not a claim about every target server or third-party
+plugin.
+
+## v0.2.0 macOS runtime provenance
+
+The v0.2.0 macOS runtime was rebuilt with static-php-cli 2.8.5 and
+PHP 8.4.25. Its CLI contains PHP's `libmbfl`; the separate compiler-driver
+contains `libbcmath`. Both are covered by LGPL-2.1, and their license texts
+are included in the installer and the relinking materials.
+
+The relinking-material asset is named
+`webman-aot-builder-0.2.0-macos-php-relink-materials.tar.gz`
+(137,607,655 bytes; SHA-256
+`380880904e1aaa444d1c3485eb0a2733d47bc4fd8ec6e2fd7499ed45d384eeda`).
+The candidate archive generated on 2026-09-27 contained 59,944 files and 1,447
+directories; all entries matched the embedded member manifest and passed the
+path-safety audit. In an isolated extraction, both the modified CLI and
+compiler-driver sources were rebuilt and relinked; 934 generated metadata files
+had to be rewritten to the isolated paths for that test. The original archive
+preserves its original build paths. The modified binaries were not deployed and
+do not represent the locked release binaries. For current online publication
+status and asset links, see the
+[v0.2.0 GitHub Release page](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.0).
+See
+[v0.2.0 macOS runtime source and relinking materials](docs/macos-runtime-source.md)
+for archive contents, exact commands, and the limits of the relinking evidence.

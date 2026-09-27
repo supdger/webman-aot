@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Cli;
+namespace WebmanAotBuilder\Cli;
 
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class Runtime
 {
@@ -18,7 +18,7 @@ final class Runtime
     public function run(array $arguments): int
     {
         $logger = RunLogger::open($this->layout);
-        $pipeline = new StagePipeline($logger, new DiagnosticBundleWriter($logger));
+        $pipeline = new StagePipeline($logger, new DiagnosticBundleWriter($logger, $this->layout));
         $application = new Application($this->layout, logger: $logger);
         $command = $arguments[1] ?? 'help';
         $resolved = '';
@@ -26,7 +26,7 @@ final class Runtime
         return $pipeline->run($command, [
             'bootstrap' => static function (): void {
                 if (PHP_INT_SIZE !== 8) {
-                    throw new ConfigurationException('webman-aot requires a 64-bit PHP runtime');
+                    throw new ConfigurationException('webman-aot-builder requires a 64-bit PHP runtime');
                 }
             },
             'dispatch' => static function () use ($application, $arguments, &$resolved): void {

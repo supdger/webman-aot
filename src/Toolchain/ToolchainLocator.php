@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\UnavailableException;
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Cli\UnavailableException;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class ToolchainLocator
 {
@@ -26,7 +26,7 @@ final class ToolchainLocator
         rsort($directories, SORT_STRING);
         foreach ($directories as $directory) {
             $manifest = $this->readManifest($directory . '/manifest.json');
-            if (($manifest['schema'] ?? null) !== 'webman-aot-toolchain-generation-v1'
+            if (($manifest['schema'] ?? null) !== 'webman-aot-builder-toolchain-generation-v1'
                 || ($manifest['host'] ?? null) !== $host
                 || !is_dir($directory . '/artifacts')
                 || !is_file($directory . '/toolchain.lock.json')
@@ -101,7 +101,7 @@ final class ToolchainLocator
                 continue;
             }
             $manifest = $this->readManifest($directory . '/manifest.json');
-            if (($manifest['schema'] ?? null) === 'webman-aot-toolchain-generation-v1'
+            if (($manifest['schema'] ?? null) === 'webman-aot-builder-toolchain-generation-v1'
                 && ($manifest['host'] ?? null) === $host
                 && is_dir($directory . '/artifacts')
                 && is_file($directory . '/toolchain.lock.json')

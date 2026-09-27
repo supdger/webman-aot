@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Toolchain\ElfStaticVerifier;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Toolchain\ElfStaticVerifier;
 
 final class DistributionVerifier
 {
@@ -36,7 +36,7 @@ final class DistributionVerifier
             throw new ConfigurationException('distribution verification requires a concrete directory');
         }
         $manifest = $this->readJson($root . '/manifest.json', 'manifest');
-        if (($manifest['schema'] ?? null) !== 'webman-aot-distribution-v1'
+        if (($manifest['schema'] ?? null) !== 'webman-aot-builder-distribution-v1'
             || ($manifest['target'] ?? null) !== [
                 'os' => 'linux',
                 'architecture' => 'x86_64',
@@ -63,7 +63,7 @@ final class DistributionVerifier
             }
         }
         $resources = $this->readJson($root . '/resources.json', 'resources');
-        if (($resources['schema'] ?? null) !== 'webman-aot-runtime-resources-v1'
+        if (($resources['schema'] ?? null) !== 'webman-aot-builder-runtime-resources-v1'
             || !is_array($resources['entries'] ?? null)
         ) {
             throw new ConfigurationException('distribution resource manifest is invalid');
@@ -209,7 +209,7 @@ final class DistributionVerifier
      */
     private function verifyCoverage(array $coverage): array
     {
-        if (($coverage['schema'] ?? null) !== 'webman-aot-coverage-ledger-v1'
+        if (($coverage['schema'] ?? null) !== 'webman-aot-builder-coverage-ledger-v1'
             || !is_array($coverage['files'] ?? null)
             || $coverage['files'] === []
         ) {

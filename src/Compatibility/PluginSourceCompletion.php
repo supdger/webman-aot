@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Compatibility;
+namespace WebmanAotBuilder\Compatibility;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Project\ProjectDiscovery;
-use WebmanAot\Project\ProjectProfile;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Project\ProjectDiscovery;
+use WebmanAotBuilder\Project\ProjectProfile;
 
 final class PluginSourceCompletion
 {
@@ -20,7 +20,7 @@ final class PluginSourceCompletion
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror) || is_link($mirrorDirectory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot/build/project')
+            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
             || !in_array($profile, [ProjectProfile::WEBMAN, ProjectProfile::SAIADMIN], true)
         ) {
             throw new ConfigurationException('plugin source completion requires an isolated project mirror');

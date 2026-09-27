@@ -1,7 +1,13 @@
-# 从源码制作工具安装包
+# 从源码制作 Webman AOT Builder 安装包
 
-这页给想自己构建、审查或修改 Webman AOT 工具的人。只想编译自己的
-Webman 项目，请返回[首页的安装路线](../README.md#第-1-步下载并安装工具)；
+产品名是 **Webman AOT Builder（`webman-aot-builder`）**。下一版本候选为
+v0.2.0，预期构建产物名以 `webman-aot-builder-0.2.0-` 开头；版本尚未在线核实，
+这些候选文件也不是已发布资产。已发布的 v0.1.3 仍是旧安装包
+`webman-aot-0.1.3-...` 和旧命令 `webman-aot`。本文保留旧 Release、组件和证据
+名称来描述历史输入，不将其说成新版构建结果，也不提供未发布的新版下载命令。
+
+这页给想自己构建、审查或修改 Webman AOT Builder 工具的人。只想编译自己的
+Webman 项目，请返回[首页的安装路线](../README.md#新版本安装与使用)；
 你不需要克隆本仓库。
 
 ## 源码能做什么
@@ -19,8 +25,9 @@ Windows 脚本会自动取得所需输入并校验；Mac 仍需按下文准备�
 
 ### Windows：从源码一条命令构包并自检
 
-在 Windows x64 上下载 [当前仓库源码 ZIP](https://github.com/supdger/webman-aot/archive/refs/heads/main.zip)，
-解压后打开 `webman-aot-main` 文件夹。这个文件夹应能直接看到 `tools`
+在 Windows x64 上从目标仓库 `supdger/webman-aot-builder` 下载源码 ZIP
+（目标仓库与新地址尚未在线核实），解压后打开 `webman-aot-builder-main`
+文件夹。这个文件夹应能直接看到 `tools`
 和 `src`。在文件夹地址栏输入
 `powershell` 并回车，然后原样运行：
 
@@ -38,10 +45,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
 精简组件也可用 `-MinimalComponent` 指定已下载且与锁文件摘要一致的本地 ZIP。
 以后会复用
 摘要符合锁文件的缓存。随后脚本从本仓库源码生成
-`dist/source-build/webman-aot-0.1.3-windows-x86_64.zip`，检查 ZIP 内的
-文件清单，在一次性目录解压、安装并运行 `webman-aot version`。过程会
+`dist/source-build/webman-aot-builder-0.2.0-windows-x86_64.zip`，检查 ZIP 内的
+文件清单，在一次性目录解压、安装并运行 `webman-aot-builder version`。过程会
 显示 `[prepare]`、`[download]`、`[build]`、`[verify]` 状态和耗时；
-只有看到 `[OK] Temporary installation runs: webman-aot 0.1.3` 且命令
+只有看到 `[OK] Temporary installation runs: webman-aot-builder 0.2.0` 且命令
 退出码为 0，才算**工具安装包构建与本机安装自检通过**。一次性安装目录
 会清理，不会改你的用户 `PATH`；生成的 ZIP 留在 `dist/source-build/`。
 
@@ -49,6 +56,11 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1
 更不等于用它编译 Webman 项目或完成 Linux 业务验收。维护者如果确实要
 比较两个本地 ZIP，可以另用可选的 `-Compare` 参数指定参考包；
 普通源码构建者不需要这一步。
+当前源码生成的 `webman-aot-builder-...` 包与已发布的 v0.1.3
+`webman-aot-...` 包属于不同命名代际；用当前源码配合 `-Compare` 对照旧包，
+预期会因包内容或文件路径差异而失败。历史 `-CompareRelease` 和逐文件对照
+证据只记录当时旧命名源码与发布包的一致性，不是当前改名源码的对照结果；
+不要据此改写历史记录，也不要把它们当成本次对照通过的证明。
 
 Mac 安装包仍需下述锁定的 Mac 运行时及编译驱动输入；这条命令只负责
 Windows 安装包。
@@ -65,10 +77,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -Fl
 ## macOS Apple Silicon：先选你要做的事
 
 **只想在 Mac 上使用工具编译 Webman 项目：**不需要本页的源码构包步骤。
-到 [v0.1.3 Release](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)
-下载 `webman-aot-0.1.3-macos-arm64.tar.gz`，按
-[Mac 安装步骤](install-and-build.md#macos-apple-silicon)解压、安装，再回到
-[首页第 2 步](../README.md#第-2-步编译你的项目)使用 `webman-aot`。
+从目标仓库 `supdger/webman-aot-builder` 的 Release 下载已发布的新版安装包
+（新仓库地址和版本尚未在线核实）；按
+[安装步骤](install-and-build.md#第-1-步安装新版)解压、安装，再使用
+`webman-aot-builder`。已发布的 v0.1.3 历史包仍可从
+[旧版 Release](https://github.com/supdger/webman-aot/releases/tag/v0.1.3)取得，
+但它安装的是旧命令 `webman-aot`，不是本次构建的新版。
 
 **想从本仓库源码重新制作 Mac 工具安装包：**目前还不是 Windows 那样的
 一条命令。最难取得的输入是由 `static-php-cli 2.8.5` 构建、摘要与
@@ -87,9 +101,9 @@ powershell -ExecutionPolicy Bypass -File .\tools\build-windows-installer.ps1 -Fl
 | --- | --- |
 | `dist/installer-inputs/php-8.4.25.tar.xz` | [`toolchain.lock.json`](../toolchain.lock.json) 的 `php-source` 官方源码归档 |
 | `dist/installer-inputs/v0.9.2.tar.gz` | 同一锁文件的 `typephp-source` 源码归档 |
-| `dist/installer-inputs/php-macos-upstream` | 用 `static-php-cli 2.8.5` 在锁定的 `/private/tmp/webman-aot-spc-2.8.5` 路径构建的原始 Mac CLI PHP |
+| `dist/installer-inputs/php-macos-upstream` | 用 `static-php-cli 2.8.5` 在新版锁定的 `/private/tmp/webman-aot-builder-spc-2.8.5` 路径构建的原始 Mac CLI PHP |
 | `dist/installer-inputs/source-licenses/` | **同一次** CLI 构建产出的第三方许可文件目录，不能是空目录 |
-| `dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip` | 本仓库同版本 Release 的 Mac 精简组件，或用 `tools/build-minimal-component.php` 从已验证的本机完整工具链生成；下方命令会按锁文件核验摘要 |
+| `dist/installer-inputs/webman-aot-builder-0.2.0-macos-arm64-components.zip` | 与新版锁文件相符的 Mac 精简组件；版本发布前应从固定候选构建或经内容与清单核验后重封装，再由下方命令按锁文件核验摘要。不要把 v0.1.3 旧组件仅改名后当作新版输入 |
 
 前两个公开归档可以直接在源码根目录下载；`curl` 会显示下载进度，后续脚本
 仍会核对锁定的 SHA-256：
@@ -107,8 +121,16 @@ curl -fL --retry 3 \
   -o dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip
 ```
 
-Mac CLI 与同次构建的许可文件**不能靠上述下载命令得到**。如果还没有锁定的 Mac CLI 和同次
-构建的许可文件，到这里就应停止：当前仓库没有可照抄的完整复建命令。
+上方下载命令只用于复核历史 v0.1.3 组件，不可直接作为 v0.2.0 构包输入。
+新版组件准备及锁值更新须按固定候选的发布记录执行；新 Release 资产出现并核验后，
+再将本地输入换成对应的新文件。
+
+Mac CLI 与同次构建的许可文件**不能靠上述下载命令得到**。v0.2.0 构建目标还要求
+在 `/opt/webman-aot-builder/compiler-php` 和 `/usr/src/webman-aot-builder` 前缀下
+重新构建，并使用 `org.webman-aot-builder.cli-php` 标识；旧 v0.1.3 二进制与锁值
+不能只改名后复用。若还没有按新路径重建的 Mac CLI、更新后的摘要锁和同次构建的
+许可文件，到这里应停止：旧版 [Mac 运行时源码与重链接材料](macos-runtime-source.md)
+是历史材料，不是新版已验证构建输入。
 [Mac 运行时源码与重链接材料](macos-runtime-source.md)供需要审查或修改
 LGPL 组件的人使用，但不是现成的安装包构建输入。
 
@@ -146,7 +168,7 @@ dist/installer-inputs/php-macos -n tools/package-installers.php \
   --mac-runtime-license-dir=dist/installer-inputs/source-licenses \
   --php-source-archive=dist/installer-inputs/php-8.4.25.tar.xz \
   --typephp-source-archive=dist/installer-inputs/v0.9.2.tar.gz \
-  --minimal-component=dist/installer-inputs/webman-aot-0.1.3-macos-arm64-components.zip \
+  --minimal-component=dist/installer-inputs/webman-aot-builder-0.2.0-macos-arm64-components.zip \
   --flavor=small \
   --output=dist/installers \
   --revision=source-build
@@ -156,7 +178,7 @@ dist/installer-inputs/php-macos -n tools/package-installers.php \
 其余输入和精简组件不变。`php-macos` 含打包所需的 ZIP 扩展，
 不能把上面命令的 PHP 换成不含 ZIP 的 `php-compiler`。
 
-成功后应出现 `dist/installers/webman-aot-0.1.3-macos-arm64.tar.gz`，命令输出
+成功后应出现 `dist/installers/webman-aot-builder-0.2.0-macos-arm64.tar.gz`，命令输出
 路径、大小和 SHA-256；没有 `[ERROR]` 且退出码为 0 才算打包步骤通过。
 `--platform=macos-arm64` 表示**不需要 Windows PHP ZIP，也不会生成 Windows
 安装包**。想同时制作两个平台的安装包，另需锁定的 Windows PHP ZIP；
@@ -164,7 +186,8 @@ Windows 单独构包请用上面的 Windows 命令。
 
 `dist/` 被 Git 忽略：本机生成归档**不等于已经发布**。公开分发前还须核对
 第三方许可，对新归档做安装及构建验收，再由维护者上传到
-[Releases](https://github.com/supdger/webman-aot/releases)。
+新版仓库 `supdger/webman-aot-builder` 的 Releases。该地址尚未在线验证；
+候选归档留在本机 `dist/`，不等于公开发布。
 
 ## 精简组件如何维护
 
@@ -181,6 +204,7 @@ Mac/Windows 安装、SaiAdmin 编译和 Linux 产物验收，不按日历无故�
 
 在相应系统上按[安装说明](install-and-build.md)从**新生成的安装包**
 安装；安装脚本会自动校验包内文件，不需要另下载 `SHA256SUMS.txt`。
-确认 `webman-aot version` 和 `webman-aot doctor`；
-再在测试 Webman 项目中执行 `webman-aot build`、`webman-aot verify`，
+确认 `webman-aot-builder version` 和 `webman-aot-builder doctor`；
+再在测试 Webman 项目中执行 `webman-aot-builder build`、
+`webman-aot-builder verify`，
 最后到 Linux 验证 `dist-aot/`。仅有两个归档文件不等于功能已经验收。

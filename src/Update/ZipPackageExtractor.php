@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\UnavailableException;
+use WebmanAotBuilder\Cli\UnavailableException;
 
 final class ZipPackageExtractor implements PackageExtractor
 {

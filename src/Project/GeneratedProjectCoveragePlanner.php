@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class GeneratedProjectCoveragePlanner
 {
@@ -27,7 +27,7 @@ final class GeneratedProjectCoveragePlanner
             || is_link($mirrorDirectory)
             || !str_ends_with(
                 str_replace('\\', '/', $mirror),
-                '/.webman-aot/build/project'
+                '/.webman-aot-builder/build/project'
             )
         ) {
             throw new ConfigurationException(
@@ -50,7 +50,7 @@ final class GeneratedProjectCoveragePlanner
             );
         }
         if (!is_array($lock)
-            || ($lock['schema'] ?? null) !== 'webman-aot-upstream-generator-lock-v1'
+            || ($lock['schema'] ?? null) !== 'webman-aot-builder-upstream-generator-lock-v1'
             || !is_array($lock['mappings'] ?? null)
             || !is_array($lock['entrypointMapping'] ?? null)
             || !is_array($lock['dynamicPhp'] ?? null)

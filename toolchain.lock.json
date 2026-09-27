@@ -1,5 +1,5 @@
 {
-    "schema": "webman-aot-toolchain-lock-v1",
+    "schema": "webman-aot-builder-toolchain-lock-v1",
     "target": {
         "os": "linux",
         "architecture": "x86_64",

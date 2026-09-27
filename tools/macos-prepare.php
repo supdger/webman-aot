@@ -256,7 +256,7 @@ function prepare(array $arguments): void
         return substr($path, strlen($prefix));
     };
     $prepared = [
-        'schema' => 'webman-aot-prepared-toolchain-v1',
+        'schema' => 'webman-aot-builder-prepared-toolchain-v1',
         'host' => 'macos-arm64',
         'lockSha256' => hash('sha256', $contents),
         'php' => $relative($php),

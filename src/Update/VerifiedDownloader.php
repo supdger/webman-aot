@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Update;
+namespace WebmanAotBuilder\Update;
 
-use WebmanAot\Cli\UnavailableException;
-use WebmanAot\Toolchain\Downloader;
+use WebmanAotBuilder\Cli\UnavailableException;
+use WebmanAotBuilder\Toolchain\Downloader;
 
 final class VerifiedDownloader
 {

@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class ProjectMirror
 {
     private const EXCLUDED_ROOTS = [
         '.git',
+        '.webman-aot-builder',
         '.webman-aot',
         'dist-aot',
         'runtime',
@@ -28,7 +29,7 @@ final class ProjectMirror
         $project = realpath($this->projectDirectory);
         $build = realpath($buildDirectory);
         $expected = is_string($project)
-            ? realpath($project . '/.webman-aot/build')
+            ? realpath($project . '/.webman-aot-builder/build')
             : false;
         if (!is_string($project)
             || !is_string($build)

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class DistributionManifestWriter
 {
@@ -120,7 +120,7 @@ final class DistributionManifestWriter
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
         $manifest = [
-            'schema' => 'webman-aot-distribution-v1',
+            'schema' => 'webman-aot-builder-distribution-v1',
             'target' => [
                 'os' => 'linux',
                 'architecture' => 'x86_64',

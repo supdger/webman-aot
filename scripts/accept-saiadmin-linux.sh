@@ -110,7 +110,7 @@ printf '%s\n' "$base_url" | grep -Eq '^http://127\.0\.0\.1:[0-9]{1,5}$' || {
     exit 2
 }
 scratch_root=${AOT_TEST_TMPDIR:-/tmp}
-scratch=$(mktemp -d "$scratch_root/webman-aot-accept.XXXXXXXX")
+scratch=$(mktemp -d "$scratch_root/webman-aot-builder-accept.XXXXXXXX")
 trap 'rm -f "$scratch/cookies"; rmdir "$scratch"' EXIT HUP INT TERM
 
 captcha=$(curl --noproxy '*' --silent --show-error --max-time 10 \

@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Project;
+namespace WebmanAotBuilder\Project;
 
-use WebmanAot\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\ConfigurationException;
 
 final class SourceTreeSnapshot
 {
     private const EXCLUDED_ROOTS = [
         '.git',
+        '.webman-aot-builder',
         '.webman-aot',
         'dist-aot',
         'runtime',

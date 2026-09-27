@@ -18,7 +18,7 @@ final class InstallerPackager
     {
         $this->parseOptions($arguments);
         $lock = $this->readJson($this->root . '/installer/runtime.lock.json');
-        if (($lock['schema'] ?? null) !== 'webman-aot-installer-runtime-lock-v1'
+        if (($lock['schema'] ?? null) !== 'webman-aot-builder-installer-runtime-lock-v1'
             || !is_array($lock['runtimes'] ?? null)
         ) {
             throw new RuntimeException('installer runtime lock is invalid');
@@ -51,7 +51,7 @@ final class InstallerPackager
 
         $output = $this->requiredOption('output');
         $this->createDirectory($output);
-        $workspace = sys_get_temp_dir() . '/webman-aot-package-' . bin2hex(random_bytes(8));
+        $workspace = sys_get_temp_dir() . '/webman-aot-builder-package-' . bin2hex(random_bytes(8));
         $this->createDirectory($workspace);
         try {
             $licenseDirectory = $workspace . '/typephp-license';
@@ -95,7 +95,7 @@ final class InstallerPackager
         }
 
         fwrite(STDOUT, json_encode([
-            'schema' => 'webman-aot-installer-package-result-v1',
+            'schema' => 'webman-aot-builder-installer-package-result-v1',
             'revision' => $this->options['revision'] ?? 'unknown',
             'packages' => $packages,
         ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
@@ -156,8 +156,8 @@ final class InstallerPackager
             }
         }
         $this->createDirectory($stage . '/payload/launcher');
-        copy($this->root . '/bin/webman-aot', $stage . '/payload/launcher/webman-aot');
-        chmod($stage . '/payload/launcher/webman-aot', 0700);
+        copy($this->root . '/bin/webman-aot-builder', $stage . '/payload/launcher/webman-aot-builder');
+        chmod($stage . '/payload/launcher/webman-aot-builder', 0700);
         copy($this->root . '/installer/macos/install.sh', $stage . '/install.sh');
         copy($this->root . '/installer/macos/uninstall.sh', $stage . '/uninstall.sh');
         chmod($stage . '/install.sh', 0700);
@@ -165,7 +165,7 @@ final class InstallerPackager
         $this->stageMinimalComponent($stage, 'macos-arm64', $minimalComponent, $full);
         $this->writeMetadata($stage, 'macos-arm64', $runtime, $full);
 
-        $archive = $output . '/webman-aot-' . $this->version()
+        $archive = $output . '/webman-aot-builder-' . $this->version()
             . ($full ? '-full' : '') . '-macos-arm64.tar.gz';
         $tarPath = substr($archive, 0, -3);
         if (is_file($tarPath)) {
@@ -272,13 +272,13 @@ final class InstallerPackager
             $runtimeStage . '/upstream-php.spdx.json'
         );
         $this->createDirectory($stage . '/payload/launcher');
-        copy($this->root . '/bin/webman-aot.cmd', $stage . '/payload/launcher/webman-aot.cmd');
+        copy($this->root . '/bin/webman-aot-builder.cmd', $stage . '/payload/launcher/webman-aot-builder.cmd');
         copy($this->root . '/installer/windows/install.ps1', $stage . '/install.ps1');
         copy($this->root . '/installer/windows/uninstall.ps1', $stage . '/uninstall.ps1');
         $this->stageMinimalComponent($stage, 'windows-x86_64', $minimalComponent, $full);
         $this->writeMetadata($stage, 'windows-x86_64', $runtime, $full);
 
-        $archive = $output . '/webman-aot-' . $this->version()
+        $archive = $output . '/webman-aot-builder-' . $this->version()
             . ($full ? '-full' : '') . '-windows-x86_64.zip';
         if (is_file($archive)) {
             unlink($archive);
@@ -304,11 +304,13 @@ final class InstallerPackager
     ): void {
         $lock = $this->readJson($this->root . '/toolchain/minimal-components.lock.json');
         $component = $lock['components'][$host] ?? null;
-        if (($lock['schema'] ?? null) !== 'webman-aot-minimal-components-lock-v1'
+        if (($lock['schema'] ?? null) !== 'webman-aot-builder-minimal-components-lock-v1'
             || ($lock['version'] ?? null) !== $this->version()
             || ($lock['toolchainLockSha256'] ?? null)
                 !== $this->digest($this->root . '/toolchain.lock.json')
             || !is_array($component)
+            || ($component['archive'] ?? null)
+                !== 'webman-aot-builder-' . $this->version() . '-' . $host . '-components.zip'
             || ($component['sha256'] ?? null) !== $this->digest($source)
         ) {
             throw new RuntimeException("minimal {$host} component does not match its source lock");
@@ -323,6 +325,14 @@ final class InstallerPackager
                 || hash('sha256', $manifest) !== ($component['manifestSha256'] ?? null)
             ) {
                 throw new RuntimeException('minimal component file manifest differs from its source lock');
+            }
+            $manifestData = json_decode($manifest, true, flags: JSON_THROW_ON_ERROR);
+            if (!is_array($manifestData)
+                || ($manifestData['schema'] ?? null) !== 'webman-aot-builder-minimal-component-v1'
+                || ($manifestData['host'] ?? null) !== $host
+                || ($manifestData['toolchainLockSha256'] ?? null) !== $lock['toolchainLockSha256']
+            ) {
+                throw new RuntimeException('minimal component has an incompatible manifest identity');
             }
         } finally {
             $zip->close();
@@ -352,7 +362,7 @@ final class InstallerPackager
     {
         $app = $stage . '/payload/app';
         $this->createDirectory($app . '/bin');
-        copy($this->root . '/bin/webman-aot.php', $app . '/bin/webman-aot.php');
+        copy($this->root . '/bin/webman-aot-builder.php', $app . '/bin/webman-aot-builder.php');
         $this->copyDirectory($this->root . '/src', $app . '/src', ['php']);
         copy($this->root . '/toolchain.lock.json', $app . '/toolchain.lock.json');
         $this->createDirectory($app . '/toolchain');
@@ -428,7 +438,7 @@ final class InstallerPackager
         file_put_contents(
             $stage . '/package.json',
             json_encode([
-                'schema' => 'webman-aot-installer-package-v1',
+                'schema' => 'webman-aot-builder-installer-package-v1',
                 'version' => $this->version(),
                 'revision' => $this->options['revision'] ?? 'unknown',
                 'platform' => $platform,
@@ -562,7 +572,7 @@ final class InstallerPackager
         if (!is_string($contents)
             || preg_match("/public const VALUE = '([^']+)'/", $contents, $matches) !== 1
         ) {
-            throw new RuntimeException('unable to resolve Webman AOT version');
+            throw new RuntimeException('unable to resolve Webman AOT Builder version');
         }
 
         return $matches[1];

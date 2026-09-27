@@ -92,7 +92,7 @@ try {
         STDOUT,
         json_encode(
             [
-                'schema' => 'webman-aot-stripped-sdk-v1',
+                'schema' => 'webman-aot-builder-stripped-sdk-v1',
                 'files' => count($files),
                 'sha256' => hash('sha256', $digestInput),
             ],

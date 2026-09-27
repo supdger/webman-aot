@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
-use WebmanAot\Cli\ConfigurationException;
-use WebmanAot\Cli\UnavailableException;
-use WebmanAot\Platform\UserDirectoryLayout;
+use WebmanAotBuilder\Cli\ConfigurationException;
+use WebmanAotBuilder\Cli\UnavailableException;
+use WebmanAotBuilder\Platform\UserDirectoryLayout;
 
 final class MinimalComponentManager
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebmanAot\Toolchain;
+namespace WebmanAotBuilder\Toolchain;
 
 final class ReproducibilityInput
 {
@@ -106,7 +106,7 @@ final class ReproducibilityInput
             'build' => [
                 'phpVersion' => '8.4',
                 'targetTriple' => 'x86_64-unknown-linux-musl',
-                'sourcePrefix' => '/usr/src/webman-aot',
+                'sourcePrefix' => '/usr/src/webman-aot-builder',
                 'cxxStandard' => 'c++17',
                 'gccVersion' => '12.2.1',
                 'allowMultipleDefinition' => true,
@@ -124,7 +124,7 @@ final class ReproducibilityInput
         );
 
         return [
-            'schema' => 'webman-aot-reproducibility-input-v1',
+            'schema' => 'webman-aot-builder-reproducibility-input-v1',
             'input' => $input,
             'sha256' => hash('sha256', $canonical),
         ];
