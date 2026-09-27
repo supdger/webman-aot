@@ -102,9 +102,16 @@ jobs:
             foreach ($mode in @('check', 'json')) {
               $argsForDoctor = @('--json')
               if ($mode -eq 'check') { $argsForDoctor = @('--check', '--json') }
-              $json = & webman-aot doctor @argsForDoctor 2>$null
+              $previousPreference = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              try {
+                $json = & webman-aot doctor @argsForDoctor 2>$null
+                $doctorExit = $LASTEXITCODE
+              } finally {
+                $ErrorActionPreference = $previousPreference
+              }
               $report = ($json -join "`n") | ConvertFrom-Json
-              if ($report.healthy -or @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+              if ($doctorExit -eq 0 -or $report.healthy -or @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
                 throw 'Read-only doctor unexpectedly became healthy or checked project.'
               }
               if ((Test-Path -LiteralPath $downloads) -and
@@ -113,8 +120,15 @@ jobs:
               }
             }
             Write-Output '[build] Nonproject build should reject before downloading ...'
-            & webman-aot build
-            if ($LASTEXITCODE -eq 0 -or (Test-Path -LiteralPath 'dist-aot')) {
+            $previousPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+              & webman-aot build 2>$null
+              $buildExit = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $previousPreference
+            }
+            if ($buildExit -eq 0 -or (Test-Path -LiteralPath 'dist-aot')) {
               throw 'Nonproject build unexpectedly succeeded.'
             }
             if ((Test-Path -LiteralPath $downloads) -and
