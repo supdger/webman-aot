@@ -167,6 +167,23 @@ jobs:
                 $project = Join-Path $env:RUNNER_TEMP "webman-neutral-$flavor"
                 New-Item -ItemType Directory -Force -Path $project | Out-Null
                 Copy-Item -Path (Join-Path $fixture '*') -Destination $project -Recurse -Force
+                $fakeSource = Join-Path $env:RUNNER_TEMP "fake-clang-$flavor.cs"
+                $fakeExe = Join-Path $project 'clang++.exe'
+                $fakeCmd = Join-Path $project 'clang++.cmd'
+                $fakeMarker = Join-Path $env:RUNNER_TEMP "fake-clang-$flavor-invoked.txt"
+                $fakeCode = 'using System; using System.IO; public static class FakeClang { public static int Main(string[] args) { File.WriteAllText(Environment.GetEnvironmentVariable("FAKE_CLANG_MARKER"), String.Join(" ", args)); return 99; } }'
+                Set-Content -LiteralPath $fakeSource -Encoding ascii -Value $fakeCode
+                $compileFake = "Add-Type -Path '$fakeSource' -OutputAssembly '$fakeExe' -OutputType ConsoleApplication"
+                Write-Output '[prepare] Building a marker-writing fake clang++.exe in the project root ...'
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $compileFake
+                if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $fakeExe -PathType Leaf)) {
+                  throw 'Unable to build fake project-root clang++.exe.'
+                }
+                Set-Content -LiteralPath $fakeCmd -Encoding ascii -Value @(
+                  '@echo off', 'echo hijacked > "%FAKE_CLANG_MARKER%"', 'exit /b 99'
+                )
+                $previousFakeMarker = $env:FAKE_CLANG_MARKER
+                $env:FAKE_CLANG_MARKER = $fakeMarker
                 Push-Location $project
                 try {
                   if ($flavor -eq 'small') {
@@ -189,9 +206,13 @@ jobs:
                       $verify.staticStructure -ne 'pass') {
                     throw "$flavor dist-aot verification failed."
                   }
+                  if (Test-Path -LiteralPath $fakeMarker -PathType Leaf) {
+                    throw "$flavor invoked a project-root fake clang instead of the locked compiler."
+                  }
                   Write-Output "[OK] $flavor build and verify passed ($($verify.files) files)."
                 } finally {
                   Pop-Location
+                  $env:FAKE_CLANG_MARKER = $previousFakeMarker
                 }
               } finally {
                 $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
