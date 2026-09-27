@@ -6,8 +6,7 @@
 
 ## 下载 v0.2.1
 
-按**开发电脑的系统**选择一行，再从轻量包和完整包中选一个。下列是 v0.2.1
-的准确资产链接；**Release 发布前链接尚不可用**。下载后，对照
+按**开发电脑的系统**选择一行，再从轻量包和完整包中选一个。下载后，对照
 [SHA256SUMS](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/SHA256SUMS)
 中相同文件名的一行核对 SHA-256。不要下载 GitHub 自动生成的 `Source code (zip)`。
 
@@ -20,7 +19,7 @@
 校验并准备同一组件。两种包在同一平台运行相同的安装脚本。
 
 如果使用的是 [v0.2.0 安装包](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.0)，
-请按 [v0.2.0 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install)
+请按 [v0.2.0 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.0)
 操作；该版本的命令是 `webman-aot-builder`。下面的 `webman-aot` 步骤适用于
 v0.2.1。
 
