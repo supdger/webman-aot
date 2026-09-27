@@ -161,40 +161,69 @@ jobs:
           $server = Join-Path $checkout 'server'
           Push-Location $server
           try {
-            $phpId = & php -r 'echo PHP_VERSION_ID;'
-            if ($LASTEXITCODE -ne 0 -or [int]$phpId -lt 80400) {
-              throw "Composer requires PHP 8.4; runner has $phpId"
+            $runtimeArchive = Join-Path $env:GITHUB_WORKSPACE `
+              'dist\installer-inputs\php-8.4.25-Win32-vs17-x64.zip'
+            if (-not (Test-Path -LiteralPath $runtimeArchive -PathType Leaf)) {
+              throw 'Source packaging did not retain the locked Windows PHP archive.'
             }
+            $runtimeSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $runtimeArchive).Hash.ToLowerInvariant()
+            if ($runtimeSha -ne '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c') {
+              throw 'Composer PHP archive differs from the locked Windows runtime.'
+            }
+            $composerPhpRoot = Join-Path $env:RUNNER_TEMP 'composer-php-8.4.25'
+            New-Item -ItemType Directory -Force -Path $composerPhpRoot | Out-Null
+            Write-Output '[prepare] Extracting the SHA-256 checked official Windows PHP 8.4.25 for Composer ...'
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $runtimeArchive -C $composerPhpRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Composer PHP archive extraction failed.' }
+            $composerPhp = Join-Path $composerPhpRoot 'php.exe'
+            if (-not (Test-Path -LiteralPath $composerPhp -PathType Leaf)) {
+              throw 'Official Windows PHP archive has no php.exe.'
+            }
+            foreach ($module in @('gd', 'fileinfo', 'zip', 'openssl')) {
+              if (-not (Test-Path -LiteralPath (Join-Path $composerPhpRoot "ext\php_$module.dll") -PathType Leaf)) {
+                throw "Official Windows PHP archive has no $module extension DLL."
+              }
+            }
+            $composerIni = Join-Path $composerPhpRoot 'php.ini'
+            @(
+              'extension_dir="' + (Join-Path $composerPhpRoot 'ext') + '"'
+              'extension=gd'
+              'extension=fileinfo'
+              'extension=zip'
+              'extension=openssl'
+            ) | Set-Content -LiteralPath $composerIni -Encoding ascii
+            $env:PHPRC = $composerPhpRoot
+            $env:Path = "$composerPhpRoot;$env:Path"
+            $phpVersion = & php -r 'echo PHP_VERSION;'
+            if ($LASTEXITCODE -ne 0 -or $phpVersion -ne '8.4.25') {
+              throw "Composer PATH selected wrong PHP: $phpVersion"
+            }
+            $loadedIni = & php -r 'echo php_ini_loaded_file();'
+            if ($LASTEXITCODE -ne 0 -or
+                -not [string]::Equals($loadedIni, $composerIni, [StringComparison]::OrdinalIgnoreCase)) {
+              throw "Composer PHP loaded wrong ini: $loadedIni"
+            }
+            $loadedModules = @(& php -m | ForEach-Object { $_.ToLowerInvariant() })
+            if ($LASTEXITCODE -ne 0) { throw 'Composer PHP module probe failed.' }
+            foreach ($module in @('gd', 'fileinfo', 'zip', 'openssl')) {
+              if ($loadedModules -notcontains $module) { throw "Composer PHP lacks $module after setup." }
+            }
+            Write-Output '[OK] Composer PHP 8.4.25 with gd, fileinfo, zip and openssl enabled.'
+            & php -v
+            if ($LASTEXITCODE -ne 0) { throw 'Composer PHP version display failed.' }
+            & php -m
+            if ($LASTEXITCODE -ne 0) { throw 'Composer PHP module display failed.' }
+            $composerVersion = (& composer --version 2>&1) -join "`n"
+            if ($LASTEXITCODE -ne 0 -or $composerVersion -notmatch 'PHP version 8\.4\.25\b') {
+              throw "Composer does not use the locked PHP 8.4.25: $composerVersion"
+            }
+            Write-Output "[OK] $composerVersion"
             if (Test-Path -LiteralPath 'composer.lock') {
               throw 'Official fixture unexpectedly contains a committed composer.lock; review dependency setup.'
             }
-            $composerExtra = @()
-            $gdLoaded = & php -r 'echo extension_loaded("gd") ? "yes" : "no";'
-            if ($LASTEXITCODE -ne 0) { throw 'Unable to probe runner PHP GD extension.' }
-            if ($gdLoaded -ne 'yes') {
-              $phpExe = (Get-Command php -CommandType Application -ErrorAction Stop).Source
-              $gdDll = Join-Path (Split-Path -Parent $phpExe) 'ext\php_gd.dll'
-              Write-Output "[prepare] Checking runner PHP GD module: $gdDll"
-              if (Test-Path -LiteralPath $gdDll -PathType Leaf) {
-                $phpIni = & php -r 'echo php_ini_loaded_file();'
-                if ($LASTEXITCODE -ne 0 -or -not $phpIni -or
-                    -not (Test-Path -LiteralPath $phpIni -PathType Leaf)) {
-                  throw 'Runner has php_gd.dll but no usable php.ini for enabling it.'
-                }
-                Add-Content -LiteralPath $phpIni -Value "`r`nextension=gd"
-                $gdLoaded = & php -r 'echo extension_loaded("gd") ? "yes" : "no";'
-                if ($LASTEXITCODE -ne 0 -or $gdLoaded -ne 'yes') {
-                  throw 'Runner php_gd.dll exists but could not be enabled.'
-                }
-                Write-Output '[OK] Enabled the runner PHP GD module for Composer.'
-              } else {
-                $composerExtra = @('--ignore-platform-req=ext-gd')
-                Write-Output '[fixture] Runner PHP has no GD module; ignoring ext-gd only for dependency installation in this static-build regression. This does not validate SaiAdmin runtime/captcha.'
-              }
-            }
             Write-Output '[composer] Official source has no lock. Resolving and installing with Webman fixed at v2.2.4; required Webman package scripts stay enabled ...'
             & composer update --with workerman/webman-framework:2.2.4 `
-              --no-interaction --prefer-dist --no-plugins @composerExtra
+              --no-interaction --prefer-dist --no-plugins
             if ($LASTEXITCODE -ne 0) { throw 'Official SaiAdmin Composer resolution/install failed.' }
             if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
               throw 'Composer did not generate a lock file.'
