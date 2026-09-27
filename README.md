@@ -4,20 +4,25 @@
 面向 Linux amd64 的全静态程序。工具安装在开发机上，不需要装进 Webman 项目，
 构建时也不需要 Docker。
 
-## 版本与下载
+## 下载 v0.2.1
 
-当前仓库正在准备 v0.2.1 安装包。下文的 `webman-aot` 命令对应**待发布的
-v0.2.1**；该版本的四种安装包和 SHA-256 须在实际发布资产校验后补齐。
-**请勿把下文命令用于 v0.2.0 安装包。**
+按**开发电脑的系统**选择一行，再从轻量包和完整包中选一个。下列是 v0.2.1
+的准确资产链接；**Release 发布前链接尚不可用**。下载后，对照
+[SHA256SUMS](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/SHA256SUMS)
+中相同文件名的一行核对 SHA-256。不要下载 GitHub 自动生成的 `Source code (zip)`。
 
-目前已发布的 [v0.2.0 安装包](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.0)
-仍使用 `webman-aot-builder` 命令；按
-[v0.2.0 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install)
-操作。GitHub 自动生成的 `Source code (zip)` 不是安装包。
+| 开发电脑 | 轻量包 | 完整包（安装时离线准备组件） |
+| --- | --- | --- |
+| macOS Apple Silicon | [下载 `.tar.gz`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/webman-aot-builder-0.2.1-macos-arm64.tar.gz) | [下载完整 `.tar.gz`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/webman-aot-builder-0.2.1-full-macos-arm64.tar.gz) |
+| Windows x64 | [下载 `.zip`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/webman-aot-builder-0.2.1-windows-x86_64.zip) | [下载完整 `.zip`](https://github.com/supdger/webman-aot-builder/releases/download/v0.2.1/webman-aot-builder-0.2.1-full-windows-x86_64.zip) |
 
-v0.2.1 将提供 macOS Apple Silicon 和 Windows x64 的轻量包、完整包各一个。
 完整包内含锁定的编译组件，可在安装时离线准备；轻量包须在首次使用时联网下载、
 校验并准备同一组件。两种包在同一平台运行相同的安装脚本。
+
+如果使用的是 [v0.2.0 安装包](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.0)，
+请按 [v0.2.0 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install)
+操作；该版本的命令是 `webman-aot-builder`。下面的 `webman-aot` 步骤适用于
+v0.2.1。
 
 ## v0.2.1 安装与使用步骤
 
@@ -96,15 +101,15 @@ SaiAdmin 项目的构建命令改为 `webman-aot build --profile=saiadmin`，
 [Linux 目标机验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)
 检查启动、数据库和业务接口。
 
-如果输出 `[ERROR] project: project profile detection failed`，先返回第 2 步确认
+如果输出 `[ERROR] project:`，先返回第 2 步确认
 当前目录和项目结构；**在错误目录原地重跑或加 `--repair` 不会开始下载。**
 若项目检查通过但下载失败，保留错误原文；网络恢复后在同一个项目根重跑
 `webman-aot doctor`，已校验的组件可复用，部分下载会尝试续传。
 网络持续受限时可安装对应平台的完整包。
 
-v0.2.1 的 `webman-aot` 命令将使用 `webman-aot-builder` 用户数据目录；
-此前 v0.1.3 的同名命令使用旧数据目录。安装新版本后先按第 1 步确认实际命令位置
-与版本，避免调用到旧版。
+v0.2.1 的 `webman-aot` 命令使用 `webman-aot-builder` 用户数据目录；
+旧版同名命令可能仍在 `PATH` 中。安装后先按第 1 步确认实际命令位置与版本，
+避免调用到旧版。
 
 ## 源码、兼容与许可
 
