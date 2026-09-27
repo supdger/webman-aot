@@ -86,19 +86,12 @@ final class TypePhpProjectCompiler
         $environment['PHP_HOME'] = dirname($tools['php']);
         $environment['PHPRC'] = $tools['phprc'];
         $separator = PHP_OS_FAMILY === 'Windows' ? ';' : ':';
-        $environment['PATH'] = dirname($tools['compiler'])
+        $privatePath = dirname($tools['compiler'])
             . $separator . dirname($tools['php'])
             . $separator . (PHP_OS_FAMILY === 'Windows'
                 ? (getenv('SystemRoot') ?: 'C:\\Windows') . '\\System32'
                 : '/usr/bin:/bin');
-        if (PHP_OS_FAMILY === 'Windows') {
-            foreach (array_keys($environment) as $name) {
-                if (strcasecmp($name, 'NoDefaultCurrentDirectoryInExePath') === 0) {
-                    unset($environment[$name]);
-                }
-            }
-            $environment['NoDefaultCurrentDirectoryInExePath'] = '1';
-        }
+        $environment = self::withPrivatePath($environment, $privatePath, PHP_OS_FAMILY);
         $compile = [
             $tools['php'],
             $tools['typephp'] . '/bin/tpc.php',
@@ -199,6 +192,29 @@ final class TypePhpProjectCompiler
         }
 
         return 'clang++';
+    }
+
+    /**
+     * @param array<string, string> $environment
+     * @return array<string, string>
+     */
+    private static function withPrivatePath(array $environment, string $path, string $host): array
+    {
+        if ($host === 'Windows') {
+            foreach (array_keys($environment) as $name) {
+                if (strcasecmp($name, 'PATH') === 0
+                    || strcasecmp($name, 'NoDefaultCurrentDirectoryInExePath') === 0
+                ) {
+                    unset($environment[$name]);
+                }
+            }
+        }
+        $environment['PATH'] = $path;
+        if ($host === 'Windows') {
+            $environment['NoDefaultCurrentDirectoryInExePath'] = '1';
+        }
+
+        return $environment;
     }
 
     /** @param list<string> $paths */
