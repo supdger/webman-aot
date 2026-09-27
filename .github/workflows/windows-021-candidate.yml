@@ -348,9 +348,15 @@ jobs:
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
               (Join-Path $extract 'uninstall.ps1') -InstallRoot $installRoot -BinDir $bin -Purge
             if ($LASTEXITCODE -ne 0) { throw 'PATH conflict uninstall failed.' }
-            if ([Environment]::GetEnvironmentVariable('Path', 'User') -ne $testUserPath -or
-                -not (Test-Path -LiteralPath $oldCommand) -or
-                -not (Test-Path -LiteralPath $oldMarker)) {
+            $actualUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+            $expectedParts = @($testUserPath -split ';' | Where-Object { $_ -ne '' })
+            $actualParts = @($actualUserPath -split ';' | Where-Object { $_ -ne '' })
+            $oldCommandKept = Test-Path -LiteralPath $oldCommand -PathType Leaf
+            $oldMarkerKept = Test-Path -LiteralPath $oldMarker -PathType Leaf
+            $newCommandRemoved = -not (Test-Path -LiteralPath (Join-Path $bin 'webman-aot.cmd'))
+            Write-Output "[verify] PATH entries before=$($expectedParts.Count) after=$($actualParts.Count); old command=$oldCommandKept; old marker=$oldMarkerKept; new command removed=$newCommandRemoved"
+            if (($expectedParts -join ';') -ne ($actualParts -join ';') -or
+                -not $oldCommandKept -or -not $oldMarkerKept -or -not $newCommandRemoved) {
               throw 'Legacy PATH or installation was not preserved.'
             }
             Write-Output '[OK] New command won PATH precedence; old installation survived uninstall.'
