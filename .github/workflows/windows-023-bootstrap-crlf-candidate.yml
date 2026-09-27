@@ -228,7 +228,7 @@ jobs:
             if (-not (Test-Path -LiteralPath 'composer.lock' -PathType Leaf)) {
               throw 'Composer did not generate a lock file.'
             }
-            $resolved = Get-Content -Raw -LiteralPath 'composer.lock' | ConvertFrom-Json
+            $resolved = Get-Content -Raw -LiteralPath 'composer.lock' | ConvertFrom-Json -AsHashtable
             $webmanPackage = @($resolved.packages | Where-Object { $_.name -eq 'workerman/webman-framework' })
             if ($webmanPackage.Count -ne 1 -or $webmanPackage[0].version -ne 'v2.2.4' -or
                 $webmanPackage[0].source.reference -ne 'b080c9f470f9811999c94ae6fab3871f7792d891') {
