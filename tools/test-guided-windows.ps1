@@ -667,6 +667,7 @@ server.serve_forever()
             $arguments += @('-Project', $project)
         }
         $run = Invoke-Cmd "setup-$flavor-https-install" $setup $arguments
+        Assert-Check (-not $run.Text.Contains('NativeCommandError')) "$flavor successful setup shows download progress without a PowerShell error wrapper"
         Assert-Check ($run.Text.Contains('下载：') -and $run.Text.Contains('外层 SHA-256 校验成功') -and
             (Test-Path -LiteralPath (Join-Path $WorkRoot "setup $flavor home\current\runtime\php.exe"))) "$flavor standalone setup downloads HTTPS, verifies bound SHA and installs"
         $served = @(Get-Content -LiteralPath $requests | ForEach-Object { $_ | ConvertFrom-Json } |

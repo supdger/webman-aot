@@ -39,6 +39,51 @@ function Show-Status([string]$Message) {
     Write-Host $Message
     if ($log) { Add-Content -LiteralPath $log -Value $Message -Encoding UTF8 }
 }
+function Receive-Package($Package, [string]$Destination) {
+    $curl = $null
+    $stderrPath = Join-Path ([IO.Path]::GetTempPath()) ('webman-aot-download-' + [Guid]::NewGuid().ToString('N') + '.stderr.log')
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $curlCommand = Get-Command 'curl.exe' -CommandType Application -ErrorAction Stop | Select-Object -First 1
+        $arguments = @('--no-progress-bar', '--no-silent', '--progress-meter', '--fail', '--location',
+            '--proto', '=https', '--proto-redir', '=https', '--output', ('"' + $Destination + '"'), ('"' + $Package.Url + '"'))
+        $curl = Start-Process -FilePath $curlCommand.Source -ArgumentList $arguments -NoNewWindow -PassThru -RedirectStandardError $stderrPath
+        # Cache the handle before waiting so Windows PowerShell 5.1 retains ExitCode.
+        $curlHandle = $curl.Handle
+        Add-Content -LiteralPath $log -Value ('下载进程：' + $curl.Id) -Encoding UTF8
+        Show-Status ('下载已开始：0 / {0} 字节；正在连接服务器。' -f $Package.Size)
+        $nextStatus = 5.0
+        while (-not $curl.WaitForExit(200)) {
+            # The native writer owns stderr until it drains; monitor payload bytes only.
+            if ($timer.Elapsed.TotalSeconds -lt $nextStatus) { continue }
+            $nextStatus = $timer.Elapsed.TotalSeconds + 5.0
+            $bytes = if (Test-Path -LiteralPath $Destination -PathType Leaf) { (Get-Item -LiteralPath $Destination).Length } else { 0L }
+            Show-Status ('已下载 {0} / {1} 字节（{2:N1}%）；平均 {3:N2} MiB/秒，已用 {4:N1} 秒。' -f
+                $bytes, $Package.Size, [Math]::Min(99.9, ($bytes * 100.0 / $Package.Size)),
+                ($bytes / 1MB / [Math]::Max(0.001, $timer.Elapsed.TotalSeconds)), $timer.Elapsed.TotalSeconds)
+        }
+        $curl.WaitForExit()
+        $code = $curl.ExitCode
+        if ($code -isnot [int]) { throw '无法确认下载进程的退出状态；请保留日志后重试。' }
+        if ($code -ne 0) { $script:exitCode = $code }
+        $curl.Dispose()
+        $curl = $null
+        if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            $errorText = Get-Content -Raw -LiteralPath $stderrPath -Encoding UTF8
+            if ($errorText) { Add-Content -LiteralPath $log -Value $errorText -Encoding UTF8 }
+        }
+        $bytes = if (Test-Path -LiteralPath $Destination -PathType Leaf) { (Get-Item -LiteralPath $Destination).Length } else { 0L }
+        Show-Status ('下载结束：{0} / {1} 字节，耗时 {2:N1} 秒。' -f $bytes, $Package.Size, $timer.Elapsed.TotalSeconds)
+        return $code
+    } finally {
+        if ($null -ne $curl) {
+            try {
+                if (-not $curl.HasExited) { $curl.Kill() }
+                $curl.WaitForExit()
+            } finally { $curl.Dispose() }
+        }
+    }
+}
 function Test-Archive([string]$Path, $Package) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
     $item = Get-Item -LiteralPath $Path
@@ -82,12 +127,17 @@ try {
             if ((Test-Path -LiteralPath $Archive) -and ((Get-Item -LiteralPath $Archive).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw '缓存安装包不能是链接。' }
             $download = Join-Path $cache ('download-' + [Guid]::NewGuid().ToString('N') + '.zip')
             Show-Status ('下载：' + $package.Url)
-            Show-Status '下方显示实际下载字节、速度和时间。'
-            $ErrorActionPreference = 'Continue'
-            & curl.exe --no-progress-bar --no-silent --progress-meter --fail --location --proto '=https' --proto-redir '=https' --output $download $package.Url 2>&1 | Tee-Object -FilePath $log -Append
-            $downloadCode = $LASTEXITCODE
-            $ErrorActionPreference = 'Stop'
-            if ($downloadCode -ne 0) { $exitCode=$downloadCode; throw "下载失败（curl 退出码 $downloadCode）；请检查网络或代理后重试。" }
+            Show-Status '下方每 5 秒显示实际下载字节、速度和时间。'
+            $downloadCode = Receive-Package $package $download
+            if ($downloadCode -ne 0) {
+                $exitCode = $downloadCode
+                $reason = switch ($downloadCode) {
+                    22 { '服务器拒绝下载或找不到此版本资产；请检查下载地址后重试。' }
+                    60 { 'TLS 证书校验未通过；请检查系统时间、证书或代理配置后重试。' }
+                    default { '请检查网络或代理后重试。' }
+                }
+                throw "下载失败（curl 退出码 $downloadCode）；$reason 原始错误见本机日志。"
+            }
             if (-not (Test-Archive $download $package)) { throw "下载包大小或 SHA-256 不匹配；不会执行包内代码。临时文件：$download" }
             Move-Item -LiteralPath $download -Destination $Archive -Force
         }
