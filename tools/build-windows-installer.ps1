@@ -69,8 +69,10 @@ if (-not $verified) {
         ((Get-Item -LiteralPath $partial).Length -gt $expectedBytes)) {
         Remove-Item -Force -LiteralPath $partial
     }
+    $curl = $null
+    $downloadFailure = $null
     try {
-        Write-Output "[下载] Windows PHP；下方显示下载量、速度和时间。Received 是已下载量，Speed 是字节/秒。"
+        Write-Output "[下载] Windows PHP；下方每 5 秒显示实际下载量、平均速度和耗时。"
         $curlError = $partial + '.stderr'
         $curlCommand = Get-Command 'curl.exe' -CommandType Application -ErrorAction Stop |
             Select-Object -First 1
@@ -97,17 +99,12 @@ if (-not $verified) {
             $downloadTimer = [Diagnostics.Stopwatch]::StartNew()
             $lastBytes = 0L
             $lastWidth = 0
-            $stderrRead = 0
             $nextDownloadStatus = 5.0
             $interactive = -not [Console]::IsOutputRedirected
+            Write-Output ("[下载] Windows PHP：下载进程 {0} 已启动，等待锁定归档。" -f $curl.Id)
             while (-not $curl.WaitForExit(200)) {
-                if (Test-Path -LiteralPath $curlError) {
-                    $curlText = [IO.File]::ReadAllText($curlError)
-                    if ($curlText.Length -gt $stderrRead) {
-                        Write-Host -NoNewline $curlText.Substring($stderrRead)
-                        $stderrRead = $curlText.Length
-                    }
-                }
+                # Start-Process owns the stderr file until the process is drained.
+                # Monitor actual payload bytes while that writer is active.
                 if ($downloadTimer.Elapsed.TotalSeconds -lt $nextDownloadStatus) { continue }
                 $nextDownloadStatus = $downloadTimer.Elapsed.TotalSeconds + 5.0
                 $bytes = if (Test-Path -LiteralPath $partial) {
@@ -119,6 +116,7 @@ if (-not $verified) {
                     '[下载] Windows PHP：{0:N1} MiB' -f ($bytes / 1MB)
                 }
                 if ($bytes -lt $lastBytes) { $status += '（重新开始）' }
+                $status += ('，进程 {0} 仍在下载' -f $curl.Id)
                 $status += ('，已下载 {0:N2} MiB，平均 {1:N2} MiB/秒，耗时 {2:N1} 秒' -f ($bytes / 1MB), ($bytes / 1MB / [Math]::Max(0.001, $downloadTimer.Elapsed.TotalSeconds)), $downloadTimer.Elapsed.TotalSeconds)
                 if ($interactive) {
                     Write-Host -NoNewline ("`r" + $status + (' ' * [Math]::Max(0, $lastWidth - $status.Length)))
@@ -128,24 +126,25 @@ if (-not $verified) {
                 }
                 $lastBytes = $bytes
             }
-            if (Test-Path -LiteralPath $curlError) {
-                $curlText = [IO.File]::ReadAllText($curlError)
-                if ($curlText.Length -gt $stderrRead) { Write-Host -NoNewline $curlText.Substring($stderrRead) }
-            }
+            $curl.WaitForExit()
+            $curlExit = $curl.ExitCode
+            $curl.Dispose()
+            $curl = $null
             if ($interactive -and $lastWidth -gt 0) { Write-Host '' }
-            if ($curl.ExitCode -eq 0) { break }
             $errorText = if (Test-Path -LiteralPath $curlError) {
                 Get-Content -Raw -LiteralPath $curlError
             } else { '' }
+            if ($errorText) { Write-Host -NoNewline $errorText }
+            if ($curlExit -eq 0) { break }
 
             if ($resume -and $pass -eq 0 -and
-                ($curl.ExitCode -eq 33 -or $errorText -match 'support byte ranges')) {
+                ($curlExit -eq 33 -or $errorText -match 'support byte ranges')) {
                 Remove-Item -Force -LiteralPath $partial
                 Write-Output '[下载] 服务器不支持续传，从头重试。'
                 continue
             }
-            $failureExit = $curl.ExitCode
-            $reason = switch ($curl.ExitCode) {
+            $failureExit = $curlExit
+            $reason = switch ($curlExit) {
                 6 { 'DNS 无法解析服务器' }
                 7 { '无法连接服务器，请检查网络或代理' }
                 22 { 'HTTP 返回错误，参阅上方状态码' }
@@ -164,9 +163,27 @@ if (-not $verified) {
         }
         Write-Output '[下载] Windows PHP 归档的 SHA-256 通过。'
         Move-Item -Force -LiteralPath $partial -Destination $archive
+    } catch {
+        $downloadFailure = $_
+        throw
     } finally {
-        if (Test-Path -LiteralPath ($partial + '.stderr')) {
-            Remove-Item -Force -LiteralPath ($partial + '.stderr')
+        try {
+            if ($null -ne $curl) {
+                if (-not $curl.HasExited) {
+                    try { $curl.Kill() } catch [System.InvalidOperationException] {
+                        if (-not $curl.HasExited) { throw }
+                    }
+                }
+                $curl.WaitForExit()
+                $curl.Dispose()
+                $curl = $null
+            }
+            if (Test-Path -LiteralPath ($partial + '.stderr')) {
+                Remove-Item -Force -LiteralPath ($partial + '.stderr')
+            }
+        } catch {
+            if ($null -eq $downloadFailure) { throw }
+            Write-Warning ("本次下载清理未完成；保留原始失败。临时日志：{0}；清理原因：{1}" -f ($partial + '.stderr'), $_.Exception.Message)
         }
         # Keep incomplete bytes for a later curl --continue-at retry.
     }
