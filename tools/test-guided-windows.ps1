@@ -360,8 +360,10 @@ try {
         $archives[$flavor] = Read-SourceResult $flavor $before
         $package = Join-Path $WorkRoot "安装包 $flavor 中文"
         New-Item -ItemType Directory -Path $package | Out-Null
-        & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archives[$flavor].archive -C $package
-        if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed: $LASTEXITCODE" }
+        Write-Host "[STEP] Extracting verified $flavor ZIP to $package"
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [IO.Compression.ZipFile]::ExtractToDirectory($archives[$flavor].archive, $package)
+        Write-Host "[RESULT] Verified $flavor ZIP extracted to its Chinese task-owned directory"
         $archives[$flavor] | Add-Member -NotePropertyName package -NotePropertyValue $package
         if ($flavor -eq 'small') { Remove-OwnedDirectory $installHome; Remove-OwnedDirectory $bin }
     }
