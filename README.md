@@ -16,11 +16,8 @@ GitHub 自动生成的源码 ZIP 不是安装包。
 `doctor` 在任意目录检查开发机并准备组件；`build` 须在自己的 Webman 项目根目录运行。
 `verify` 默认检查当前目录的 `dist-aot/`，也可用 `--path` 指定分发目录。
 
-如果使用旧版，请看 [v0.2.2 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.2)、
-[v0.2.1 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.1)
-或 [v0.2.0 安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.0)。
-v0.2.0 的命令是 `webman-aot-builder`；安装 v0.2.3 后应按新版指南确认实际调用的
-命令位置与版本，避免旧命令路径抢先。
+安装或升级后请按上方 v0.2.3 指南确认实际调用的命令位置，版本应显示 `webman-aot 0.2.3`。
+旧版不再推荐使用；[Release 历史](https://github.com/supdger/webman-aot-builder/releases)仅供查询历史版本。
 
 ## 文档
 
@@ -31,6 +28,6 @@ v0.2.0 的命令是 `webman-aot-builder`；安装 v0.2.3 后应按新版指南�
 
 ## 源码与许可
 
-本仓库是工具源码；[从源码制作安装包](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)
-供维护者使用。原创代码采用 [MIT 许可证](LICENSE)，第三方组件的许可与归属见
+本仓库是工具源码；[v0.2.0 历史构包记录](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)
+供维护者查阅。原创代码采用 [MIT 许可证](LICENSE)，第三方组件的许可与归属见
 [NOTICE](NOTICE.md)。问题可提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
