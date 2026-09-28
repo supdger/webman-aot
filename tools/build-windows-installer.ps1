@@ -96,6 +96,8 @@ if (-not $verified) {
             )
             $curl = Start-Process -FilePath $curlPath `
                 -ArgumentList $curlArgs -NoNewWindow -PassThru -RedirectStandardError $curlError
+            # Windows PowerShell 5.1 needs the handle cached before waiting for ExitCode.
+            $curlHandle = $curl.Handle
             $downloadTimer = [Diagnostics.Stopwatch]::StartNew()
             $lastBytes = 0L
             $lastWidth = 0
@@ -135,6 +137,10 @@ if (-not $verified) {
                 Get-Content -Raw -LiteralPath $curlError
             } else { '' }
             if ($errorText) { Write-Host -NoNewline $errorText }
+            if ($curlExit -isnot [int]) {
+                $failureExit = 1
+                throw '无法取得下载进程的真实整数退出码，拒绝把未知状态当成成功。请保留上方日志后重试。'
+            }
             if ($curlExit -eq 0) { break }
 
             if ($resume -and $pass -eq 0 -and
@@ -329,6 +335,9 @@ try {
         Remove-Item -Recurse -Force -LiteralPath ('\\?\' + $temporary)
     }
 }
+if ($buildExit -isnot [int]) {
+    throw '无法取得引导/构包子进程的真实整数退出码，拒绝继续。'
+}
 if ($buildExit -ne 0) {
     Write-Output ("[失败] Windows 构包在 {0:N1} 秒后停止，退出码 {1}。请查看上方原始错误后重试。" -f $timer.Elapsed.TotalSeconds, $buildExit)
     exit $buildExit
@@ -342,6 +351,7 @@ if ($Guided) {
     Write-Output ("[失败] Windows 构包已停止，耗时 {0:N1} 秒。" -f $timer.Elapsed.TotalSeconds)
     Write-Output ('[失败] ' + $_.Exception.Message)
     Write-Output '请修复上方下载/输入/自检错误后重试，已校验缓存可复用。问题反馈：https://github.com/supdger/webman-aot-builder/issues'
+    if ($failureExit -isnot [int] -or $failureExit -eq 0) { $failureExit = 1 }
     exit $failureExit
 }
 finally {
