@@ -17,6 +17,10 @@ $records = [Collections.Generic.List[object]]::new()
 $savedEnvironment = @{}
 $pathDigests = @{}
 $failure = $null
+$tlsProcess = $null
+$tlsStarted = $false
+$tlsPort = $null
+$httpsAccepted = $false
 $started = [Diagnostics.Stopwatch]::StartNew()
 
 function Get-PathDigest([string]$Target) {
@@ -204,7 +208,7 @@ try {
     New-Item -ItemType Directory -Path $logs, $temp | Out-Null
     foreach ($target in @('User', 'Machine')) { $pathDigests[$target] = Get-PathDigest $target }
     foreach ($name in @('TEMP', 'TMP', 'LOCALAPPDATA', 'WEBMAN_AOT_BUILDER_HOME',
-        'WEBMAN_AOT_NO_PAUSE', 'Path', 'COMPOSER_HOME', 'COMPOSER_CACHE_DIR')) {
+        'WEBMAN_AOT_NO_PAUSE', 'Path', 'COMPOSER_HOME', 'COMPOSER_CACHE_DIR', 'CURL_HOME', 'NO_PROXY')) {
         $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
     $env:TEMP = $temp
@@ -215,6 +219,10 @@ try {
     $env:COMPOSER_HOME = Join-Path $WorkRoot 'composer-home'
     $env:COMPOSER_CACHE_DIR = Join-Path $WorkRoot 'composer-cache'
     $git = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    Assert-Check ($null -ne $git) 'Runner provides existing Git for native source build'
+    $python = Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $openssl = Join-Path (Split-Path -Parent (Split-Path -Parent $git.Source)) 'usr\bin\openssl.exe'
+    Assert-Check (Test-Path -LiteralPath $openssl -PathType Leaf) 'Runner Git provides existing OpenSSL for task-only TLS files'
     # Process PATH uses Windows tools and optional existing Git, never system PHP.
     $env:Path = (@("$env:SystemRoot\System32", $env:SystemRoot,
         "$env:SystemRoot\System32\WindowsPowerShell\v1.0") +
@@ -343,36 +351,148 @@ try {
                 sha256 = $archives[$flavor].sha256; size = $archives[$flavor].size })
         }
     }
-    $setupResult = Invoke-Cmd 'setup-producer' $php ($phpArguments + @(
-        (Join-Path $repository 'tools\package-setup.php'),
+    # Task-only CA and loopback HTTPS exercise the unchanged setup download path.
+    # curl reads a private config; no certificate store or persistent PATH is changed.
+    $tls = Join-Path $WorkRoot 'tls'
+    $trusted = Join-Path $tls 'trusted-config'
+    $untrusted = Join-Path $tls 'untrusted-config'
+    New-Item -ItemType Directory -Path $tls, $trusted, $untrusted | Out-Null
+    [void](Invoke-Cmd 'tls-curl-version' (Join-Path $env:SystemRoot 'System32\curl.exe') @('--version'))
+    [void](Invoke-Cmd 'tls-python-version' $python.Source @('--version'))
+    [void](Invoke-Cmd 'tls-openssl-version' $openssl @('version'))
+    $ca = Join-Path $tls 'ca.pem'
+    $caKey = Join-Path $tls 'ca.key'
+    $serverKey = Join-Path $tls 'server.key'
+    $csr = Join-Path $tls 'server.csr'
+    $certificate = Join-Path $tls 'server.pem'
+    $extensions = Join-Path $tls 'server.ext'
+    [IO.File]::WriteAllText($extensions, "subjectAltName=IP:127.0.0.1`nbasicConstraints=critical,CA:FALSE`nkeyUsage=critical,digitalSignature,keyEncipherment`nextendedKeyUsage=serverAuth`n", $utf8)
+    [void](Invoke-Cmd 'tls-private-ca' $openssl @('req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+        '-keyout', $caKey, '-out', $ca, '-days', '1', '-subj', '/CN=Guided task CA',
+        '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign'))
+    [void](Invoke-Cmd 'tls-server-request' $openssl @('req', '-newkey', 'rsa:2048', '-nodes',
+        '-keyout', $serverKey, '-out', $csr, '-subj', '/CN=127.0.0.1'))
+    [void](Invoke-Cmd 'tls-server-certificate' $openssl @('x509', '-req', '-in', $csr,
+        '-CA', $ca, '-CAkey', $caKey, '-CAcreateserial', '-out', $certificate,
+        '-days', '1', '-sha256', '-extfile', $extensions))
+    [IO.File]::WriteAllText((Join-Path $trusted '.curlrc'), ('cacert = "' + $ca.Replace('\', '/') + '"' + "`n"), $utf8)
+    [IO.File]::WriteAllText((Join-Path $untrusted '.curlrc'), "# Task-private config deliberately has no CA trust.`n", $utf8)
+    $serverScript = Join-Path $tls 'server.py'
+    $ready = Join-Path $tls 'ready.json'
+    $requests = Join-Path $logs 'tls-requests.jsonl'
+    $serverSource = @'
+import http.server, json, os, pathlib, shutil, ssl, sys
+from urllib.parse import urlsplit
+cert, key, ready, log, *archives = sys.argv[1:]
+files = {"/" + pathlib.Path(p).name: pathlib.Path(p) for p in archives}
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = urlsplit(self.path).path
+        source = files.get(path)
+        status = 200 if source is not None else 404
+        with open(log, "a", encoding="utf-8") as out:
+            out.write(json.dumps({"path": path, "status": status}) + "\n")
+        self.send_response(status)
+        if source is not None:
+            self.send_header("Content-Length", str(source.stat().st_size))
+        self.end_headers()
+        if source is not None:
+            with source.open("rb") as inp:
+                shutil.copyfileobj(inp, self.wfile)
+    def log_message(self, *args):
+        pass
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(cert, key)
+server.socket = context.wrap_socket(server.socket, server_side=True)
+ready_tmp = pathlib.Path(ready + ".tmp")
+ready_tmp.write_text(json.dumps({"pid": os.getpid(), "port": server.server_port}), encoding="utf-8")
+ready_tmp.replace(ready)
+server.serve_forever()
+'@
+    [IO.File]::WriteAllText($serverScript, $serverSource, $utf8)
+    $serverInfo = [Diagnostics.ProcessStartInfo]::new()
+    $serverInfo.FileName = $python.Source
+    $serverInfo.Arguments = (@('-u', $serverScript, $certificate, $serverKey, $ready, $requests,
+        $archives.small.archive, $archives.full.archive) | ForEach-Object { Quote-Cmd $_ }) -join ' '
+    $serverInfo.UseShellExecute = $false
+    $tlsProcess = [Diagnostics.Process]::new()
+    $tlsProcess.StartInfo = $serverInfo
+    $tlsStarted = $tlsProcess.Start()
+    if (-not $tlsStarted) { throw 'Task HTTPS server did not start.' }
+    $wait = [Diagnostics.Stopwatch]::StartNew()
+    while (-not (Test-Path -LiteralPath $ready)) {
+        if ($tlsProcess.HasExited -or $wait.Elapsed.TotalSeconds -ge 30) { throw 'Task HTTPS server did not become ready.' }
+        Start-Sleep -Milliseconds 100
+    }
+    $server = Get-Content -Raw -LiteralPath $ready | ConvertFrom-Json
+    Assert-Check ($server.pid -eq $tlsProcess.Id) 'HTTPS server readiness belongs to this task process'
+    $tlsPort = [int]$server.port
+    $baseUrl = "https://127.0.0.1:$tlsPort"
+    Write-Host "[STEP] Task HTTPS server PID $($tlsProcess.Id); $baseUrl; requests $requests"
+    Write-Json (Join-Path $logs 'tls-server.json') @{
+        pid = $tlsProcess.Id; port = $tlsPort; baseUrl = $baseUrl
+        caSha256 = (Get-FileHash -LiteralPath $ca -Algorithm SHA256).Hash.ToLowerInvariant()
+        trustScope = 'process CURL_HOME only; certificate stores untouched'
+    }
+    $producer = $phpArguments + @((Join-Path $repository 'tools\package-setup.php'),
         ('--small-result=' + (Join-Path $logs 'small-packager-result.json')),
-        ('--full-result=' + (Join-Path $logs 'full-packager-result.json')),
-        '--platform=windows-x86_64', '--base-url=https://example.invalid/acceptance',
-        ('--output=' + (Join-Path $WorkRoot 'setup'))
-    ))
+        ('--full-result=' + (Join-Path $logs 'full-packager-result.json')), '--platform=windows-x86_64')
+    $setupResult = Invoke-Cmd 'setup-producer' $php ($producer + @(
+        "--base-url=$baseUrl", ('--output=' + (Join-Path $WorkRoot 'setup'))))
     $setup = ($setupResult.Stdout | ConvertFrom-Json).launcherPath
+    $missingResult = Invoke-Cmd 'setup-404-producer' $php ($producer + @(
+        "--base-url=$baseUrl/missing", ('--output=' + (Join-Path $WorkRoot 'setup-404'))))
+    $missingSetup = ($missingResult.Stdout | ConvertFrom-Json).launcherPath
+    Write-Json (Join-Path $logs 'tls-setup.json') @{
+        setupSha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+        smallArchiveSha256 = $archives.small.sha256; fullArchiveSha256 = $archives.full.sha256
+    }
     Remove-OwnedDirectory $home
     Remove-OwnedDirectory (Join-Path $WorkRoot '命令 full bin')
-    # URLs above intentionally cannot be production assets. Native setup acceptance
-    # uses its verified -Archive interface; HTTP download is a separate pending gate.
+    $env:CURL_HOME = $trusted
+    $env:NO_PROXY = '127.0.0.1'
     [void](Invoke-Cmd 'setup-eof' $setup)
     [void](Invoke-Cmd 'setup-invalid-cancel' $setup @() "bad`n0`n")
     foreach ($flavor in @('small', 'full')) {
-        $arguments = @(
-            '-Flavor', $flavor, '-Archive', $archives[$flavor].archive, '-Install',
+        $env:LOCALAPPDATA = Join-Path $WorkRoot "https $flavor cache"
+        $arguments = @('-Flavor', $flavor, '-Install',
             '-InstallRoot', (Join-Path $WorkRoot "setup $flavor home"),
-            '-BinDir', (Join-Path $WorkRoot "setup $flavor bin"), '-NoPath'
-        )
+            '-BinDir', (Join-Path $WorkRoot "setup $flavor bin"), '-NoPath')
         if ($flavor -eq 'full') {
             $project = Copy-Project "setup $flavor 项目"
             $arguments += @('-Project', $project)
         }
-        $run = Invoke-Cmd "setup-$flavor-archive-install" $setup $arguments
-        Assert-Check (Test-Path -LiteralPath (Join-Path $WorkRoot "setup $flavor home\current\runtime\php.exe")) "$flavor standalone setup verifies the bound archive and installs"
-        if ($flavor -eq 'full') { Assert-Check ($run.Text.Contains('项目构建与校验成功')) 'Standalone setup builds and verifies the real fixture' }
+        $run = Invoke-Cmd "setup-$flavor-https-install" $setup $arguments
+        Assert-Check ($run.Text.Contains('下载：') -and $run.Text.Contains('外层 SHA-256 校验成功') -and
+            (Test-Path -LiteralPath (Join-Path $WorkRoot "setup $flavor home\current\runtime\php.exe"))) "$flavor standalone setup downloads HTTPS, verifies bound SHA and installs"
+        $served = @(Get-Content -LiteralPath $requests | ForEach-Object { $_ | ConvertFrom-Json } |
+            Where-Object { $_.path -eq ('/' + [IO.Path]::GetFileName($archives[$flavor].archive)) -and $_.status -eq 200 })
+        Assert-Check ($served.Count -eq 1) "$flavor setup fetched its actual archive exactly once"
+        if ($flavor -eq 'full') { Assert-Check ($run.Text.Contains('项目构建与校验成功')) 'HTTPS standalone setup builds and verifies the real fixture' }
         Remove-OwnedDirectory (Join-Path $WorkRoot "setup $flavor home")
         Remove-OwnedDirectory (Join-Path $WorkRoot "setup $flavor bin")
     }
+    $env:LOCALAPPDATA = Join-Path $WorkRoot 'https 404 cache'
+    $httpFailure = Invoke-Cmd 'setup-http-404' $missingSetup @('-Flavor', 'small', '-Install',
+        '-InstallRoot', (Join-Path $WorkRoot 'https 404 home'), '-BinDir', (Join-Path $WorkRoot 'https 404 bin'), '-NoPath') '' $false
+    $missingRequests = @(Get-Content -LiteralPath $requests | ForEach-Object { $_ | ConvertFrom-Json } |
+        Where-Object { $_.status -eq 404 -and $_.path.StartsWith('/missing/') })
+    Assert-Check ($httpFailure.Code -eq 22 -and $missingRequests.Count -eq 1 -and
+        -not $httpFailure.Text.Contains('包检查成功') -and
+        -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https 404 home')) -and
+        -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https 404 bin'))) 'Actual HTTP 404 returns curl 22 and never executes package code'
+    $requestCount = @(Get-Content -LiteralPath $requests).Count
+    $env:CURL_HOME = $untrusted
+    $env:LOCALAPPDATA = Join-Path $WorkRoot 'https untrusted cache'
+    $tlsFailure = Invoke-Cmd 'setup-tls-untrusted' $setup @('-Flavor', 'small', '-Install',
+        '-InstallRoot', (Join-Path $WorkRoot 'https untrusted home'), '-BinDir', (Join-Path $WorkRoot 'https untrusted bin'), '-NoPath') '' $false
+    Assert-Check ($tlsFailure.Code -eq 60 -and $tlsFailure.Text -match '(?i)certificate|cert|证书' -and
+        @(Get-Content -LiteralPath $requests).Count -eq $requestCount -and
+        -not $tlsFailure.Text.Contains('包检查成功') -and
+        -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https untrusted home')) -and
+        -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https untrusted bin'))) 'Untrusted task CA returns curl 60 before HTTP GET or package execution'
+    $httpsAccepted = $true
     $badArchive = Join-Path $WorkRoot 'corrupt.zip'
     [IO.File]::WriteAllText($badArchive, 'intentionally invalid archive', $utf8)
     [void](Invoke-Cmd 'setup-outer-digest-failure' $setup @(
@@ -385,6 +505,21 @@ try {
     $failure = $_.Exception.Message
     Write-Host "[FAIL] $failure"
 } finally {
+    if ($null -ne $tlsProcess) {
+        if ($tlsStarted) {
+            if (-not $tlsProcess.HasExited) { $tlsProcess.Kill(); $tlsProcess.WaitForExit() }
+            $serverPid = $tlsProcess.Id
+            $portClosed = $true
+            if ($null -ne $tlsPort) {
+                $client = [Net.Sockets.TcpClient]::new()
+                try { $client.Connect('127.0.0.1', $tlsPort); $portClosed = $false } catch { } finally { $client.Dispose() }
+            }
+            Write-Json (Join-Path $logs 'tls-cleanup.json') @{ pid = $serverPid; port = $tlsPort; stopped = $true; portClosed = $portClosed }
+            Write-Host "[cleanup] Task HTTPS server PID $serverPid stopped; port closed: $portClosed"
+            if (-not $portClosed) { $failure = 'Task HTTPS server port remained open after cleanup.' }
+        }
+        $tlsProcess.Dispose()
+    }
     if ($pathDigests.Count) {
         foreach ($target in @('User', 'Machine')) {
             if ((Get-PathDigest $target) -ne $pathDigests[$target]) {
@@ -400,7 +535,8 @@ try {
         Write-Json (Join-Path $logs 'outcome.json') @{
             success = $null -eq $failure; failure = $failure; seconds = $started.Elapsed.TotalSeconds
             stages = @($records.ToArray()); persistentPathUnchanged = $failure -notlike '*PATH changed*'
-            pending = @('standalone setup real HTTPS download and network-failure acceptance', 'Linux deployment and business runtime')
+            httpsAccepted = $httpsAccepted
+            pending = @($(if (-not $httpsAccepted) { 'standalone setup real HTTPS download and network-failure acceptance' }), 'Linux deployment and business runtime')
             resources = @($WorkRoot, (Join-Path $repository 'dist'))
             cleanup = 'Retained task-owned logs and resources for inspection; runner lifetime owns CI cleanup. No pre-existing resource removed.'
         }
