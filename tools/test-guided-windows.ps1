@@ -184,11 +184,15 @@ try {
         if (-not (Test-Path -LiteralPath (Join-Path $ProjectFixture $required))) { throw "Real fixture is missing $required" }
     }
     $compatibility = Get-Content -Raw -LiteralPath (Join-Path $repository 'compatibility\locks\webman-workerman-2026-09-25.json') | ConvertFrom-Json
-    $projectLock = Get-Content -Raw -LiteralPath (Join-Path $ProjectFixture 'composer.lock') | ConvertFrom-Json
+    # Composer permits case-distinct PSR-4 keys (Support\ / support\).
+    # Windows PowerShell ConvertFrom-Json rejects them; preserve dictionary keys.
+    Add-Type -AssemblyName System.Web.Extensions
+    $reader = [Web.Script.Serialization.JavaScriptSerializer]::new()
+    $projectLock = $reader.DeserializeObject((Get-Content -Raw -LiteralPath (Join-Path $ProjectFixture 'composer.lock')))
     foreach ($locked in $compatibility.packages.PSObject.Properties) {
-        $matches = @($projectLock.packages | Where-Object { $_.name -eq $locked.Name })
-        if ($matches.Count -ne 1 -or $matches[0].version -ne $locked.Value.version -or
-            $matches[0].source.reference -ne $locked.Value.reference) { throw "Fixture must match repository lock: $($locked.Name)" }
+        $matches = @($projectLock['packages'] | Where-Object { $_['name'] -eq $locked.Name })
+        if ($matches.Count -ne 1 -or $matches[0]['version'] -ne $locked.Value.version -or
+            $matches[0]['source']['reference'] -ne $locked.Value.reference) { throw "Fixture must match repository lock: $($locked.Name)" }
     }
     New-Item -ItemType Directory -Path $WorkRoot | Out-Null
     $logs = Join-Path $WorkRoot 'logs'
