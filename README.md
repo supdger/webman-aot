@@ -22,6 +22,7 @@ GitHub 自动生成的源码 ZIP 不是安装包。
 ## 文档
 
 - [Wiki 首页](https://github.com/supdger/webman-aot-builder/wiki/Home)：全部使用与维护文档
+- [更新日志](https://github.com/supdger/webman-aot-builder/blob/main/CHANGELOG.md)：v0.1.0 至最新正式版的功能、修复与升级影响
 - [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)：适用范围与构建要求
 - [Linux 目标机验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)：部署后验证启动、数据库与业务接口
 - [验证记录](https://github.com/supdger/webman-aot-builder/wiki/Verification)：已测试的组合与证据边界
