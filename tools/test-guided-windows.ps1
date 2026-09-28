@@ -145,8 +145,22 @@ function Record-RuntimeInventory([string]$Name, [string]$RuntimeRoot,
     $runtimeExt = $RuntimeRoot + '\ext'
     $probe = Join-Path $logs 'runtime-probe.php'
     $output = Join-Path $logs ($Name + '-php.json')
+    $fileOutput = Join-Path $logs ($Name + '-files.json')
+    Write-Host "[inventory] Preparing fixed $Name probe; all runtime reads run with a 60s deadline."
     $probeSource = @'
 <?php
+$files = [];
+foreach ([$argv[3] . '\php.exe', $argv[4], $argv[5] . '\php_zip.dll'] as $file) {
+    $files[$file] = is_file($file) ? hash_file('sha256', $file) : null;
+}
+$metadata = [
+    'runtimeArgument' => $argv[3], 'homeForProbe' => $argv[6],
+    'iniArgument' => $argv[4], 'extensionArgument' => $argv[5], 'files' => $files,
+    'iniText' => file_get_contents($argv[4]),
+    'scope' => 'Unchanged package runtime/configuration; probe does not replace actual failed build.',
+];
+$flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
+if (file_put_contents($argv[2], json_encode($metadata, $flags) . "\n") === false) { exit(1); }
 $data = [
     'phpBinary' => PHP_BINARY, 'phpVersion' => PHP_VERSION,
     'loadedIni' => php_ini_loaded_file(), 'scannedIni' => php_ini_scanned_files(),
@@ -154,28 +168,17 @@ $data = [
     'zipArchiveExists' => class_exists('ZipArchive'), 'extensions' => get_loaded_extensions(),
     'builderHome' => getenv('WEBMAN_AOT_BUILDER_HOME'), 'cwd' => getcwd(),
 ];
-$json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+$json = json_encode($data, $flags);
 if (file_put_contents($argv[1], $json . "\n") === false) { exit(1); }
 echo $json, "\n";
 '@
     [IO.File]::WriteAllText($probe, $probeSource, $utf8)
-    $hashes = @{}
-    foreach ($file in @($runtimePhp, $runtimeIni, ($runtimeExt + '\php_zip.dll'))) {
-        $hashes[$file] = if (Test-Path -LiteralPath $file -PathType Leaf) {
-            (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
-        } else { $null }
-    }
-    Write-Json (Join-Path $logs ($Name + '-files.json')) @{
-        runtimeArgument = $RuntimeRoot; homeForProbe = $ReportedHome
-        iniArgument = $runtimeIni; extensionArgument = $runtimeExt; files = $hashes
-        iniText = (Get-Content -Raw -LiteralPath $runtimeIni)
-        scope = 'Unchanged package runtime/configuration; probe does not replace actual failed build.'
-    }
     $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
     try {
         $env:WEBMAN_AOT_BUILDER_HOME = $ReportedHome
         [void](Invoke-Cmd $Name $runtimePhp @('-c', $runtimeIni, '-d',
-            ('extension_dir=' + $runtimeExt), $probe, $output) '' $true $WorkingDirectory 60)
+            ('extension_dir=' + $runtimeExt), $probe, $output, $fileOutput,
+            $RuntimeRoot, $runtimeIni, $runtimeExt, $ReportedHome) '' $true $WorkingDirectory 60)
     } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousHome }
 }
 
