@@ -197,6 +197,43 @@ echo $json, "\n";
     }
 }
 
+function Record-MenuInput([string]$RuntimeRoot, [string]$CallerDirectory) {
+    $fixedInput = "2`n1`n0`n"
+    $inputHex = [BitConverter]::ToString($utf8.GetBytes($fixedInput)).Replace('-', '').ToLowerInvariant()
+    Write-Host "[diagnostic] Fixed fixture stdin written as UTF-8 without BOM: $inputHex"
+    $probe = Join-Path $WorkRoot 'menu-input-probe.php'
+    $source = @'
+<?php
+if (!stream_isatty(STDIN)) { stream_set_blocking(STDIN, false); }
+$lines = [];
+for ($index = 0; $index < 3; $index++) {
+    $line = fgets(STDIN);
+    $lines[] = $line === false ? null : bin2hex($line);
+}
+echo 'NATIVE_INPUT_HEX=', json_encode($lines), "\n";
+'@
+    [IO.File]::WriteAllText($probe, $source, $utf8)
+    $original = [IO.File]::ReadAllText((Join-Path $repository 'tools\build-windows-installer.ps1'), $utf8)
+    $repositoryStatement = '$repository = Split-Path -Parent $PSScriptRoot'
+    $guidedTarget = "(Join-Path `$repository 'tools\guided.php')"
+    Assert-Check ([regex]::Matches($original, [regex]::Escape($repositoryStatement)).Count -eq 1 -and
+        [regex]::Matches($original, [regex]::Escape($guidedTarget)).Count -eq 1) 'Input diagnostic matches exactly its two fixed source substitutions'
+    $copy = $original.Replace($repositoryStatement, ('$repository = ' + "'" + $repository.Replace("'", "''") + "'"))
+    $copy = $copy.Replace($guidedTarget, ("'" + $probe.Replace("'", "''") + "'"))
+    $sourceCopy = Join-Path $WorkRoot 'menu-input-source.ps1'
+    [IO.File]::WriteAllText($sourceCopy, $copy, [Text.UTF8Encoding]::new($true))
+    $entry = Join-Path $WorkRoot 'menu-input-source.cmd'
+    [IO.File]::WriteAllText($entry, "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File " +
+        (Quote-Cmd $sourceCopy) + " -Guided -NoPath`r`nexit /b %errorlevel%`r`n", $utf8)
+    [void](Invoke-Cmd 'menu-input-source-bootstrap' $entry @() $fixedInput $true $CallerDirectory 60)
+    $previousCallerDirectory = $env:WEBMAN_AOT_CALLER_CWD
+    try {
+        $env:WEBMAN_AOT_CALLER_CWD = $CallerDirectory
+        [void](Invoke-Cmd 'menu-input-runtime-direct' '.\php.exe' @('-c', 'php.ini', '-d',
+            'extension_dir=ext', '..\app\tools\windows-php-bootstrap.php', $probe) $fixedInput $true $RuntimeRoot 60)
+    } finally { $env:WEBMAN_AOT_CALLER_CWD = $previousCallerDirectory }
+}
+
 function Copy-Project([string]$Name) {
     $destination = Join-Path $WorkRoot $Name
     New-Item -ItemType Directory -Path $destination | Out-Null
@@ -356,6 +393,7 @@ try {
             Assert-Check ($run.Text.Contains('项目构建与校验成功') -and
                 (Test-Path -LiteralPath (Join-Path $project 'dist-aot') -PathType Container)) 'Source entry built and verified the real fixture'
             Record-RuntimeInventory 'runtime-chinese-relative' (Join-Path $installHome 'current\runtime') $installHome $project $true
+            Record-MenuInput (Join-Path $installHome 'current\runtime') $project
         }
         $archives[$flavor] = Read-SourceResult $flavor $before
         $package = Join-Path $WorkRoot "安装包 $flavor 中文"
