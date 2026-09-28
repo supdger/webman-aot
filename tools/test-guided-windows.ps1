@@ -198,9 +198,9 @@ try {
     $reader = [Web.Script.Serialization.JavaScriptSerializer]::new()
     $projectLock = $reader.DeserializeObject((Get-Content -Raw -LiteralPath (Join-Path $ProjectFixture 'composer.lock')))
     foreach ($locked in $compatibility.packages.PSObject.Properties) {
-        $matches = @($projectLock['packages'] | Where-Object { $_['name'] -eq $locked.Name })
-        if ($matches.Count -ne 1 -or $matches[0]['version'] -ne $locked.Value.version -or
-            $matches[0]['source']['reference'] -ne $locked.Value.reference) { throw "Fixture must match repository lock: $($locked.Name)" }
+        $lockedPackages = @($projectLock['packages'] | Where-Object { $_['name'] -eq $locked.Name })
+        if ($lockedPackages.Count -ne 1 -or $lockedPackages[0]['version'] -ne $locked.Value.version -or
+            $lockedPackages[0]['source']['reference'] -ne $locked.Value.reference) { throw "Fixture must match repository lock: $($locked.Name)" }
     }
     New-Item -ItemType Directory -Path $WorkRoot | Out-Null
     $logs = Join-Path $WorkRoot 'logs'
@@ -279,17 +279,17 @@ try {
 
     $archives = @{}
     foreach ($flavor in @('small', 'full')) {
-        $home = Join-Path $WorkRoot "工具 $flavor home"
+        $installHome = Join-Path $WorkRoot "工具 $flavor home"
         $bin = Join-Path $WorkRoot "命令 $flavor bin"
         $before = @(Get-ChildItem -LiteralPath $temp -Recurse -Filter source-result.json -File | ForEach-Object FullName)
-        $arguments = @('-InstallRoot', $home, '-BinDir', $bin, '-NoPath')
+        $arguments = @('-InstallRoot', $installHome, '-BinDir', $bin, '-NoPath')
         if ($flavor -eq 'small') {
             $project = Copy-Project "项目 $flavor 中文"
             $arguments += @('-Flavor', 'small', '-Install', '-Project', $project)
             $inputText = ''
         } else { $inputText = "2`n1`n0`n" }
         $run = Invoke-Cmd "source-$flavor" (Join-Path $repository 'build.cmd') $arguments $inputText
-        Assert-Check (Test-Path -LiteralPath (Join-Path $home 'current\runtime\php.exe')) "$flavor source entry installed to its private home"
+        Assert-Check (Test-Path -LiteralPath (Join-Path $installHome 'current\runtime\php.exe')) "$flavor source entry installed to its private home"
         if ($flavor -eq 'small') {
             Assert-Check ($run.Text.Contains('项目构建与校验成功') -and
                 (Test-Path -LiteralPath (Join-Path $project 'dist-aot') -PathType Container)) 'Source entry built and verified the real fixture'
@@ -300,7 +300,7 @@ try {
         & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archives[$flavor].archive -C $package
         if ($LASTEXITCODE -ne 0) { throw "$flavor package extraction failed: $LASTEXITCODE" }
         $archives[$flavor] | Add-Member -NotePropertyName package -NotePropertyValue $package
-        if ($flavor -eq 'small') { Remove-OwnedDirectory $home; Remove-OwnedDirectory $bin }
+        if ($flavor -eq 'small') { Remove-OwnedDirectory $installHome; Remove-OwnedDirectory $bin }
     }
     $eof = Invoke-Cmd 'source-eof' (Join-Path $repository 'build.cmd')
     Assert-Check ($eof.Text.Contains('已取消构包')) 'Source EOF cancels after private bootstrap'
@@ -308,23 +308,23 @@ try {
     Assert-Check ($cancel.Text.Contains('选择无效') -and $cancel.Text.Contains('已取消构包')) 'Source invalid selection retries and cancels'
 
     foreach ($flavor in @('small', 'full')) {
-        $home = Join-Path $WorkRoot "package $flavor home"
+        $installHome = Join-Path $WorkRoot "package $flavor home"
         $bin = Join-Path $WorkRoot "package $flavor bin"
         $entry = Join-Path $archives[$flavor].package 'install.cmd'
-        $common = @('-InstallRoot', $home, '-BinDir', $bin, '-NoPath')
+        $common = @('-InstallRoot', $installHome, '-BinDir', $bin, '-NoPath')
         [void](Invoke-Cmd "package-$flavor-eof" $entry $common)
-        Assert-Check (-not (Test-Path -LiteralPath $home)) "$flavor package EOF does not install"
+        Assert-Check (-not (Test-Path -LiteralPath $installHome)) "$flavor package EOF does not install"
         [void](Invoke-Cmd "package-$flavor-cancel" $entry $common "0`n")
-        Assert-Check (-not (Test-Path -LiteralPath $home)) "$flavor package cancellation does not install"
+        Assert-Check (-not (Test-Path -LiteralPath $installHome)) "$flavor package cancellation does not install"
         if ($flavor -eq 'full') {
             $project = Copy-Project "package $flavor 项目"
             $run = Invoke-Cmd "package-$flavor-project-menu" $entry $common "bad`n1`n1`n$project`n"
             Assert-Check ($run.Text.Contains('选择无效') -and $run.Text.Contains('项目构建与校验成功')) 'Full package menu installs, builds and verifies'
         } else {
             [void](Invoke-Cmd 'package-small-install' $entry ($common + @('-Install')))
-            Assert-Check (Test-Path -LiteralPath (Join-Path $home 'current\runtime\php.exe')) 'Small package explicitly installs to private home'
+            Assert-Check (Test-Path -LiteralPath (Join-Path $installHome 'current\runtime\php.exe')) 'Small package explicitly installs to private home'
         }
-        Remove-OwnedDirectory $home
+        Remove-OwnedDirectory $installHome
         Remove-OwnedDirectory $bin
     }
     $badProject = Invoke-Cmd 'package-project-failure' (Join-Path $archives.small.package 'install.cmd') @(
@@ -340,10 +340,10 @@ try {
     ) '' $false)
     Assert-Check (-not (Test-Path -LiteralPath (Join-Path $WorkRoot 'damaged home\current'))) 'Damaged payload is never promoted'
 
-    $home = Join-Path $WorkRoot '工具 full home'
-    $php = Join-Path $home 'current\runtime\php.exe'
-    $phpArguments = @('-c', (Join-Path $home 'current\runtime\php.ini'), '-d',
-        ('extension_dir=' + (Join-Path $home 'current\runtime\ext')))
+    $installHome = Join-Path $WorkRoot '工具 full home'
+    $php = Join-Path $installHome 'current\runtime\php.exe'
+    $phpArguments = @('-c', (Join-Path $installHome 'current\runtime\php.ini'), '-d',
+        ('extension_dir=' + (Join-Path $installHome 'current\runtime\ext')))
     foreach ($flavor in @('small', 'full')) {
         Write-Json (Join-Path $logs "$flavor-packager-result.json") @{
             schema = 'webman-aot-builder-installer-package-result-v1'; revision = $archives[$flavor].revision
@@ -448,7 +448,7 @@ server.serve_forever()
         setupSha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
         smallArchiveSha256 = $archives.small.sha256; fullArchiveSha256 = $archives.full.sha256
     }
-    Remove-OwnedDirectory $home
+    Remove-OwnedDirectory $installHome
     Remove-OwnedDirectory (Join-Path $WorkRoot '命令 full bin')
     $env:CURL_HOME = $trusted
     $env:NO_PROXY = '127.0.0.1'
