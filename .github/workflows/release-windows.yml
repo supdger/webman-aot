@@ -71,6 +71,8 @@ jobs:
           retention-days: 7
 
   windows-consumers:
+    permissions:
+      contents: write
     if: inputs.operation != 'build'
     runs-on: windows-2022
     timeout-minutes: 90
