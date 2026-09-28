@@ -49,7 +49,8 @@ function Quote-Cmd([string]$Value) {
 function Invoke-Cmd(
     [string]$Name, [string]$Entry, [string[]]$Arguments = @(),
     [string]$InputText = '', [bool]$ExpectSuccess = $true,
-    [string]$WorkingDirectory = $repository
+    [string]$WorkingDirectory = $repository,
+    [ValidateRange(30, 3600)][int]$TimeoutSeconds = $StepTimeoutSeconds
 ) {
     $wrapper = Join-Path $logs ($Name + '.cmd')
     $line = 'call ' + (Quote-Cmd $Entry)
@@ -74,7 +75,7 @@ function Invoke-Cmd(
     $text = [Text.StringBuilder]::new()
     $stdout = [Text.StringBuilder]::new()
     $didStart = $false
-    Write-Host "[STEP] $Name; deadline ${StepTimeoutSeconds}s; log $log"
+    Write-Host "[STEP] $Name; deadline ${TimeoutSeconds}s; log $log"
     try {
         $didStart = $process.Start()
         # Send every menu choice before closing stdin. EOF is intentional.
@@ -106,7 +107,7 @@ function Invoke-Cmd(
                     $pending[$index] = $readers[$index].ReadAsync($buffers[$index], 0, 4096)
                 }
             }
-            if ($timer.Elapsed.TotalSeconds -ge $StepTimeoutSeconds) {
+            if ($timer.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
                 # Kill only this test-owned command tree; never stop a service.
                 & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $process.Id /T /F | Out-Host
                 throw "$Name exceeded its deadline; command tree stopped."
@@ -174,7 +175,7 @@ echo $json, "\n";
     try {
         $env:WEBMAN_AOT_BUILDER_HOME = $ReportedHome
         [void](Invoke-Cmd $Name $runtimePhp @('-c', $runtimeIni, '-d',
-            ('extension_dir=' + $runtimeExt), $probe, $output) '' $true $WorkingDirectory)
+            ('extension_dir=' + $runtimeExt), $probe, $output) '' $true $WorkingDirectory 60)
     } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousHome }
 }
 
@@ -554,7 +555,7 @@ server.serve_forever()
         if ((Test-Path -LiteralPath ($installedRuntime + '\php.exe')) -and
             (Test-Path -LiteralPath $sourceLog)) {
             try {
-                $sourceText = Get-Content -Raw -LiteralPath $sourceLog
+                $sourceText = [IO.File]::ReadAllText($sourceLog, $utf8)
                 $reported = [regex]::Matches($sourceText, '安装目标：([^\r\n]+)')
                 if ($reported.Count -eq 0) { throw 'Source log did not preserve its actual home argument.' }
                 $reportedHome = $reported[$reported.Count - 1].Groups[1].Value.Trim()
