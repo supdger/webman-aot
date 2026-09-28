@@ -8,7 +8,7 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 构建器在项目副本中做兼容适配，通过 TypePHP 编译 PHP 代码，再用 Clang 和 PHPx 静态 SDK 生成可执行程序。
 原项目源码保持不变，配置、模板和静态资源按需保留为外置文件。
 
-![Webman / SaiAdmin 项目在开发机上构建为可部署到 Linux amd64 的 dist-aot 目录](assets/build-flow.svg)
+![Webman AOT Builder 构建流程](https://raw.githubusercontent.com/wiki/supdger/webman-aot-builder/assets/build-flow.svg)
 
 ## 源码与安装包
 
