@@ -1,3 +1,9 @@
+## Final acceptance status
+
+最终19/19项按本次macOS及原生Windows CLI范围通过。生产候选为95a98206e0508d6d86a5ff4690ab1ba4d1cc2b4f，Windows run36411284414实际39阶段通过，独立Astra22/22证据检查通过。下方E/I记录是各阶段历史，旧未提交/Windows未验状态已被文末W1-W7更新；旧产物身份不改写成新运行。
+
+同feature分支提交、推送、PR及原生CI修复已获用户明确授权，PR #32已创建。未合并、未Release、未部署、未发布Wiki；官方v0.2.3仍为既有发行物。最终文档提交由D执行，本记录不提前宣称文档HEAD的CI结果。
+
 ## 1. 共享引导与项目下一步
 
 - [x] 1.1 实现共享菜单、参数、EOF安全退出及原生进程实时输出/日志；用真实子进程行为测试证明失败退出码、长任务状态、含空格中文参数及非TTY不等待。
@@ -6,22 +12,22 @@
 
 ## 2. 源码原生入口和锁定材料
 
-- [ ] 2.1 实现Windows build.cmd、自举复用与结果文件接口，保留旧PS/PHP选项；验证无系统PHP路径、SHA错误及旧自动化调用兼容。
+- [x] 2.1 实现Windows build.cmd、自举复用与结果文件接口，保留旧PS/PHP选项；验证无系统PHP路径、SHA错误及旧自动化调用兼容。
 - [x] 2.2 固定并核验macOS重链接材料输入及runtime摘要，实现build.command和macOS后端；无预装PHP情况下完成small/full构包，验证实际包清单与隔离安装version。
-- [ ] 2.3 核对两平台下载进度、缓存复用、失败建议/Issues和当前源码revision；从人用入口实际观察且记录日志，不能以静态文本断言代替流程。
+- [x] 2.3 核对两平台下载进度、缓存复用、失败建议/Issues和当前源码revision；从人用入口实际观察且记录日志，不能以静态文本断言代替流程。
 
 ## 3. 安装包入口与资产
 
 - [x] 3.1 添加包内install.cmd/install.command并由packager收集共享引导文件，保持原JSON结果协议；检查真实归档内容、macOS执行位及原机器调用结果。
-- [ ] 3.2 从实际small/full包执行新安装入口至私有home/bin/no-path，验证确认、取消、安装后version及项目菜单；full无网络安装不得回退下载。
+- [x] 3.2 从实际small/full包执行新安装入口至私有home/bin/no-path，验证确认、取消、安装后version及项目菜单；full无网络安装不得回退下载。
 
 - [x] 3.3 实现独立setup生成器及自包含Windows/macOS模板，Mac额外生成含0755 command的启动器ZIP，从两份现有packager结果及实际包核验身份后绑定small/full URL/SHA；验证错误版本、flavor、摘要及转义输入均拒绝，原JSON默认接口不变。
-- [ ] 3.4 从单独setup文件在无源码/无系统PHP环境走选择类型→下载/外层校验→安全解压→包内安装→项目下一步；覆盖损坏包、下载失败、归档逃逸、取消、EOF、私有安装参数与已下载包复用，验证外层失败绝不执行包代码。
+- [x] 3.4 从单独setup文件在无源码/无系统PHP环境走选择类型→下载/外层校验→安全解压→包内安装→项目下一步；覆盖损坏包、下载失败、归档逃逸、取消、EOF、私有安装参数与已下载包复用，验证外层失败绝不执行包代码。
 
 ## 4. 整链验收与交付
 
 - [x] 4.1 按用户CLI优先要求，在原生macOS用CLI核验setup ZIP执行位→系统ditto解压→直接执行0755 command无需chmod与真实退出码，并分别从独立setup.command与源码build.command完成选择包类型→构包自检→选择安装→选择隔离项目→build/verify，并覆盖下载失败/损坏输入、空格中文路径和EOF，记录可核验证据。
-- [ ] 4.2 在真实Windows从独立setup.cmd、源码build.cmd与包内install.cmd完成同等路径及异常测试；环境不可用保留具体缺口，不用macOS或静态检查替代。
+- [x] 4.2 在真实Windows从独立setup.cmd、源码build.cmd与包内install.cmd完成同等路径及异常测试；环境不可用保留具体缺口，不用macOS或静态检查替代。
 - [x] 4.3 独立上下文Astra按固定候选审查跨平台契约及人用流程，复核真实日志/目标平台操作和未验证范围；关联问题在通过前修复复验。
 - [x] 4.4 更新简明README入口与仓库外Wiki候选，核对直接下载安装不要求手工选资产/解压，用户只执行一个文件并选择即可完成；审查diff无临时产物及任务外改动，运行OpenSpec strict验证并记录交付状态。
 
@@ -33,7 +39,7 @@
 - [x] 5.4 C使用新small/full生成新setup/ZIP摘要绑定，私有安装确认包内修复后独自完成setup→真实109单元项目build→verify组合；未变的下载/TLS协议证据注明复用版本及理由，实际包身份与项目整链必须新跑。
 - [x] 5.5 不同上下文独立验收当前整合候选、实际新包及A/C收据；通过后重新完成4.1/4.3限定勾选，Windows原生及目标Linux运行限制仍保留。
 
-## Evidence
+## Historical Evidence
 
 验证更新：2026-09-28。实现基线HEAD `61634057a3eb8dee571ac79e044afe030da73a27`，当前源码含本任务未提交变更；产物revision明确带`-dirty`，不是已发布同名版本的字节一致证明。下列路径均以任务临时根 `/Users/supdger/.tmp/guided-build-install-20260928` 为前缀；原始日志留在仓库外。
 
@@ -55,7 +61,7 @@
 当前未提交、推送或发布；真实用户安装/PATH及远端服务不在本轮验证范围。按用户纠正仅CLI验收，Finder双击/浏览器quarantine首启未测，不阻塞本轮源码实现。行为测试技能未提供，使用仓库直接行为测试。任务勾选仅表示上述适用条款与证据，保留跨平台条目中未完成的Windows部分。
 
 
-## Integration evidence status
+## Historical integration evidence status
 
 2026-09-28用户要求整合交付后，历史4.1/4.3通过记录保留在E4/E9/E10，但任务重新打开等待包含源码快照修复的新候选。历史菜单/协议/下载安全检查可在对应文件未变时引用，包摘要、镜像一致性、A真实错误呈现和C项目整链必须刷新。5.1-5.5均有整合收据及独立限定通过，4.1/4.3已按Mac/core原CLI范围重新完成；证据目录为`integration/`。
 
@@ -70,3 +76,17 @@
 - I5：不同上下文 `astramedium__accept_guided_workflow` 最终整合Mac/core独立验收通过，无新增必须修复项。`review/mirror-integration-result.json`记录独立真实回归退出0/1.111秒，`review/integrated-package-members.json`记录新两包实际摘要/成员字节匹配；独立复核A真实78错误链、安全路径及无verify，再核新setup ZIP实际hash/0755/执行字节、双flavor摘要绑定、新安装源码、镜像无DSStore、109单元和实际ELF。以上支持4.1/4.3限定范围及5.4/5.5，不代表Windows原生、Finder/quarantine或Linux/DB业务验收。
 
 整合最终状态：Mac/core本地候选通过。I2的newsmall/newfull与I4的newsetup为当前最终身份；E1-E10旧包和旧项目链只作历史证据。引导菜单、下载/TLS协议实现未因ProjectMirror/SourceTreeSnapshot补丁改变，故E1/E2/E5/E6对应协议证据复用，实际新包身份和项目路径已由I2-I5刷新。Windows2.1/2.3/3.2/3.4/4.2仍未全勾；未提交、推送或发布，不声称新版本已公开。
+
+## Final native Windows and delivery evidence
+
+以下W1-W7为最终状态，取代历史E/I中的当时授权和Windows缺口结论。所有日志路径仍以本任务tmp为前缀。
+
+- W1：真实Windows CI [run36411284414](https://github.com/supdger/webman-aot-builder/actions/runs/36411284414)，attempt1、head `95a98206e0508d6d86a5ff4690ab1ba4d1cc2b4f`，SUCCESS约5分8秒。`windows-ci/run-36411284414-full.log`及实际artifact `windows-ci/run-36411284414-artifacts/logs/outcome.json`记录39阶段、292.601986秒，success/httpsAccepted/persistentPathUnchanged均true。预期异常阶段非零是测试输入。环境为WindowsNT10.0.20348 AMD64、PowerShell5.1.20348.5622，属于原生CI，不等同用户既有宿主。
+- W2：原生build.cmd完成small/full锁定准备、缓存摘要复用、构包/清单/私有安装version；source菜单/EOF/取消、包内install.cmd small/full安装与失败不verify均有实际日志。source-small、package-full-project-menu、setup-full-https-install三条入口各完成109单元真实项目编译和自动verify，中文/空格路径及NoPath实际使用。产物scope为build-host-structure-and-integrity，非Linux运行。DSStore修复的两Project源码及Flow摘要与I1-I5一致，最终独立收据核对13源码SHA。
+- W3：stockSchannel HTTPS setup小/完整包各实际GET200一次、绑定摘要验证后安装，完整包接项目链；HTTP404真实curl22、未信任CA真实curl60/SEC_E_UNTRUSTED_ROOT，均不执行包代码；外层摘要损坏退出1且不安装。私有CA/签名CRL有效期1天并实际GET200，无全局证书库操作或TLS削弱。tls-cleanup.json/crl-cleanup.json均stopped和portClosed=true，user/machine持久PATH不变。资源仅属CI任务，未清理共享资源。
+- W4：Run15虽功能通过，成功curl进度仍出现PS5 NativeCommandError，故当时未准入。Run16小/完整成功日志无该包装或机器JSON，中文实际字节起止和耗时可见，22/60失败有中文原因与建议，本机temp原stderr保留真实错误。setup-launcher-bytes.json证明197个CRLF、无裸LF/UTF8BOM，实际单CMD启动通过。本次下载仅0.2/0.5秒，未到5秒周期；只证明实际起止字节/耗时，周期分支仅静态审查，不能称慢网络实测。
+- W5：Run16两包revision均为最终head。small-source-result.json：7,875,756字节/SHA `6162a93c140a88d8d6a398b2f5bf2133e31e4c301b4201fb1db2197ea74af119`；full：342,626,823字节/SHA `ba0d56b4b3cbbc6d24d364736ebeb5d81657cec7941e7905046ab34945d1b981`。两包verified含payload-manifest/isolated-install-version。实际setup.cmd：12,195字节/SHA `fb53c285dc72e5a51078dfda97802015e5d16095e0037a01c1363193d42e849a`。Mac复用I2/I4身份及实证；windows-ci/zip-diagnosis/crlf-regression/result.json证明Windows CRLF修复未改变Mac command字节，独立检查共享源码不变。不将历史Mac包称为Windows新revision构建产物。
+- W6：用户“授权”覆盖同一codex/guided-build-install分支提交、推送、PR、原生CI及必要修复。[PR #32](https://github.com/supdger/webman-aot-builder/pull/32)已创建并附加，生产修复已提交推送至最终head。禁止合并、Release、部署、Wiki发布；公开v0.2.3仍旧。本次最终OpenSpec三文件由D另作精确文档提交/推送，自动触发的文档HEAD CI继续监控；不预先宣称未产生的commit或CI通过。
+- W7：独立Astra收据review/final-native-cli-acceptance.json为PASS、22/22检查通过、requiredRework=[]，身份覆盖最终head/13源码SHA/两包revision/实际setup、三109项目链、HTTPS/CRL/22/60/原始日志、人话输出、NoPath及清理。复用未变Mac I4实际证据。通过范围是本次Mac及Windows CLI需求；setup重定向非法输入仅证明安全取消，不是真实控制台非法选择重试；Finder/quarantine/双击UI未测；既有update生命周期不在范围；Linux部署、数据库、服务和业务运行未执行。
+
+最后运行 openspec validate guided-build-install --strict 仅验证规格结构；业务结论依据真实收据及独立判定。文档收尾未重跑生产测试、未修改workflow。19/19完成不等于已发布或生产运行验收。

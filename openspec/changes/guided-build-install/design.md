@@ -75,3 +75,11 @@ Finder原生UI验证调用Computer Use失败，明确返回`Computer Use was not
 现有 `src/Guided/ProcessRunner.php` 实时转发子进程stdout/stderr，`Flow::execute`保留末2000字错误摘要，镜像诊断回归限制在1000字内；默认恢复建议附原错误及同入口重试。因此无需预先修改Flow。A必须用实际修改后的镜像失败触发引导错误路径，确认可读相对路径和重试建议、非零退出及verify短路；若实测丢失原因才按最小失败证据修改，不新增推测性错误框架。
 
 历史E1-E10仅证明整合前候选。菜单/参数/下载/TLS行为在对应文件未变时仍可复用；源码指纹、镜像错误与包内源码已变，新包必须重新算摘要、重生setup绑定、由C私有安装后确认修复并走项目build/verify；A仅刷新实际错误呈现证据。旧small/full SHA绝不继续标作最终候选。原始整合收据落任务tmp `/Users/supdger/.tmp/guided-build-install-20260928/integration`，不得将fixture/log/vendor/dist纳入仓库。Windows原生未验，提交/推送/发布无授权，保持边界。
+
+## Final native CLI acceptance and delivery
+
+最终状态覆盖上文各设计阶段记载的历史环境/授权缺口：生产候选95a98206e0508d6d86a5ff4690ab1ba4d1cc2b4f已提交推送至codex/guided-build-install，PR https://github.com/supdger/webman-aot-builder/pull/32 已创建。用户后续明确授权同分支提交、推送、PR及原生Windows CI修复；不含合并、Release、部署或Wiki发布。Windows run36411284414/attempt1真实39阶段通过，独立Astra22/22检查通过，无必须返工项。最终文档由D精确提交，后续文档HEAD自动CI继续监控。
+
+Windows沿用锁定PHP并修复中文/空格运行时目录的原生启动、相对配置与恢复调用目录；独立单CMD产物使用CRLF且无BOM。下载通过原生curl进程，原stderr保存至本机日志，人用输出显示真实字节/耗时/成功失败，不再将成功进度包装为PS5 NativeCommandError。真实curl22/60及TLS/撤销验证保留，未通过关闭校验解决输出问题。
+
+共享Flow和已整合ProjectMirror/SourceTreeSnapshot摘要未变，Mac历史整链仍适用；Windows CRLF生成修复的Mac command输出逐字节不变另有收据。两平台均完成109单元项目构建及本机产物verify，未作Linux业务运行。Windows验收为真实CI环境，不等于用户既有宿主；重定向setup取消不冒称TTY重试，0.2/0.5秒快下载不冒称5秒慢网络状态实测，Finder/quarantine及update生命周期未验。最终身份和详细限制以tasks.md W1-W7为准；官方v0.2.3仍是既有发行物，本次为PR候选。
