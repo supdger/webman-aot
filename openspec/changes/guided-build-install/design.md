@@ -83,3 +83,29 @@ Finder原生UI验证调用Computer Use失败，明确返回`Computer Use was not
 Windows沿用锁定PHP并修复中文/空格运行时目录的原生启动、相对配置与恢复调用目录；独立单CMD产物使用CRLF且无BOM。下载通过原生curl进程，原stderr保存至本机日志，人用输出显示真实字节/耗时/成功失败，不再将成功进度包装为PS5 NativeCommandError。真实curl22/60及TLS/撤销验证保留，未通过关闭校验解决输出问题。
 
 共享Flow和已整合ProjectMirror/SourceTreeSnapshot摘要未变，Mac历史整链仍适用；Windows CRLF生成修复的Mac command输出逐字节不变另有收据。两平台均完成109单元项目构建及本机产物verify，未作Linux业务运行。Windows验收为真实CI环境，不等于用户既有宿主；重定向setup取消不冒称TTY重试，0.2/0.5秒快下载不冒称5秒慢网络状态实测，Finder/quarantine及update生命周期未验。最终身份和详细限制以tasks.md W1-W7为准；官方v0.2.3仍是既有发行物，本次为PR候选。
+
+## Release 0.3.0
+
+用户“如果是我描述的一键实现的版本，那么可以按0.3.0发布了”承接合并PR32、版本变更、正式双平台安装包/启动文件、tag/Release资产公开与Wiki的发布范围，版本固定0.3.0；不扩展到用户既有项目或宿主安装、PATH、数据库、服务、全局信任及旧发行资产改写。原19项功能/UX证据有效，新增验收针对正式资产身份与公开消费，不重复历次失败CI。
+
+发布源固定为PR32和版本/必要发布workflow/docs合并后的唯一干净提交R。Version.VALUE、minimal-components外层version及两archive名称更新为0.3.0；组件ZIP和内层manifest原字节及摘要不变。toolchain.lock、runtime.lock、source-build-materials锁（包括有意保留的旧重链接URL）及compatibility锁保持不变。Mac组件SHA为d37c3b818d0dd93aea7442f58d3ddc618b669d3f585c7b23a99580d2e59f63ab；Windows为cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae，取得材料时再次核验，不能仅凭旧记录认定当前字节。
+
+四个安装包必须从R重新构建，package.json和机器结果revision均为R。Mac复用锁定runtime/compiler/materials，Windows原生runner checkout并断言R、使用已校验本地MinimalComponent；预发布阶段不能依赖尚不存在的v0.3.0匿名下载地址。Windows发布构包job只读token、只出产物，不自动公开Release；Git/Release操作归D按已获授权执行。v0.3.0 tag最终精确指向R。
+
+正式资产恰好九项：
+
+- webman-aot-builder-0.3.0-macos-arm64.tar.gz
+- webman-aot-builder-0.3.0-full-macos-arm64.tar.gz
+- webman-aot-builder-0.3.0-windows-x86_64.zip
+- webman-aot-builder-0.3.0-full-windows-x86_64.zip
+- webman-aot-builder-0.3.0-macos-arm64-setup.zip
+- webman-aot-builder-0.3.0-windows-x86_64-setup.cmd
+- webman-aot-builder-0.3.0-macos-arm64-components.zip
+- webman-aot-builder-0.3.0-windows-x86_64-components.zip
+- SHA256SUMS
+
+setup由四份实际包结果生成，绑定 https://github.com/supdger/webman-aot-builder/releases/download/v0.3.0 下确定文件名和摘要。SHA256SUMS列出另八项资产，不为校验表自身制造循环摘要。Mac默认分发保0755的ZIP，Windows实际CRLF无BOM；不将裸Mac command额外混入规定九资产。
+
+发布前：最终setup使用本地--archive/-Archive在两平台私有目录验证small新version、full离线安装与真实项目build/verify；独立验收核对R/包身份/成员完整性/组件/绑定。上传draft九资产后认证下载并比对实际字节；该检查不能证明匿名规范URL可下载。发布后：才从规范URL匿名回读和执行最终setup真实下载链，记录同一资产摘要及两平台私有安装/full项目结果。公开失败沿现有授权修复并报告，不能将草稿成功等同公开消费完成。
+
+职责：D负责Git/合并/版本外层锁/Windows固定R构包工作流及产物取得/tag/draft/publish/readback；B负责Mac固定R构包和四包元数据衔接；C负责最终setup、私有安装验证及分配的Wiki/说明；独立Astra负责资产与收据准入；本Agent仅OpenSpec。临时构包、收据和Wiki工作目录放任务tmp/release-030，不进入仓库。Wiki当前页和0.3.0页链接实际已发布资产，保留0.2.3历史。发布与公开消费结果分层记录，依旧只验CLI及本机结构完整性，不宣称Linux业务运行或GUI首启。
