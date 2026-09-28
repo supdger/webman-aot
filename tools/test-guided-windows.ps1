@@ -136,6 +136,48 @@ function Invoke-Cmd(
     }
 }
 
+function Record-RuntimeInventory([string]$Name, [string]$RuntimeRoot,
+    [string]$ReportedHome, [string]$WorkingDirectory) {
+    # Preserve the caller's exact mixed/native separator spelling for -c/-d.
+    $runtimePhp = $RuntimeRoot + '\php.exe'
+    $runtimeIni = $RuntimeRoot + '\php.ini'
+    $runtimeExt = $RuntimeRoot + '\ext'
+    $probe = Join-Path $logs 'runtime-probe.php'
+    $output = Join-Path $logs ($Name + '-php.json')
+    $probeSource = @'
+<?php
+$data = [
+    'phpBinary' => PHP_BINARY, 'phpVersion' => PHP_VERSION,
+    'loadedIni' => php_ini_loaded_file(), 'scannedIni' => php_ini_scanned_files(),
+    'extensionDir' => ini_get('extension_dir'), 'zipLoaded' => extension_loaded('zip'),
+    'zipArchiveExists' => class_exists('ZipArchive'), 'extensions' => get_loaded_extensions(),
+    'builderHome' => getenv('WEBMAN_AOT_BUILDER_HOME'), 'cwd' => getcwd(),
+];
+$json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+if (file_put_contents($argv[1], $json . "\n") === false) { exit(1); }
+echo $json, "\n";
+'@
+    [IO.File]::WriteAllText($probe, $probeSource, $utf8)
+    $hashes = @{}
+    foreach ($file in @($runtimePhp, $runtimeIni, ($runtimeExt + '\php_zip.dll'))) {
+        $hashes[$file] = if (Test-Path -LiteralPath $file -PathType Leaf) {
+            (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+        } else { $null }
+    }
+    Write-Json (Join-Path $logs ($Name + '-files.json')) @{
+        runtimeArgument = $RuntimeRoot; homeForProbe = $ReportedHome
+        iniArgument = $runtimeIni; extensionArgument = $runtimeExt; files = $hashes
+        iniText = (Get-Content -Raw -LiteralPath $runtimeIni)
+        scope = 'Unchanged package runtime/configuration; probe does not replace actual failed build.'
+    }
+    $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+    try {
+        $env:WEBMAN_AOT_BUILDER_HOME = $ReportedHome
+        [void](Invoke-Cmd $Name $runtimePhp @('-c', $runtimeIni, '-d',
+            ('extension_dir=' + $runtimeExt), $probe, $output) '' $true $WorkingDirectory)
+    } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousHome }
+}
+
 function Copy-Project([string]$Name) {
     $destination = Join-Path $WorkRoot $Name
     New-Item -ItemType Directory -Path $destination | Out-Null
@@ -265,6 +307,7 @@ try {
         ) '' $true $fixture)
         Assert-Check ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $fixture 'composer.lock')).Hash -eq
             $lockBefore) 'Fixture dependency installation did not change composer.lock'
+        Record-RuntimeInventory 'runtime-ascii' $runtime $env:WEBMAN_AOT_BUILDER_HOME $fixture
         Remove-OwnedDirectory $runtimePackage
     }
     foreach ($required in @('vendor\autoload.php', 'vendor\workerman\webman-framework\src\support\bootstrap.php')) {
@@ -504,6 +547,29 @@ server.serve_forever()
 } catch {
     $failure = $_.Exception.Message
     Write-Host "[FAIL] $failure"
+    # Preserve the real source-small failure. Inventory reads its installed files only.
+    if ($pathDigests.Count) {
+        $installedRuntime = Join-Path $WorkRoot '工具 small home\current\runtime'
+        $sourceLog = Join-Path $logs 'source-small.log'
+        if ((Test-Path -LiteralPath ($installedRuntime + '\php.exe')) -and
+            (Test-Path -LiteralPath $sourceLog)) {
+            try {
+                $sourceText = Get-Content -Raw -LiteralPath $sourceLog
+                $reported = [regex]::Matches($sourceText, '安装目标：([^\r\n]+)')
+                if ($reported.Count -eq 0) { throw 'Source log did not preserve its actual home argument.' }
+                $reportedHome = $reported[$reported.Count - 1].Groups[1].Value.Trim()
+                $nativeHome = [IO.Path]::GetFullPath($reportedHome)
+                if ($nativeHome -ne [IO.Path]::GetFullPath((Join-Path $WorkRoot '工具 small home'))) {
+                    throw 'Inventory refused a home outside the expected task installation.'
+                }
+                $failedProject = Join-Path $WorkRoot '项目 small 中文'
+                Record-RuntimeInventory 'runtime-chinese-mixed' ($reportedHome + '\current\runtime') $reportedHome $failedProject
+                Record-RuntimeInventory 'runtime-chinese-native' ($nativeHome + '\current\runtime') $nativeHome $failedProject
+            } catch {
+                Write-Host ('[inventory failure] Original acceptance failure retained; runtime probe: ' + $_.Exception.Message)
+            }
+        }
+    }
 } finally {
     if ($null -ne $tlsProcess) {
         if ($tlsStarted) {
