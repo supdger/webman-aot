@@ -1,8 +1,8 @@
 ## Feature acceptance and release status
 
-前19/19项按本次macOS及原生Windows CLI范围通过；0.3.0正式发布新增第6组任务，尚待正式资产验收与发布。生产候选为95a98206e0508d6d86a5ff4690ab1ba4d1cc2b4f，Windows run36411284414实际39阶段通过，独立Astra22/22证据检查通过。下方E/I记录是各阶段历史，旧未提交/Windows未验状态已被文末W1-W7更新；旧产物身份不改写成新运行。
+25/25项已按实际CLI与发布验收范围完成；v0.3.0已公开为latest非预发布，九项正式资产、双平台公开消费链及四页Wiki回读通过，独立最终发布判定无阻断。正式包/tag提交固定为bfce7dfd4c2cdc7e803767f8cc396dfbe913b751。以下功能阶段生产候选为95a98206e0508d6d86a5ff4690ab1ba4d1cc2b4f，Windows run36411284414实际39阶段通过，独立Astra22/22证据检查通过。下方E/I记录是各阶段历史，旧未提交/Windows未验状态已被文末W1-W7更新；旧产物身份不改写成新运行。
 
-用户最新原话“如果是我描述的一键实现的版本，那么可以按0.3.0发布了”，承接合并PR32、正式双平台包/setup、tag/Release/资产/Wiki及公开回读的完整发布范围；0.3.0取代先前提议0.2.4。该授权不包含用户宿主同步、真实PATH、数据库、服务或全局信任修改。发布步骤完成前不声称公开0.3.0已经可用。旧阶段授权与发行状态以当时证据保留。
+用户最新原话“如果是我描述的一键实现的版本，那么可以按0.3.0发布了”，承接合并PR32、正式双平台包/setup、tag/Release/资产/Wiki及公开回读的完整发布范围；0.3.0取代先前提议0.2.4。该授权不包含用户宿主同步、真实PATH、数据库、服务或全局信任修改。现已实际完成公开发布与消费验收；最终收据见文末R1-R6。旧阶段授权与发行状态以当时证据保留。
 
 ## 1. 共享引导与项目下一步
 
@@ -41,12 +41,12 @@
 
 ## 6. 0.3.0正式发布
 
-- [ ] 6.1 按核定方案合并PR32及版本/必要发布入口变更，固定唯一干净发布提交R；核对Version、外层组件锁版本/文件名、CHANGELOG均为0.3.0且锁定输入未被意外改变，后续两平台结果与tag必须指向R。
-- [ ] 6.2 从R重新制作两平台small/full四包；校验包内version/revision、清单及结果JSON。两个组件核验原锁定ZIP及manifest后原字节复制到0.3.0名称，保留摘要；不得仅重命名旧安装包或重建无变化工具链。记录四包与两组件身份。
-- [ ] 6.3 用四份正式包结果生成绑定v0.3.0规范URL的Mac setup ZIP及Windows setup CMD，检查包SHA/size/version/platform、Mac0755、WindowsCRLF无BOM及SHA256SUMS覆盖全部八个二进制资产；两原生平台用最终setup的本地Archive入口做私有small安装/version、full离线安装/真实项目build→verify，未变负向协议证据注明复用。
-- [ ] 6.4 创建指向R的v0.3.0 tag及draft Release，上传规定九资产并认证取回逐字节/摘要核对，无缺失、重名或多余项；不同上下文Astra核对R、资产绑定和两平台正式候选收据通过后才公开，不改写旧tag或旧发行资产。
-- [ ] 6.5 将通过草稿验收的Release公开；从正式匿名规范URL回下载核对九资产及校验表，并在两原生平台用正式setup真实下载→私有安装/full项目build→verify，单独记录公开消费层成功。草稿认证下载不得当作公开URL通过，失败在既有发布授权内修复复验并如实标注当前状态。
-- [ ] 6.6 发布当前与0.3.0版本Wiki/Release说明，链接真实公开资产并保留0.2.3历史；公开回读Release版本/tag/R/九资产/SHA与Wiki关键链接，区分已发布、公开消费验证和未含Linux业务运行/GUI/用户宿主操作，完成严格规格检查与最终交付记录。
+- [x] 6.1 按核定方案合并PR32及版本/必要发布入口变更，固定唯一干净发布提交R；核对Version、外层组件锁版本/文件名、CHANGELOG均为0.3.0且锁定输入未被意外改变，后续两平台结果与tag必须指向R。
+- [x] 6.2 从R重新制作两平台small/full四包；校验包内version/revision、清单及结果JSON。两个组件核验原锁定ZIP及manifest后原字节复制到0.3.0名称，保留摘要；不得仅重命名旧安装包或重建无变化工具链。记录四包与两组件身份。
+- [x] 6.3 用四份正式包结果生成绑定v0.3.0规范URL的Mac setup ZIP及Windows setup CMD，检查包SHA/size/version/platform、Mac0755、WindowsCRLF无BOM及SHA256SUMS覆盖全部八个二进制资产；两原生平台核对最终setup、私有small新version及full安装；Windows草稿原生真实109/verify通过，Mac预发布编译采用独立认可的完整payload等价证据，公开后另以最终包新跑109/verify补齐；未变负向协议证据注明复用。
+- [x] 6.4 创建指向R的v0.3.0 tag及draft Release，上传规定九资产并核对服务端计算SHA/size/名称；三小资产实际认证取回、Windows原生四次认证下载闭合消费者身份，无缺失、重名或多余项；不同上下文Astra核对R、资产绑定和两平台正式候选收据通过后才公开，不改写旧tag或旧发行资产。
+- [x] 6.5 将通过草稿验收的Release公开；公开回读九资产身份/服务端SHA，并以实际匿名下载校验表/setup/安装包及两组件规范URL HEAD200/size/锁定SHA交叉核对；两原生平台最终setup真实下载→私有安装/full项目build→verify，单独记录公开消费层成功。草稿认证下载不得当作公开URL通过，失败在既有发布授权内修复复验并如实标注当前状态。
+- [x] 6.6 发布四个当前Wiki页的0.3.0说明及Release说明，链接真实公开资产并保留0.2.3历史，不声称另建独立版本Wiki页；公开回读Release版本/tag/R/九资产/SHA与Wiki关键链接，区分已发布、公开消费验证和未含Linux业务运行/GUI/用户宿主操作，完成严格规格检查与最终交付记录。
 
 ## Historical Evidence
 
@@ -99,3 +99,15 @@
 - W7：独立Astra收据review/final-native-cli-acceptance.json为PASS、22/22检查通过、requiredRework=[]，身份覆盖最终head/13源码SHA/两包revision/实际setup、三109项目链、HTTPS/CRL/22/60/原始日志、人话输出、NoPath及清理。复用未变Mac I4实际证据。通过范围是本次Mac及Windows CLI需求；setup重定向非法输入仅证明安全取消，不是真实控制台非法选择重试；Finder/quarantine/双击UI未测；既有update生命周期不在范围；Linux部署、数据库、服务和业务运行未执行。
 
 最后运行 openspec validate guided-build-install --strict 仅验证规格结构；业务结论依据真实收据及独立判定。文档收尾未重跑生产测试、未修改workflow。19/19完成不等于已发布或生产运行验收。
+
+
+## Release 0.3.0 completed evidence
+
+本节R1-R6是当前正式交付状态；上方E/I/W为此前候选阶段历史，旧未发布状态不再代表当前。所有新增原始收据位于任务tmp/release-030，未复制进入仓库；本次仅更新tasks.md，不改已发布tag、包提交或归档change。
+
+- R1：发布包/tag固定提交R为`bfce7dfd4c2cdc7e803767f8cc396dfbe913b751`，消费者验证workflow提交为`7c8aaebe8f772aa58201fb0bcd85a0ecf431bc00`，两者分工明确。版本为0.3.0，四安装包从R重新构建；两组件保留原锁定字节。`inventory-independent-acceptance.json`核对规定九资产与八条SHA256SUMS绑定；不会将文档后续main提交改成packageR。
+- R2：`publish-gate.json`及`draft-identity-receipt.json`记录公开前独立批准。九项服务端SHA/size/名称匹配，三小资产实际认证取回，Windows draft原生run36429181382四次认证下载及最终setup小/完整私有安装0.3.0、109编译/verify/PATH清理通过。Mac预发布small新version/full安装实际执行，编译采用完整payload等价证据，公开后新包真实编译见R4。未声称九个草稿资产都在本机重新下载逐字节比对。
+- R3：`publication-receipt.json`证明[正式Release v0.3.0](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.0)于2026-09-28T13:35:28Z公开，releaseID398225205，latest=true、非prerelease，九资产ID/名称/大小/服务端SHA与独立批准候选不变。`SHA256SUMS`摘要为d2fcfc5d1eaf60a8504c7c5898f1a1228c508e2d4d83f4fd71fd589492ac7a3f。Windows公开消费者[run36429738499](https://github.com/supdger/webman-aot-builder/actions/runs/36429738499)从匿名规范URL完成四身份下载、空缓存且无Archive覆盖的最终setup小/完整真实下载、新私有版本0.3.0、109单元编译及自动verify；consumer-result.json为success=true、78.4901394秒、persistentPathUnchanged=true。任务资源清理通过。
+- R4：`mac/public/receipt.json`证明匿名规范setup ZIP及full包下载，初始缓存为空、archiveOverride=false，同一最终setup入口完成新私有安装0.3.0、109单元真实编译28.7秒和verify0.5秒，整链88.3秒；full SHA9a8ff36b8938c30dde845f2a194312276af6c7c0bad05623afd23c773b0fd675，setup ZIP SHA51cc409476a623f24380a9a5be03ea44ed0bceadc5d405706d3ef9b625032ab3。Mac small私有新版本沿用最终预发布收据；未将其称为新的公开small下载运行。包内version/revision核对通过。
+- R5：`public-components-receipt.json`证明两组件匿名规范URL HEAD200、size及公开服务端SHA与固定锁一致，fullBytesRedownloaded=false。`wiki-readback-receipt.json`记录Wiki提交`b5e8c796a451196df6cb73c462047c42d865fea3`，Home/Install/Build-from-source/Verification四个当前页已发布且匿名CLI回读字节匹配；链接当前0.3.0资产，保留0.2.3历史，不声称新增独立版本页。
+- R6：`final-release-acceptance.json`由不同上下文Astra给出finalReleaseDelivered=true、blockingIssues=[]，独立核对R/tag、公开latest九资产身份、Windows及Mac正式消费、组件可达性/摘要及四Wiki页实际回读。此次通过范围为CLI及build-host-structure-and-integrity；Linux服务/业务/数据库运行、Finder或浏览器quarantine GUI未验，不操作用户既有宿主。发布后的任务文档另作提交合并不改变已发布R/tag和资产。
