@@ -77,7 +77,12 @@ function Invoke-Cmd(
     $didStart = $false
     Write-Host "[STEP] $Name; deadline ${TimeoutSeconds}s; log $log"
     try {
-        $didStart = $process.Start()
+        # .NET Framework constructs and flushes its stdin writer during Start.
+        $previousInputEncoding = [Console]::InputEncoding
+        try {
+            [Console]::InputEncoding = $utf8
+            $didStart = $process.Start()
+        } finally { [Console]::InputEncoding = $previousInputEncoding }
         # Send every menu choice before closing stdin. EOF is intentional.
         $inputStream = $process.StandardInput.BaseStream
         if ($InputText) {
@@ -225,13 +230,19 @@ echo 'NATIVE_INPUT_HEX=', json_encode($lines), "\n";
     $entry = Join-Path $WorkRoot 'menu-input-source.cmd'
     [IO.File]::WriteAllText($entry, "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File " +
         (Quote-Cmd $sourceCopy) + " -Guided -NoPath`r`nexit /b %errorlevel%`r`n", $utf8)
-    [void](Invoke-Cmd 'menu-input-source-bootstrap' $entry @() $fixedInput $true $CallerDirectory 60)
+    $sourceProbe = Invoke-Cmd 'menu-input-source-bootstrap' $entry @() $fixedInput $true $CallerDirectory 60
     $previousCallerDirectory = $env:WEBMAN_AOT_CALLER_CWD
     try {
         $env:WEBMAN_AOT_CALLER_CWD = $CallerDirectory
-        [void](Invoke-Cmd 'menu-input-runtime-direct' '.\php.exe' @('-c', 'php.ini', '-d',
-            'extension_dir=ext', '..\app\tools\windows-php-bootstrap.php', $probe) $fixedInput $true $RuntimeRoot 60)
+        $directProbe = Invoke-Cmd 'menu-input-runtime-direct' '.\php.exe' @('-c', 'php.ini', '-d',
+            'extension_dir=ext', '..\app\tools\windows-php-bootstrap.php', $probe) $fixedInput $true $RuntimeRoot 60
     } finally { $env:WEBMAN_AOT_CALLER_CWD = $previousCallerDirectory }
+    foreach ($capturedRun in @($sourceProbe, $directProbe)) {
+        $hexMatch = [regex]::Match($capturedRun.Stdout, 'NATIVE_INPUT_HEX=(\[[^\r\n]+\])')
+        Assert-Check $hexMatch.Success 'Native input diagnostic reports the fixed fixture bytes'
+        $actualLines = $hexMatch.Groups[1].Value | ConvertFrom-Json
+        Assert-Check (($actualLines -join ',') -eq '320a,310a,300a') 'Native input preserves all three fixture lines without a BOM'
+    }
 }
 
 function Copy-Project([string]$Name) {
