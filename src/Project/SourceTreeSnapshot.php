@@ -26,6 +26,16 @@ final class SourceTreeSnapshot
      */
     public function capture(): array
     {
+        $snapshot = $this->captureWithFiles();
+
+        return ['sha256' => $snapshot['sha256'], 'files' => $snapshot['files']];
+    }
+
+    /**
+     * @return array{sha256:string,files:int,digests:array<string,string>}
+     */
+    public function captureWithFiles(): array
+    {
         RuntimeDataPaths::assertNoExcludedPhp($this->projectDirectory);
         $files = [];
         $directory = new \RecursiveDirectoryIterator(
@@ -39,6 +49,7 @@ final class SourceTreeSnapshot
                 $root = explode('/', $relative, 2)[0];
                 if (in_array($root, self::EXCLUDED_ROOTS, true)
                     || RuntimeDataPaths::isSourceExcluded($relative)
+                    || $entry->getFilename() === '.DS_Store'
                     || preg_match('/^\.env(?:\..+)?$/D', $entry->getFilename()) === 1
                 ) {
                     return false;
@@ -73,6 +84,7 @@ final class SourceTreeSnapshot
         return [
             'sha256' => hash_final($context),
             'files' => count($files),
+            'digests' => $files,
         ];
     }
 

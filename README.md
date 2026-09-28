@@ -21,6 +21,16 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 轻量包首次使用时联网准备编译组件；完整包包含组件，可在安装时离线准备。
 两种包安装后都提供 `webman-aot` 命令。GitHub 的 `Source code (zip)` 是源码压缩包，不是安装包。
 
+## 当前开发源码：单入口引导流程
+
+本仓库当前开发源码新增了面向用户的引导入口：macOS 使用 `build.command`，Windows 使用 `build.cmd`。它会按提示选择轻量包或完整包，显示安装位置和 PATH 影响后再确认安装，然后可选择 Webman / SaiAdmin 项目目录；工具会依次构建并验证 `dist-aot/`。过程显示当前阶段、日志位置和失败原因，日志只保存在本机；无法解决时可把错误摘要提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
+
+独立安装入口由已校验的同平台安装包生成：macOS setup ZIP 解开后运行其中的 `.command` 文件，Windows 运行 `.cmd` 文件。选好包类型后，setup 会自动下载对应安装包、核验大小和 SHA-256、检查归档后解压，再进入同一安装和项目引导流程。轻量包首次构建时需要联网下载锁定组件；完整包可离线准备组件。
+
+**以上引导入口属于当前开发源码及其新构建产物，尚未包含在公开 v0.2.3 Release 中。** 公开下载和 v0.2.3 的原有安装、命令行使用方式仍见 [v0.2.3 安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。当前开发源码版本号仍是 `0.2.3`，版本号相同不表示开发快照就是该 Release 的资产。
+
+引导流程中的 `verify` 检查构建产物的结构、完整性及工具报告的静态属性，不代替 Linux 目标机上的启动、数据库和业务接口验收。
+
 ## 安装与使用
 
 下载、校验和安装请按 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install) 操作。

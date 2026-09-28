@@ -159,6 +159,8 @@ final class InstallerPackager
         copy($this->root . '/bin/webman-aot', $stage . '/payload/launcher/webman-aot');
         chmod($stage . '/payload/launcher/webman-aot', 0700);
         copy($this->root . '/installer/macos/install.sh', $stage . '/install.sh');
+        $this->copyRequiredFile($this->root . '/installer/macos/install.command', $stage . '/install.command');
+        chmod($stage . '/install.command', 0700);
         copy($this->root . '/installer/macos/uninstall.sh', $stage . '/uninstall.sh');
         chmod($stage . '/install.sh', 0700);
         chmod($stage . '/uninstall.sh', 0700);
@@ -267,6 +269,7 @@ final class InstallerPackager
         ) === false) {
             throw new RuntimeException('unable to write Windows PHP runtime configuration');
         }
+        $this->copyRequiredFile($this->root . '/tools/windows-php-bootstrap.php', $stage . '/payload/app/tools/windows-php-bootstrap.php');
         $this->copyRequiredFile(
             $source . '/extras/sbom/php.spdx.json',
             $runtimeStage . '/upstream-php.spdx.json'
@@ -274,6 +277,8 @@ final class InstallerPackager
         $this->createDirectory($stage . '/payload/launcher');
         copy($this->root . '/bin/webman-aot.cmd', $stage . '/payload/launcher/webman-aot.cmd');
         copy($this->root . '/installer/windows/install.ps1', $stage . '/install.ps1');
+        $this->copyRequiredFile($this->root . '/installer/windows/install.cmd', $stage . '/install.cmd');
+        $this->copyRequiredFile($this->root . '/installer/windows/install-guided.ps1', $stage . '/install-guided.ps1');
         copy($this->root . '/installer/windows/uninstall.ps1', $stage . '/uninstall.ps1');
         $this->stageMinimalComponent($stage, 'windows-x86_64', $minimalComponent, $full);
         $this->writeMetadata($stage, 'windows-x86_64', $runtime, $full);
@@ -374,6 +379,7 @@ final class InstallerPackager
         copy($this->root . '/installer/runtime.lock.json', $app . '/installer/runtime.lock.json');
         $this->createDirectory($app . '/tools');
         foreach ([
+            'guided.php',
             'windows-replay.ps1',
             'macos-prepare.php',
             'apply-typephp-patches.php',
