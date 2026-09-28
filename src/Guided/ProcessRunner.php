@@ -24,20 +24,14 @@ final class ProcessRunner
             throw new \RuntimeException('无法写入日志：' . $this->log);
         }
         fwrite($handle, "\n[{$stage}] " . json_encode($command, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
-        $process = proc_open($command, [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $cwd, array_merge(getenv(), $environment), ['bypass_shell' => true]);
-        if (!is_resource($process)) {
-            fclose($handle);
-            throw new \RuntimeException("无法启动阶段：{$stage}");
-        }
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
         $output = [1 => '', 2 => ''];
-        $lastOutput = microtime(true);
-        $exitCode = -1;
-        while (true) {
-            foreach ([1, 2] as $index) {
-                $chunk = stream_get_contents($pipes[$index]);
-                if (is_string($chunk) && $chunk !== '') {
+        try {
+            $exitCode = \WebmanAotBuilder\Cli\ProcessOutput::run(
+                $command,
+                $cwd,
+                array_merge(getenv(), $environment),
+                ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
+                static function (int $index, string $chunk) use (&$output, $machineOutput, $handle): void {
                     $output[$index] .= $chunk;
                     if (!$machineOutput) {
                         $output[$index] = substr($output[$index], -65536);
@@ -45,40 +39,25 @@ final class ProcessRunner
                     fwrite($handle, $chunk);
                     fflush($handle);
                     if (!$machineOutput || $index === 2) {
-                        fwrite($index === 1 ? STDOUT : STDERR, $chunk);
+                        $stream = $index === 1 ? STDOUT : STDERR;
+                        fwrite($stream, $chunk);
+                        fflush($stream);
                     }
-                    $lastOutput = microtime(true);
+                },
+                static function (float $elapsed, float $silent) use ($stage, $handle): void {
+                    $message = sprintf("[等待输出] %s，进程仍在运行；已耗时 %.0f 秒，连续 %.0f 秒无新输出，无法据此确认工作进度。\n", $stage, $elapsed, $silent);
+                    fwrite(STDOUT, $message);
+                    fflush(STDOUT);
+                    fwrite($handle, $message);
+                    fflush($handle);
                 }
-            }
-            $status = proc_get_status($process);
-            if (!$status['running']) {
-                $exitCode = $status['exitcode'];
-                foreach ([1, 2] as $index) {
-                    $chunk = stream_get_contents($pipes[$index]);
-                    if (is_string($chunk) && $chunk !== '') {
-                        $output[$index] .= $chunk;
-                        if (!$machineOutput) {
-                            $output[$index] = substr($output[$index], -65536);
-                        }
-                        fwrite($handle, $chunk);
-                        if (!$machineOutput || $index === 2) {
-                            fwrite($index === 1 ? STDOUT : STDERR, $chunk);
-                        }
-                    }
-                }
-                break;
-            }
-            if (microtime(true) - $lastOutput >= 5) {
-                fwrite(STDOUT, sprintf("[进行中] %s，已耗时 %.0f 秒\n", $stage, microtime(true) - $started));
-                $lastOutput = microtime(true);
-            }
-            usleep(100000);
-        }
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $closedCode = proc_close($process);
-        if ($exitCode < 0) {
-            $exitCode = $closedCode;
+            );
+        } catch (\Throwable $failure) {
+            $message = sprintf("[失败] %s，耗时 %.1f 秒：%s\n", $stage, microtime(true) - $started, $failure->getMessage());
+            fwrite(STDERR, $message);
+            fwrite($handle, $message);
+            fclose($handle);
+            throw $failure;
         }
         $summary = sprintf("[%s] %s，耗时 %.1f 秒，退出码 %d\n", $exitCode === 0 ? '成功' : '失败', $stage, microtime(true) - $started, $exitCode);
         fwrite(STDOUT, $summary);

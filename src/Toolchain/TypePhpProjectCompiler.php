@@ -262,44 +262,19 @@ final class TypePhpProjectCompiler
      */
     private function runProcess(array $command, string $directory, array $environment): int
     {
-        $process = proc_open(
-            $command,
-            [0 => STDIN, 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes,
-            $directory,
-            $environment
+        $started = microtime(true);
+        $code = \WebmanAotBuilder\Cli\ProcessOutput::run(
+            $command, $directory, $environment, STDIN,
+            static function (int $index, string $chunk): void {
+                $stream = $index === 1 ? STDOUT : STDERR;
+                fwrite($stream, $chunk);
+                fflush($stream);
+            },
+            static function (float $elapsed, float $silent): void {
+                fwrite(STDERR, sprintf("[build] Compiler process is running; elapsed %.0fs, no output for %.0fs; work progress unknown.\n", $elapsed, $silent));
+            }
         );
-        if (!is_resource($process)) {
-            throw new \RuntimeException('unable to start locked TypePHP tool');
-        }
-        stream_set_blocking($pipes[1], false);
-        stream_set_blocking($pipes[2], false);
-        $reportedExitCode = null;
-        while (true) {
-            $status = proc_get_status($process);
-            foreach ([1 => STDOUT, 2 => STDERR] as $index => $destination) {
-                $chunk = stream_get_contents($pipes[$index]);
-                if (is_string($chunk) && $chunk !== '') {
-                    fwrite($destination, $chunk);
-                }
-            }
-            if (!$status['running']) {
-                $reportedExitCode = $status['exitcode'];
-                break;
-            }
-            usleep(20000);
-        }
-        foreach ([1 => STDOUT, 2 => STDERR] as $index => $destination) {
-            stream_set_blocking($pipes[$index], true);
-            $chunk = stream_get_contents($pipes[$index]);
-            if (is_string($chunk) && $chunk !== '') {
-                fwrite($destination, $chunk);
-            }
-            fclose($pipes[$index]);
-        }
-        $closedExitCode = proc_close($process);
-        return is_int($reportedExitCode) && $reportedExitCode >= 0
-            ? $reportedExitCode
-            : $closedExitCode;
+        fwrite(STDERR, sprintf("[build] Compiler process %s in %.1fs; exit code %d.\n", $code === 0 ? 'completed' : 'failed', microtime(true) - $started, $code));
+        return $code;
     }
 }

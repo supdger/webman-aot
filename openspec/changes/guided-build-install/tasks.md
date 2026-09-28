@@ -111,3 +111,63 @@
 - R4：`mac/public/receipt.json`证明匿名规范setup ZIP及full包下载，初始缓存为空、archiveOverride=false，同一最终setup入口完成新私有安装0.3.0、109单元真实编译28.7秒和verify0.5秒，整链88.3秒；full SHA9a8ff36b8938c30dde845f2a194312276af6c7c0bad05623afd23c773b0fd675，setup ZIP SHA51cc409476a623f24380a9a5be03ea44ed0bceadc5d405706d3ef9b625032ab3。Mac small私有新版本沿用最终预发布收据；未将其称为新的公开small下载运行。包内version/revision核对通过。
 - R5：`public-components-receipt.json`证明两组件匿名规范URL HEAD200、size及公开服务端SHA与固定锁一致，fullBytesRedownloaded=false。`wiki-readback-receipt.json`记录Wiki提交`b5e8c796a451196df6cb73c462047c42d865fea3`，Home/Install/Build-from-source/Verification四个当前页已发布且匿名CLI回读字节匹配；链接当前0.3.0资产，保留0.2.3历史，不声称新增独立版本页。
 - R6：`final-release-acceptance.json`由不同上下文Astra给出finalReleaseDelivered=true、blockingIssues=[]，独立核对R/tag、公开latest九资产身份、Windows及Mac正式消费、组件可达性/摘要及四Wiki页实际回读。此次通过范围为CLI及build-host-structure-and-integrity；Linux服务/业务/数据库运行、Finder或浏览器quarantine GUI未验，不操作用户既有宿主。发布后的任务文档另作提交合并不改变已发布R/tag和资产。
+
+## 2026-09-28 构建输出修复复验（未发布）
+
+本轮针对 v0.3.0 安装引导进入项目构建后只显示“开始”的反馈：共享进程读取改为轮询私有临时输出文件，覆盖 Guided、项目编译及两平台 SDK 准备，实时转发 stdout/stderr；持续静默时约每 5 秒显示进程状态、耗时及无新输出时间，明确不能据此确认实际工作进度。CLI 增加准备阶段，组件下载增加真实字节、采样速度、准备总耗时及初始/最终采样。成功/失败保留退出码，异常回收子进程与临时输出文件。本轮未修改业务编译结果的判定。
+
+- `php tools/test-process-output.php`：Darwin 实际子进程回归 7/7 通过。覆盖 stderr 先于静默 stdout 可见、约 5 秒心跳、非零退出及末尾错误、中文/空格参数、stdout/stderr 各 2 MiB 完整输出、机器 JSON 隔离及回调异常后子进程回收。
+- `php tools/test-guided.php`：Darwin 引导行为回归 25/25 通过，包含失败不继续 verify、机器结果解析与恢复提示。夹具和原始日志位于仓库外 `/Users/supdger/.tmp/webman-aot-guided-test-5566c6202a28/`。
+- 修改的 PHP 文件语法检查与 `git diff --check` 通过。独立审查重新执行上述 7/7 与 25/25 并通过。
+- 本轮未执行 Windows 原生验收，Windows 临时文件共享读取及实际 CMD 入口效果仍待验证；未实测真实网络下载速度显示。历史 W7 或旧发行验收不计入本轮通过证据。上述回归不代表用户 SaiAdmin 项目编译、Linux 部署或业务运行通过。
+- 当前仅源码候选与本地回归完成；本轮未提交、推送、发布或同步用户安装。
+
+## 2026-09-28 Symfony deepclone 条件声明兼容回归（未发布）
+
+- 用户提供的 SaiAdmin 构建失败定位到 `symfony/polyfill-deepclone` v1.42.0（source `70ba0627efc68e97ea392843458a2dd9d6dbd156`）两个异常 stub 的 `extension_loaded('deepclone')` 顶层条件；本机真实同版本 vendor 经 TypePHP 0.9.2 `Preprocessor::prepareFile` 复现相同第 14 行 stray code。
+- 新增固定包版本、源码 SHA 和工具链锁 SHA 的 fallback 规则，仅在构建镜像的 `.typephp/build/` 生成两个异常、bootstrap 选择入口、三个函数与三个常量的声明影子。原 `DeepClone.php` 保持编译，源 vendor 保持不变；覆盖映射纳入生成记录。目标为锁定 PHP 8.4.25 静态 SDK，规则不读取宿主扩展状态；实际 SDK `libphp.a` 全局定义符号有 51 个 module_entry、无 deepclone 符号。工具链漂移须重新判断原生扩展/fallback 边界。
+- `tools/test-deepclone-polyfill.php` 使用真实已安装 vendor 与 TypePHP 源码：原条件文件重现失败、四影子和完整 DeepClone.php 预处理成功、target/source 漂移拒绝、原始/适配 PHP 的对象往返与对象身份、常量值及异常继承对照全部通过，0.17 秒。PHP 语法与 diff whitespace 检查通过。
+- 其他已锁定 generator 策略保持原范围：php80/83/84 Resources 由 PHP 8.4 原生声明覆盖，php85 所需 stub 已有显式影子。本项预处理通过不代表实际 SaiAdmin 全项目编译、Linux 启动或数据库业务通过，整项目验证另记真实结果。
+- 实际项目回归补充：在仓库外私有副本 `/private/tmp/webman-aot-practical.mmV51Dwy/project`，使用本机 `/Users/code/project/ttt/saiadmin6.x/server` 的真实源码与依赖，经候选 CLI `build` 运行约 13 秒，退出 70。已验证私有工具链、无需下载；首次失败在 generate 阶段：`Unsupported nesbot/carbon version 3.14.1; supported: 3.13.2`，尚未到 deepclone 适配或 compile。没有产物，因此未执行 verify；未修改真实项目及共享安装。原项目与副本 composer.lock、deepclone stub 摘要一致。原始证据为该临时目录的 `build.log` 与 `home/logs/20260928T141625Z-9303c1b5/diagnostic.json`。
+- 独立局部兼容审查已通过；本轮完整 SaiAdmin 构建受实际依赖版本与支持锁不匹配阻断，Windows 原生入口尚未验收。现有旧镜像、引导夹具及工具链未提供可替代的匹配 SaiAdmin 依赖集，未发现可用 SSH 配置；预处理 PASS 不计作全项目 build 成功。本轮未提交、推送或发布。
+
+### 精确项目构建入口补验（Windows 与 macOS 共用链路）
+
+用户进一步明确反馈位置是安装成功后的“1 构建项目 → 输入项目目录 → [开始] 构建项目”，与下载进度无关。本轮保留 `--no-progress`：已读取锁定 TypePHP 0.9.2 源码，其含义是禁用原地进度条并逐行输出每个编译文件的真实已完成数/总数，不是关闭进度。前述公共进程输出修复覆盖两平台 `Flow::projects()`、平台公共启动器、CLI 与 TypePHP；本次补验未再修改产品源码。
+
+新增跨平台行为验收入口 `tools/test-guided-build-progress.php`。参数依次为任务私有 home、bin、可修改的 Composer-ready 项目、新证据目录；测试通过真实 `--mode=project` 菜单输入 1 与项目目录，进入与安装后完全相同的 `projects()` 方法，再调用公共启动器与真实 CLI/锁定编译器，独立采样进程存活状态及输出到达时间。不注入伪造阶段或计数，也不执行安装、修改用户 PATH 或启动服务。
+
+- macOS 实际命令：`php tools/test-guided-build-progress.php /private/tmp/webman-aot-guided-progress-20260928/home /private/tmp/webman-aot-guided-progress-20260928/bin /private/tmp/webman-aot-guided-progress-20260928/project /private/tmp/webman-aot-guided-progress-20260928/evidence-1`。
+- 私有 home 使用本轮已有锁定工具链/runtime 的本机副本及当前候选应用，公共 macOS 启动器原样复制；项目来自仓库 `tools/fixtures/guided-webman` 与其锁定的 6 个 Composer 依赖。没有修改或降级用户 SaiAdmin 依赖。
+- Darwin 精确入口 4/4 通过，整链 32.36 秒退出 0。`[build] profile` 在 12.46 秒到达；真实 `[1/109] ...typephp_main.cc` 在 17.43 秒到达；`[109/109] ...coroutine-context.cc` 在 27.06 秒到达；31.84 秒才出现 `[成功] 构建项目`。109 个编译计数在进程仍运行时分多段到达，随后真实 verify 通过。原始 `terminal.log` 与逐次到达时间 `timing.json` 保存在上述 evidence-1，不能以最终日志顺序替代时序证据。
+- Windows 公共 `webman-aot.cmd` 的私有 PHP/bootstrap/调用者 cwd 路径以及共享 Flow/CLI/编译器路径已只读核对，新增测试可用相同参数在 Windows 执行。已知旧测试机 SSH 可达，但标准私有 PHP 与本轮候选/测试文件不存在，且不是截图中的项目路径；未上传候选或修改该宿主。因此 Windows 本轮原生精确入口仍未验收，不能以 macOS 4/4 或历史 Windows 验收替代。
+
+### 2026-09-29 Windows 原生精确入口回归
+
+用户本轮“授权”承接上传固定候选到 Windows 新临时目录、准备私有工具链与回归，限制为不改现有安装、PATH、项目、数据库或服务。本轮没有提交、推送或发布。
+
+- 实际目标：SSH `supdger@192.168.1.175`，用户目录 `C:\Users\supdg`。它是已有测试机，不宣称是截图中的 SaiAdmin 宿主。固定候选 ZIP SHA-256 `39ecdb828e211de0dbc7565f1f2d137cebc11d20bf2130fdde1a3db52bcc7650`；远端上传 594,895 字节、400 项清单 SHA 全部匹配当前源码与夹具。候选源码身份 `build-feedback-2680d670ed7a7d3965a8` 未修改。
+- 原新建任务根 `C:\Users\supdg\AppData\Local\Temp\webman-aot-progress-20260929-01` 保留传输/失败证据。公网组件下载过慢，仅停止本任务已核实的 curl 子进程；将本机已有、整文件 SHA 与当前锁完全一致的组件复制到任务缓存，远端再次核对 SHA `cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae`、338,708,162 字节后复用。没有改锁或共享缓存。
+- 初次构包在长临时路径中因 ZipArchive 加入最长 patch 文件失败，退出 1；相同 SHA 候选/缓存复制到先确认不存在的新短根 `C:\Users\supdg\AppData\Local\Temp\aot0929` 后，原有 small 构包与私有安装自检 16.1 秒通过。新包 SHA `cf1c4fc41d037736b46e370b362f0cf01492919f966c61cf1247873442c92038`，145 项 payload 校验通过。这是隔离路径前置修复，未修改构包产品逻辑或系统长路径设置。
+- 私有安装：短根 `h` 为 home、`b` 为 bin，显式 `-NoPath`，2.3 秒完成。真实夹具在 `p`，固定源码在 `s`。将已验组件复制到 `h\toolchains\downloads` 并再次校验；首次真实 build 仍完成 7,693/7,693 条目解压、SHA 校验与工具链激活，计数在终端实时可见。
+- 实际测试：在 `h\current\runtime` 用私有 `php.exe -c php.ini -d extension_dir=ext` 执行 `s\tools\test-guided-build-progress.php`，参数依次为短根 `h`、`b`、`p`、新证据目录 `e1`；进程 TEMP/TMP 为短根 `t`。通过真实 Flow 菜单选 1、输入项目路径、公共 `webman-aot.cmd`、真实 CLI 与锁定 Windows 编译器，未注入伪造日志。
+- Windows 精确入口 **4/4**，208.69 秒退出 0（包含首次工具链准备）。`[build] profile` 于 127.70 秒到达；真实 `[1/109] ...typephp_main.cc` 于 148.96 秒到达；`[109/109] ...Channel\Swoole.cc` 于 198.95 秒到达；207.59 秒才显示构建成功。109 个真实计数均在被观察进程存活时到达，共记录 228 个输出块；实际编译器耗时 66.3 秒。随后自动 verify 1.1 秒退出 0，scope 为本机构建产物结构和完整性。ELF SHA `e7af12fd2d9a138bb7831adce71f6a9ba74d637b54a88483e56564c60d8fa1c6` 与同夹具 Mac 结果一致。
+- Windows 私有 runtime 执行 `s\tools\test-process-output.php` 时，本轮工具终端实际显示原生 **7/7** 和退出 0（含 5.2 秒存活提示）；但保存的 `process-output-native.log` 只有 PowerShell 调用语句，没有测试正文，不能作为可独立复核的 7/7 文件证据。独立审查另行捕获 stdout/stderr 与退出码，结果按下方追加记录。
+- 原始 `e1/terminal.log`、`e1/timing.json`、仅记录调用语句的进程测试 transcript、初次失败与短路径成功构包 transcript、包结果、PATH前后证据已取回本机 `/private/tmp/webman-aot-windows-progress-evidence-20260929/`。用户/机器 PATH 对比均未变化。此处记录实现者首轮真实结果；独立 Windows 复验单独记录，不冒充已完成。
+- 本轮两个远端任务目录保留：原长根约 394,086,791 字节、短根约 2,076,534,340 字节（独立复跑前采样）；均为本任务所有。未获远端删除授权，未删除这些目录或旧共享项目；原有构包脚本自身临时文件生命周期照常。没有服务/数据库运行或 Linux 业务验收。
+
+- 独立 Windows 精确入口复验：同一固定候选通过真实 CMD 启动器链再跑，使用新证据目录 `e2`，**4/4**，101.58 秒退出 0；已有工具链复用但项目仍真实编译。`[1/109]` 于 43.82 秒、`[109/109]` 于 92.46 秒到达，100.47 秒才显示构建成功；109 个计数全部 `running=true`，随后 verify 1.1 秒通过。独立时序已取回 `/private/tmp/webman-aot-windows-independent-timing-20260929.json`。独立审查核对用户/机器 PATH 不变，产品代码/候选身份与首轮一致；没有通过更换候选或伪造阶段取得结果。
+
+- 独立 Windows 进程输出补验 **7/7** 已完成：真实 stdout/stderr 经 Tee 捕获为 `/private/tmp/webman-aot-windows-native-e2-terminal-20260929.log`（UTF-16），含 7 行 `PASS:` 与 `NATIVE_REVIEW_EXIT=0`。覆盖 5.2 秒存活提示、stderr及时可见、exit29与末尾错误、中文/空格参数、双流各2 MiB完整输出、JSON隔离及异常回收。该可回读结果补齐首轮 transcript 缺正文的证据缺口；独立 Astra 审查认为当前构建进度切片无需进一步回归。
+
+
+## 7. v0.3.1 修复发布
+
+用户原话“什么意思？你不发布，我怎么测试”承接当前构建进度、deepclone兼容与包说明候选，授权发布可下载的 v0.3.1。该授权覆盖同目标必要的 feature 分支提交/推送、PR合并、两平台私有构包与验收、tag/Release/资产上传公开及失败后的修复复测；不直接推送 main，不同步用户真实安装/PATH/项目，不操作数据库、服务或凭据。原有实现验收记录保留，新版本包不能用旧版本包的身份或入口验收冒充。
+
+- [x] 7.1 核对公开 main/tag/Release：main 为 `ed33ae13ac0dd8f662453c1888a42b12748ac6ef`；与当前工作树基线仅 OpenSpec v0.3.0 发行记录有差异。当前未提交补丁与新文件已保全于仓库外；原始工作区未修改。
+- [x] 7.2 将版本、minimal-components 外层版本与两个资产名更新为 0.3.1，保留组件内容SHA、manifestSHA和工具链锁；补齐 CHANGELOG 与 README 的用户行为和下载用途说明。
+- [ ] 7.3 整合最新主线发行记录并审查范围，提交/推送 feature 分支，经 PR 合并后固定唯一干净发布提交 R；两端资产与 tag 均指向 R，不直接推送 main。
+- [ ] 7.4 从 R 分别生成 Windows/macOS small/full 四个新安装包，记录新版本、revision、清单、SHA与私有安装/version自检。两份组件校验原锁后按 0.3.1 文件名复制原字节，不重建无变化编译器。
+- [ ] 7.5 基于四个实际新包生成固定 v0.3.1 URL和摘要的两平台setup，SHA256SUMS覆盖8个下载资产；验证新包安装入口、项目构建/verify与退出结果，复用未变化源码层的既有进度回归证据时注明范围。
+- [ ] 7.6 创建指向R的v0.3.1 tag与draft Release，上传九资产、回读身份和SHA并完成独立验收；通过后公开，核对规范公开URL实际下载及资产说明，不把draft认证下载当公开消费通过。

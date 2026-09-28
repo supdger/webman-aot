@@ -18,7 +18,8 @@ final class UpstreamProjectGenerator
         string $privateCache,
         string $lockFile,
         string $profile,
-        string $outputName
+        string $outputName,
+        ?string $toolchainSha256 = null
     ): array {
         if (!in_array($profile, [ProjectProfile::WEBMAN, ProjectProfile::SAIADMIN], true)
             || preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $outputName) !== 1
@@ -108,6 +109,15 @@ final class UpstreamProjectGenerator
             $intlAdaptation = (new NativeIntlPolyfillRule())->apply($mirror, $intlPolicy);
             $adaptations['nativeIntlShadowSha256'] = $intlAdaptation['shadowSha256'];
             $adaptations['nativeIntlProjectSha256'] = $intlAdaptation['projectSha256'];
+            $deepClone = (new DeepClonePolyfillRule())->apply(
+                $mirror,
+                $lock['optionalAdaptations']['symfony/polyfill-deepclone'] ?? [],
+                $toolchainSha256
+            );
+            foreach ($deepClone as $mapping) {
+                $manifest[] = $mapping;
+                $adaptations[$mapping['shadow']] = $mapping['shadowSha256'];
+            }
         }
         $pluginSourcesSha256 = (new PluginSourceCompletion())->apply(
             $mirror,
