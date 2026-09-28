@@ -6,7 +6,7 @@ name: Windows 0.2.3 release assets from merged main
 on:
   pull_request:
     branches: [main]
-    types: [opened]
+    types: [opened, synchronize]
 
 env:
   RELEASE_MAIN_SHA: 70b1344d18ea137f9d3c72fcee80c2c4b2885282
@@ -211,3 +211,127 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+      - name: Verify public Windows downloads and ordinary doctor from an empty cache
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $releaseBase = 'https://github.com/supdger/webman-aot-builder/releases/download/v0.2.3'
+          $publicRoot = Join-Path $env:RUNNER_TEMP 'public release downloads'
+          if (Test-Path -LiteralPath $publicRoot) { throw 'Public download directory must be new.' }
+          New-Item -ItemType Directory -Path $publicRoot | Out-Null
+          $checksumPath = Join-Path $publicRoot 'SHA256SUMS'
+          Write-Output "[public-download] $releaseBase/SHA256SUMS"
+          & curl.exe --fail --location --progress-bar --proto '=https' --proto-redir '=https' `
+            --output $checksumPath "$releaseBase/SHA256SUMS"
+          if ($LASTEXITCODE -ne 0) { throw 'Public SHA256SUMS download failed.' }
+          $checksums = @{}
+          foreach ($line in Get-Content -LiteralPath $checksumPath) {
+            if ($line -notmatch '^([a-f0-9]{64})  (.+)$') { throw 'Published SHA256SUMS contains an invalid line.' }
+            $sum = $Matches[1]
+            $name = $Matches[2]
+            if ($checksums.ContainsKey($name)) { throw "Duplicate published checksum: $name" }
+            $checksums[$name] = $sum
+          }
+          $formal = @(
+            @{ name = 'webman-aot-builder-0.2.3-windows-x86_64.zip'; bytes = 7864053L; sha = '726257b061404debf3502dc26262c15a923124b4a8f5bf728f594fd4288aa95d' }
+            @{ name = 'webman-aot-builder-0.2.3-full-windows-x86_64.zip'; bytes = 342615119L; sha = '271e9499fd4042ab031dca675b02ff2fae90ac925d6fcb6660f417ae58182e49' }
+            @{ name = 'webman-aot-builder-0.2.3-windows-x86_64-components.zip'; bytes = 338708162L; sha = 'cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae' }
+          )
+          foreach ($asset in $formal) {
+            if (-not $checksums.ContainsKey($asset.name) -or $checksums[$asset.name] -ne $asset.sha) {
+              throw "Published checksum differs from final Windows manifest: $($asset.name)"
+            }
+            $file = Join-Path $publicRoot $asset.name
+            Write-Output "[public-download] $releaseBase/$($asset.name)"
+            & curl.exe --fail --location --progress-bar --proto '=https' --proto-redir '=https' `
+              --output $file "$releaseBase/$($asset.name)"
+            if ($LASTEXITCODE -ne 0) { throw "Public asset download failed: $($asset.name)" }
+            $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant()
+            $bytes = (Get-Item -LiteralPath $file).Length
+            if ($sha -ne $asset.sha -or $bytes -ne $asset.bytes) {
+              throw "Public asset hash or bytes differ from final Windows manifest: $($asset.name)"
+            }
+            Write-Output "[OK] Public $($asset.name) bytes=$bytes sha256=$sha"
+          }
+          $smallZip = Join-Path $publicRoot 'webman-aot-builder-0.2.3-windows-x86_64.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'public extracted small'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'public fresh installed small'
+          $bin = Join-Path $env:RUNNER_TEMP 'public fresh bin small'
+          foreach ($path in @($extract, $installRoot, $bin)) {
+            if (Test-Path -LiteralPath $path) { throw "Public installation path must be new: $path" }
+          }
+          New-Item -ItemType Directory -Path $extract | Out-Null
+          & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $smallZip -C $extract
+          if ($LASTEXITCODE -ne 0) { throw 'Public small ZIP extraction failed.' }
+          $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
+          if ($metadata.version -ne '0.2.3' -or $metadata.revision -ne $env:RELEASE_MAIN_SHA -or
+              $metadata.platform -ne 'windows-x86_64' -or $metadata.flavor -ne 'small') {
+            throw 'Public small package provenance differs.'
+          }
+          Write-Output '[public-install] Installing public small ZIP into new space-containing paths ...'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1') `
+            -InstallRoot $installRoot -BinDir $bin -NoPath
+          if ($LASTEXITCODE -ne 0) { throw 'Public small installation failed.' }
+          $toolchains = Join-Path $installRoot 'toolchains'
+          if ((Test-Path -LiteralPath $toolchains) -and
+              @(Get-ChildItem -LiteralPath $toolchains -Recurse -Force).Count -ne 0) {
+            throw 'Fresh public installation must have an empty toolchain cache before doctor.'
+          }
+          Write-Output '[OK] Fresh public installation has no prepared toolchain or cached component; no component was seeded.'
+          $app = Join-Path $installRoot 'current\app'
+          $runtime = Join-Path $installRoot 'current\runtime'
+          $resolveScript = Join-Path $env:RUNNER_TEMP 'public-component-url.php'
+          @'
+          <?php
+          $app = $argv[1];
+          require $app . '/src/Version.php';
+          require $app . '/src/Toolchain/MinimalComponentLock.php';
+          $component = (new WebmanAotBuilder\Toolchain\MinimalComponentLock())->forHost(
+              $app . '/toolchain/minimal-components.lock.json',
+              $app . '/toolchain.lock.json',
+              'windows-x86_64'
+          );
+          echo $component['url'], PHP_EOL;
+          '@ | Set-Content -LiteralPath $resolveScript -Encoding ascii
+          $resolvedUrl = & (Join-Path $runtime 'php.exe') -c (Join-Path $runtime 'php.ini') `
+            -d "extension_dir=$(Join-Path $runtime 'ext')" $resolveScript $app
+          $componentName = 'webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          if ($LASTEXITCODE -ne 0 -or $resolvedUrl -ne "$releaseBase/$componentName") {
+            throw "Installed public component URL differs: $resolvedUrl"
+          }
+          Write-Output "[public-doctor] Installed component resolver URL: $resolvedUrl"
+          $previousBuilderHome = $env:WEBMAN_AOT_BUILDER_HOME
+          $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+          try {
+            $launcher = Join-Path $bin 'webman-aot.cmd'
+            $version = & $launcher version
+            if ($LASTEXITCODE -ne 0 -or $version -ne 'webman-aot 0.2.3') { throw "Public installed version failed: $version" }
+            $nonproject = Join-Path $env:RUNNER_TEMP 'public fresh nonproject cwd'
+            New-Item -ItemType Directory -Path $nonproject | Out-Null
+            Push-Location $nonproject
+            try {
+              Write-Output '[public-doctor] Running ordinary webman-aot doctor from empty cache (no --repair) ...'
+              & $launcher doctor 2>&1 | Tee-Object -Variable doctorOutput
+              if ($LASTEXITCODE -ne 0) { throw 'Ordinary public doctor failed.' }
+              if (($doctorOutput -join "`n") -notmatch 'Downloading the locked minimal toolchain component') {
+                throw 'Ordinary public doctor did not report a fresh component download.'
+              }
+              $cached = Join-Path $toolchains "downloads\$componentName"
+              if (-not (Test-Path -LiteralPath $cached -PathType Leaf) -or
+                  (Get-FileHash -Algorithm SHA256 -LiteralPath $cached).Hash.ToLowerInvariant() -ne $formal[2].sha -or
+                  (Get-Item -LiteralPath $cached).Length -ne $formal[2].bytes) {
+                throw 'Ordinary doctor did not cache the final locked public component.'
+              }
+              $report = (& $launcher doctor --check --json) | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0 -or -not $report.healthy -or
+                  @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+                throw 'Public doctor did not leave a healthy global toolchain.'
+              }
+              Write-Output '[OK] Public small install version 0.2.3; ordinary doctor downloaded the v0.2.3 component from empty cache and is healthy.'
+            } finally { Pop-Location }
+          } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousBuilderHome }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value `
+            'Public v0.2.3 Windows assets matched final hashes and byte sizes; public small ZIP installed into fresh paths; ordinary doctor with no seeded component or --repair downloaded the locked v0.2.3 component and passed global health checks.'
