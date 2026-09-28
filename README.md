@@ -1,22 +1,14 @@
 # Webman AOT Builder
 
-Webman AOT Builder 是把 Webman / SaiAdmin PHP 项目编译为 Linux amd64 全静态程序的构建工具。
-你在 macOS Apple Silicon 或 Windows x64 开发机上构建，再把生成的 `dist-aot/` 目录部署到 Linux；
-目标机无需另外安装 PHP。工具安装在开发机上，无需装进 Webman 项目，也无需 Docker。
+Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
+在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
 
-## 工作原理
+## 实现方式
 
-AOT（Ahead-of-Time）是运行前编译。构建器在隔离副本中适配项目，使用 TypePHP 将 PHP 代码编译为本地代码，
-再通过 Clang 和 PHPx 静态 SDK 交叉编译、链接为 Linux 可执行程序。配置、模板和静态资源按需保留为外置文件，
-构建过程不改写原项目源码。
+构建器在项目副本中做兼容适配，通过 TypePHP 编译 PHP 代码，再用 Clang 和 PHPx 静态 SDK 生成可执行程序。
+原项目源码保持不变，配置、模板和静态资源按需保留为外置文件。
 
-```mermaid
-flowchart LR
-    A["Webman / SaiAdmin 项目"] --> B["隔离副本与兼容适配"]
-    B --> C["TypePHP 编译与静态链接"]
-    C --> D["dist-aot：程序与运行资源"]
-    D --> E["Linux amd64 运行"]
-```
+![Webman / SaiAdmin 项目在开发机上构建为可部署到 Linux amd64 的 dist-aot 目录](assets/build-flow.svg)
 
 ## 源码与安装包
 
