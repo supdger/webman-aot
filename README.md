@@ -26,8 +26,14 @@ GitHub 自动生成的源码 ZIP 不是安装包。
 - [Linux 目标机验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)：部署后验证启动、数据库与业务接口
 - [验证记录](https://github.com/supdger/webman-aot-builder/wiki/Verification)：已测试的组合与证据边界
 
+## 源码构建
+
+在 Windows PowerShell 或 macOS Terminal 中，用 [v0.2.3 工具源码](https://github.com/supdger/webman-aot-builder/tree/v0.2.3)
+和锁定的运行时输入制作安装包，完整步骤见 [当前源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
+最新开发源码见 [main](https://github.com/supdger/webman-aot-builder/tree/main)；上述步骤固定使用 v0.2.3。
+
 ## 源码与许可
 
-本仓库是工具源码；[v0.2.0 历史构包记录](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)
+本仓库是工具源码；[v0.2.0 历史构包记录](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source-0.2.0)
 供维护者查阅。原创代码采用 [MIT 许可证](LICENSE)，第三方组件的许可与归属见
 [NOTICE](NOTICE.md)。问题可提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
