@@ -50,6 +50,10 @@ final class SetupPackager
         if (preg_match('/@[A-Z_0-9]+@/', $contents)) {
             throw new RuntimeException('unresolved setup template value');
         }
+        if ($extension === 'cmd') {
+            $contents = str_replace(["\r\n", "\r"], "\n", $contents);
+            $contents = str_replace("\n", "\r\n", $contents);
+        }
         $output = $this->required('output');
         if (!is_dir($output) && !mkdir($output, 0700, true) && !is_dir($output)) {
             throw new RuntimeException('unable to create setup output directory');

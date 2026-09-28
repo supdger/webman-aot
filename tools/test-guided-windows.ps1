@@ -561,6 +561,19 @@ server.serve_forever()
             "--base-url=$baseUrl/missing", ('--output=' + (Join-Path $WorkRoot 'setup-404')))) '' $true $producerRuntime
         $missingSetup = ($missingResult.Stdout | ConvertFrom-Json).launcherPath
     } finally { $env:WEBMAN_AOT_CALLER_CWD = $previousCallerDirectory }
+    $launcherBytes = [IO.File]::ReadAllBytes($setup)
+    $launcherText = $utf8.GetString($launcherBytes)
+    Copy-Item -LiteralPath $setup -Destination (Join-Path $logs 'generated-setup.cmd')
+    Copy-Item -LiteralPath $missingSetup -Destination (Join-Path $logs 'generated-setup-404.cmd')
+    $bareLf = [regex]::Matches($launcherText, '(?<!\r)\n').Count
+    $crlf = [regex]::Matches($launcherText, '\r\n').Count
+    Write-Json (Join-Path $logs 'setup-launcher-bytes.json') @{
+        path = $setup; size = $launcherBytes.Length; bareLf = $bareLf; crlf = $crlf
+        sha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+        hasUtf8Bom = ($launcherBytes.Length -ge 3 -and $launcherBytes[0] -eq 239 -and
+            $launcherBytes[1] -eq 187 -and $launcherBytes[2] -eq 191)
+    }
+    Assert-Check ($bareLf -eq 0 -and $crlf -gt 0) 'Actual generated Windows launcher uses CRLF before CMD execution'
     Write-Json (Join-Path $logs 'tls-setup.json') @{
         setupSha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
         smallArchiveSha256 = $archives.small.sha256; fullArchiveSha256 = $archives.full.sha256

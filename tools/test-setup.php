@@ -216,6 +216,8 @@ SH;
     }
     $r=invoke([PHP_BINARY,$root.'/tools/package-setup.php','--small-result='.$windows['small'],'--full-result='.$windows['complete'],'--platform=windows-x86_64','--base-url=https://example.invalid/v0.2.3','--output='.$output]);
     check($r['code']===0 && is_file($output.'/webman-aot-builder-0.2.3-windows-x86_64-setup.cmd'),'Windows producer emits a standalone CMD from actual ZIP result fixtures');
+    $windowsBytes=(string)file_get_contents($output.'/webman-aot-builder-0.2.3-windows-x86_64-setup.cmd');
+    check(str_contains($windowsBytes, "\r\n") && preg_match('/(?<!\r)\n|\r(?!\n)/', $windowsBytes) === 0 && !str_starts_with($windowsBytes, "\xef\xbb\xbf"), 'Windows generated CMD uses only CRLF and no UTF-8 BOM');
     $large=fixture($base . '/large-full','complete','0.2.3','fixture123',16*1048576);
     $r=invoke([PHP_BINARY,'-d','memory_limit=8M',$root.'/tools/package-setup.php','--small-result='.$small['result'],'--full-result='.$large['result'],'--platform=macos-arm64','--base-url=https://example.invalid/v0.2.3','--output='.$output]);
     check($r['code']===0,'archive larger than PHP memory limit is inspected without loading the full archive');
