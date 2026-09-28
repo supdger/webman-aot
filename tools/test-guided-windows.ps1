@@ -62,7 +62,6 @@ function Invoke-Cmd(
     $info.RedirectStandardInput = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
-    $info.StandardInputEncoding = $utf8
     $info.StandardOutputEncoding = $utf8
     $info.StandardErrorEncoding = $utf8
     $process = [Diagnostics.Process]::new()
@@ -75,8 +74,13 @@ function Invoke-Cmd(
     try {
         $didStart = $process.Start()
         # Send every menu choice before closing stdin. EOF is intentional.
-        if ($InputText) { $process.StandardInput.Write($InputText) }
-        $process.StandardInput.Close()
+        $inputStream = $process.StandardInput.BaseStream
+        if ($InputText) {
+            $inputBytes = $utf8.GetBytes($InputText)
+            $inputStream.Write($inputBytes, 0, $inputBytes.Length)
+            $inputStream.Flush()
+        }
+        $inputStream.Close()
         $buffers = @([char[]]::new(4096), [char[]]::new(4096))
         $readers = @($process.StandardOutput, $process.StandardError)
         $pending = @(
@@ -216,6 +220,8 @@ try {
         "$env:SystemRoot\System32\WindowsPowerShell\v1.0") +
         $(if ($git) { @(Split-Path -Parent $git.Source) } else { @() })) -join ';'
     Assert-Check ($null -eq (Get-Command php.exe -CommandType Application -ErrorAction SilentlyContinue)) 'No system PHP available to entries'
+    $helper = Invoke-Cmd 'native-helper-smoke' (Join-Path $env:SystemRoot 'System32\cmd.exe') @('/d', '/c', 'ver')
+    Assert-Check ($helper.Stdout.Contains('Microsoft Windows')) 'Native CMD stream, EOF and exit APIs execute before source bootstrap'
     $fixture = Copy-Project 'fixture source'
     $ProjectFixture = $fixture
     if (-not $suppliedFixture) {
