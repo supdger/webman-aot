@@ -220,8 +220,10 @@ try {
         "$env:SystemRoot\System32\WindowsPowerShell\v1.0") +
         $(if ($git) { @(Split-Path -Parent $git.Source) } else { @() })) -join ';'
     Assert-Check ($null -eq (Get-Command php.exe -CommandType Application -ErrorAction SilentlyContinue)) 'No system PHP available to entries'
-    $helper = Invoke-Cmd 'native-helper-smoke' (Join-Path $env:SystemRoot 'System32\cmd.exe') @('/d', '/c', 'ver')
-    Assert-Check ($helper.Stdout.Contains('Microsoft Windows')) 'Native CMD stream, EOF and exit APIs execute before source bootstrap'
+    $smoke = Join-Path $WorkRoot 'native helper 中文.cmd'
+    [IO.File]::WriteAllText($smoke, "@echo off`r`necho NATIVE_HELPER_READY`r`necho %~1`r`nexit /b 0`r`n", $utf8)
+    $helper = Invoke-Cmd 'native-helper-smoke' $smoke @('中文 spaced argument')
+    Assert-Check ($helper.Stdout.Contains('NATIVE_HELPER_READY') -and $helper.Stdout.Contains('中文 spaced argument')) 'Native CMD Unicode path/argument, EOF, stream and exit APIs execute before source bootstrap'
     $fixture = Copy-Project 'fixture source'
     $ProjectFixture = $fixture
     if (-not $suppliedFixture) {
