@@ -2,6 +2,11 @@
 
 本文按 GitHub 正式 Release 整理；日期采用 Release 的 UTC 发布日期。候选版草稿不列为正式版本。
 
+## Unreleased（开发快照，尚未发布）
+
+- 新增统一引导入口：从源码选择轻量或完整包、确认安装后选择项目目录，自动执行构建与产物验证；独立 setup 入口会下载并核验对应安装包。该功能尚不属于公开 v0.2.3 Release。
+- 修复源码快照和构建镜像因任意目录层级的 `.DS_Store` 文件而误判源码变化的问题；发现真实源码变化时仍会中止，并显示具体相对路径和重试建议。
+
 ## [v0.2.3](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.3) — 2026-09-28
 
 - 修复 Windows Git 将 SaiAdmin 的 `support/bootstrap.php` 检出为 CRLF 时，构建器误判启动源码不兼容的问题。构建过程只规范化隔离构建镜像中的锁定源码，不改项目文件；真实内容差异仍会被拒绝。无需调整项目文件或全局 Git 设置。

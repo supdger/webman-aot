@@ -22,13 +22,16 @@ $revision = 'v' . WebmanAotBuilder\Version::VALUE;
 $revisionProvided = false;
 $flavor = 'small';
 $minimalComponentInput = null;
+$resultPath = null;
 
 foreach (array_slice($argv, 1) as $argument) {
     if ($argument === '--help') {
         fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--flavor=small|full] [--minimal-component=<local-zip>] [--compare=<local-zip>] [--output=<directory>] [--revision=<value>]\n");
         exit(0);
     }
-    if (str_starts_with($argument, '--compare=')) {
+    if (str_starts_with($argument, '--result=')) {
+        $resultPath = substr($argument, strlen('--result='));
+    } elseif (str_starts_with($argument, '--compare=')) {
         $compare = substr($argument, strlen('--compare='));
     } elseif (str_starts_with($argument, '--output=')) {
         $output = substr($argument, strlen('--output='));
@@ -45,7 +48,8 @@ foreach (array_slice($argv, 1) as $argument) {
     }
 }
 
-if ($output === '' || $revision === '' || !in_array($flavor, ['small', 'full'], true)
+if (($resultPath !== null && (preg_match('~^(?:[A-Za-z]:[\\\\/]|/|\\\\\\\\)~', $resultPath) !== 1 || file_exists($resultPath) || file_exists($resultPath . '.pending')))
+    || $output === '' || $revision === '' || !in_array($flavor, ['small', 'full'], true)
     || ($compare !== null && !is_file($compare))
     || ($minimalComponentInput !== null && !is_file($minimalComponentInput))) {
     fwrite(STDERR, "Output and revision must be non-empty; --compare must name an existing ZIP.\n");
@@ -111,11 +115,13 @@ function verifiedInput(string $url, string $sha256, string $directory): string
     }
     $output = new ProgressOutput(STDOUT);
     $lastBytes = 0;
+    $downloadStarted = microtime(true);
     $showProgress = static function (int $bytes, ?int $reportedTotal = null, bool $verified = false) use (
         $name,
         $expectedBytes,
         $output,
-        &$lastBytes
+        &$lastBytes,
+        $downloadStarted
     ): void {
         $total = $reportedTotal ?? $expectedBytes;
         $status = $total === null
@@ -125,6 +131,8 @@ function verifiedInput(string $url, string $sha256, string $directory): string
                 $name,
                 min($verified ? 100 : 99.9, $bytes * 100 / $total)
             );
+        $elapsed = max(0.001, microtime(true) - $downloadStarted);
+        $status .= sprintf('，%.2f MiB，平均 %.2f MiB/秒，已用 %.1f 秒', $bytes / 1048576, $bytes / 1048576 / $elapsed, $elapsed);
         if ($bytes < $lastBytes) {
             $status .= ' (retrying from start)';
         }
@@ -369,7 +377,9 @@ try {
     $nextReport = microtime(true) + 5;
     while (true) {
         $result .= (string) stream_get_contents($pipes[1]);
-        $error .= (string) stream_get_contents($pipes[2]);
+        $chunk = (string) stream_get_contents($pipes[2]);
+        $error .= $chunk;
+        fwrite(STDERR, $chunk);
         $status = proc_get_status($process);
         if (!$status['running']) {
             break;
@@ -425,6 +435,17 @@ try {
         fwrite(STDOUT, "[MATCH] Source-built and reference installers contain the same "
             . count($actual) . " verified files.\n");
         fwrite(STDOUT, "ZIP byte hashes can differ because archive metadata or compression differs.\n");
+    }
+    if ($resultPath !== null) {
+        // The PS owner publishes only after its isolated install/version succeeds.
+        $pending = $resultPath . '.pending';
+        $metadata = ['schema' => 'webman-aot-builder-source-build-result-v1',
+            'platform' => 'windows-x86_64', 'flavor' => $flavor, 'revision' => $revision,
+            'archive' => realpath($archive), 'size' => filesize($archive),
+            'sha256' => hash_file('sha256', $archive), 'verified' => ['payload-manifest']];
+        if (file_put_contents($pending, json_encode($metadata, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n") === false) {
+            throw new RuntimeException('Unable to stage source-build result');
+        }
     }
     fwrite(STDOUT, sprintf("[OK] Source build finished in %.1f seconds.\n", microtime(true) - $startedAt));
 } catch (Throwable $exception) {
