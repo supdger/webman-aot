@@ -1,0 +1,213 @@
+# One-run release build draft. Replace RELEASE_MAIN_SHA with the 40-character
+# merged main commit before opening the temporary codex/release-build-023 PR.
+# Keep this workflow out of main and do not publish directly from this job.
+name: Windows 0.2.3 release assets from merged main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened]
+
+env:
+  RELEASE_MAIN_SHA: 70b1344d18ea137f9d3c72fcee80c2c4b2885282
+
+permissions:
+  contents: read
+
+jobs:
+  windows-release-assets:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/release-build-023'
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Check out the exact merged main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_MAIN_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Confirm source provenance and locked component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $expected = $env:RELEASE_MAIN_SHA
+          if ($expected -notmatch '^[0-9a-f]{40}$') { throw 'Set RELEASE_MAIN_SHA to the exact merged main commit.' }
+          $actual = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -ne $expected) { throw "Checkout differs from release main SHA: $actual" }
+          $mainLine = (& git ls-remote origin refs/heads/main)
+          if ($LASTEXITCODE -ne 0 -or @($mainLine).Count -ne 1) { throw 'Unable to resolve origin/main.' }
+          $mainSha = ([string]$mainLine -split '\s+')[0]
+          if ($mainSha -ne $expected) { throw "origin/main differs from release SHA: $mainSha" }
+          $dirty = @(& git status --porcelain)
+          if ($LASTEXITCODE -ne 0 -or $dirty.Count -ne 0) { throw 'Release source worktree is dirty.' }
+          $versionSource = Get-Content -Raw -LiteralPath 'src/Version.php'
+          if ($versionSource -notmatch "public const VALUE = '0\.2\.3'") { throw 'Release source version differs.' }
+          $lock = Get-Content -Raw -LiteralPath 'toolchain/minimal-components.lock.json' | ConvertFrom-Json
+          $toolchainSha = (Get-FileHash -Algorithm SHA256 -LiteralPath 'toolchain.lock.json').Hash.ToLowerInvariant()
+          if ($lock.version -ne '0.2.3' -or $lock.toolchainLockSha256 -ne $toolchainSha -or
+              $toolchainSha -ne 'a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f') {
+            throw 'Release toolchain lock differs.'
+          }
+          $runtime = (Get-Content -Raw -LiteralPath 'installer/runtime.lock.json' | ConvertFrom-Json).runtimes.'windows-x86_64'
+          if ($runtime.phpVersion -ne '8.4.25' -or
+              $runtime.archiveSha256 -ne '2cf521fb6bcb45b634c7e9a7ab2afb6d41698b987bbc73c4975d90a065e0f16c') {
+            throw 'Release Windows PHP runtime differs.'
+          }
+          $componentName = 'webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          $componentSha = 'cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae'
+          $componentLock = $lock.components.'windows-x86_64'
+          if ($componentLock.archive -ne $componentName -or $componentLock.sha256 -ne $componentSha -or
+              $componentLock.manifestSha256 -ne '38e2b3007d7a664528ef42268c9e77a19ab0f924a22cd4f132dcd42bce36c8f2') {
+            throw 'Release Windows component lock differs.'
+          }
+          $assets = Join-Path $env:RUNNER_TEMP 'release-assets'
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          Write-Output '[download] Fetching published v0.2.2 Windows component ...'
+          gh release download v0.2.2 --repo $env:GITHUB_REPOSITORY `
+            --pattern 'webman-aot-builder-0.2.2-windows-x86_64-components.zip' --dir $assets
+          if ($LASTEXITCODE -ne 0) { throw 'Published component download failed.' }
+          $published = Join-Path $assets 'webman-aot-builder-0.2.2-windows-x86_64-components.zip'
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $published).Hash.ToLowerInvariant() -ne $componentSha) {
+            throw 'Published component SHA-256 differs from release lock.'
+          }
+          $component = Join-Path $assets $componentName
+          Move-Item -LiteralPath $published -Destination $component
+          Write-Output "[OK] Exact merged main source: $expected"
+          Write-Output "[OK] Renamed Windows component: $componentSha"
+
+      - name: Build, install and inspect both Windows release packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $PSNativeCommandUseErrorActionPreference = $false
+          $assets = Join-Path $env:RUNNER_TEMP 'release-assets'
+          $component = Join-Path $assets 'webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          $expected = $env:RELEASE_MAIN_SHA
+          foreach ($flavor in @('small', 'full')) {
+            $timer = [Diagnostics.Stopwatch]::StartNew()
+            Write-Output "[build] $flavor Windows installer from $expected ..."
+            & .\tools\build-windows-installer.ps1 -Flavor $flavor `
+              -MinimalComponent $component -Output $assets -Revision $expected
+            if ($LASTEXITCODE -ne 0) { throw "$flavor package build failed." }
+            $suffix = if ($flavor -eq 'full') { '-full' } else { '' }
+            $archive = Join-Path $assets "webman-aot-builder-0.2.3$suffix-windows-x86_64.zip"
+            if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "$flavor release ZIP is missing." }
+            $extract = Join-Path $env:RUNNER_TEMP "release extracted $flavor"
+            $installRoot = Join-Path $env:RUNNER_TEMP "release installed $flavor"
+            $bin = Join-Path $env:RUNNER_TEMP "release bin $flavor"
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -xf $archive -C $extract
+            if ($LASTEXITCODE -ne 0) { throw "$flavor ZIP extraction failed." }
+            $metadata = Get-Content -Raw -LiteralPath (Join-Path $extract 'package.json') | ConvertFrom-Json
+            $expectedFlavor = if ($flavor -eq 'full') { 'complete' } else { 'small' }
+            if ($metadata.schema -ne 'webman-aot-builder-installer-package-v1' -or
+                $metadata.version -ne '0.2.3' -or $metadata.revision -ne $expected -or
+                $metadata.platform -ne 'windows-x86_64' -or $metadata.flavor -ne $expectedFlavor) {
+              throw "$flavor package provenance differs."
+            }
+            $payloadRoot = [IO.Path]::GetFullPath((Join-Path $extract 'payload'))
+            $manifestPath = Join-Path $extract 'payload-manifest.sha256'
+            $manifestLines = @(Get-Content -LiteralPath $manifestPath)
+            $payloadFiles = @(Get-ChildItem -LiteralPath $payloadRoot -Recurse -File)
+            if ($manifestLines.Count -ne $metadata.payloadFiles -or
+                $manifestLines.Count -ne $payloadFiles.Count) {
+              throw "$flavor payload manifest file count differs."
+            }
+            foreach ($line in $manifestLines) {
+              if ($line -notmatch '^([a-f0-9]{64})  payload/(.+)$') { throw "$flavor payload manifest line is invalid." }
+              $expectedFileSha = $Matches[1]
+              $relative = $Matches[2]
+              $file = [IO.Path]::GetFullPath((Join-Path $payloadRoot ($relative.Replace('/', '\'))))
+              if (-not $file.StartsWith($payloadRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or
+                  -not (Test-Path -LiteralPath $file -PathType Leaf) -or
+                  (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant() -ne $expectedFileSha) {
+                throw "$flavor payload manifest content differs: $relative"
+              }
+            }
+            Write-Output "[OK] $flavor metadata and $($manifestLines.Count) payload hashes verified."
+            Write-Output "[install] Installing $flavor in paths containing spaces ..."
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extract 'install.ps1') `
+              -InstallRoot $installRoot -BinDir $bin -NoPath
+            if ($LASTEXITCODE -ne 0) { throw "$flavor release installation failed." }
+            $previousBuilderHome = $env:WEBMAN_AOT_BUILDER_HOME
+            $env:WEBMAN_AOT_BUILDER_HOME = $installRoot
+            try {
+              $launcher = Join-Path $bin 'webman-aot.cmd'
+              $version = & $launcher version
+              if ($LASTEXITCODE -ne 0 -or $version -ne 'webman-aot 0.2.3') { throw "$flavor version failed: $version" }
+              if ($flavor -eq 'small') {
+                $downloads = Join-Path $installRoot 'toolchains\downloads'
+                New-Item -ItemType Directory -Force -Path $downloads | Out-Null
+                Copy-Item -LiteralPath $component -Destination (Join-Path $downloads (Split-Path -Leaf $component))
+                Write-Output '[prepare] Seeded checked component for light package.'
+              } else {
+                $generations = @(Get-ChildItem -LiteralPath (Join-Path $installRoot 'toolchains\versions') -Directory)
+                if ($generations.Count -ne 1) { throw 'Full package did not prepare one offline generation.' }
+              }
+              $nonproject = Join-Path $env:RUNNER_TEMP "release nonproject $flavor"
+              New-Item -ItemType Directory -Force -Path $nonproject | Out-Null
+              Push-Location $nonproject
+              try {
+                Write-Output "[doctor] Checking installed $flavor outside a project ..."
+                & $launcher doctor
+                if ($LASTEXITCODE -ne 0) { throw "$flavor doctor failed." }
+                $report = (& $launcher doctor --check --json) | ConvertFrom-Json
+                if ($LASTEXITCODE -ne 0 -or -not $report.healthy -or
+                    @($report.checks | Where-Object { $_.id -eq 'project' }).Count -ne 0) {
+                  throw "$flavor global doctor is unhealthy or checks project state."
+                }
+              } finally { Pop-Location }
+            } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousBuilderHome }
+            Write-Output "[OK] $flavor installed version and global doctor passed in $([math]::Round($timer.Elapsed.TotalSeconds,1)) s."
+          }
+
+      - name: Record exact asset SHA-256 and byte sizes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $assets = Join-Path $env:RUNNER_TEMP 'release-assets'
+          $names = @(
+            'webman-aot-builder-0.2.3-windows-x86_64.zip'
+            'webman-aot-builder-0.2.3-full-windows-x86_64.zip'
+            'webman-aot-builder-0.2.3-windows-x86_64-components.zip'
+          )
+          $actual = @(Get-ChildItem -LiteralPath $assets -File | Select-Object -ExpandProperty Name)
+          if ($actual.Count -ne $names.Count -or @($actual | Where-Object { $_ -notin $names }).Count -ne 0) {
+            throw 'Release asset staging directory contains unexpected files.'
+          }
+          $sumLines = @()
+          $summary = @(
+            "### Windows v0.2.3 release assets"
+            ''
+            "Source: merged main commit ``$env:RELEASE_MAIN_SHA``; run ``$env:GITHUB_RUN_ID``."
+            ''
+            '| Asset | Bytes | SHA-256 |'
+            '|---|---:|---|'
+          )
+          foreach ($name in $names) {
+            $file = Join-Path $assets $name
+            $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant()
+            $bytes = (Get-Item -LiteralPath $file).Length
+            $sumLines += "$sha  $name"
+            $summary += "| $name | $bytes | ``$sha`` |"
+            Write-Output "[ASSET] $name bytes=$bytes sha256=$sha"
+          }
+          $sumLines | Set-Content -LiteralPath (Join-Path $assets 'SHA256SUMS-WINDOWS') -Encoding ascii
+          $summary | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          Write-Output '[OK] Three release asset hashes recorded; no Release upload performed.'
+
+      - name: Upload inspected assets for the separate Release step
+        uses: actions/upload-artifact@v4
+        with:
+          name: webman-aot-builder-0.2.3-windows-from-${{ env.RELEASE_MAIN_SHA }}
+          path: ${{ runner.temp }}/release-assets/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
