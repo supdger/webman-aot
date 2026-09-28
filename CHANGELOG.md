@@ -2,6 +2,13 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.1](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.1)
+
+- 修复 Windows 与 macOS 安装引导进入项目构建后，阶段和编译日志不能及时显示的问题。现在会持续显示准备阶段、编译器的逐文件进度与真实完成数；没有新输出时显示等待时间，完成或失败时保留耗时、原始错误和退出码。
+- 增加锁定 `symfony/polyfill-deepclone v1.42.0` 对 PHP 8.4 静态目标的适配，修复其条件声明触发的 stray code 构建错误；适配只作用于隔离构建镜像，包版本或源码不匹配时拒绝应用。
+- 下载说明逐项解释 setup、轻量包、完整包、编译组件、校验文件及 GitHub 自动源码归档的用途，明确首次安装的推荐入口。
+- 构建进度修复已通过 Windows 和 macOS 的真实项目菜单、编译与产物校验；这不代表所有 SaiAdmin 依赖组合或 Linux 业务运行已通过验收。
+
 ## [v0.3.0](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.0)
 
 - 新增一次启动的 CLI 引导流程：源码入口 `build.command` / `build.cmd` 自动准备材料和制作安装包；独立 setup 自动下载安装包。用户选择轻量或完整包、确认安装、选择项目目录后，工具自动完成校验、安装、新版本检查、项目构建及产物验证。

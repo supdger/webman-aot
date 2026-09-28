@@ -173,7 +173,7 @@ try {
     $source = $base . '/source';
     mkdir($source . '/tools', 0700, true);
     $wrapper = $source . '/entry.php';
-    file_put_contents($wrapper, '<?php require ' . var_export($root . '/src/Guided/ProcessRunner.php', true) . '; require ' . var_export($root . '/src/Guided/ProcessFailure.php', true) . '; require ' . var_export($root . '/src/Guided/Flow.php', true) . '; exit((new WebmanAotBuilder\\Guided\\Flow(__DIR__))->run(array_slice($argv,1)));');
+    file_put_contents($wrapper, '<?php require ' . var_export($root . '/src/Cli/ProcessOutput.php', true) . '; require ' . var_export($root . '/src/Guided/ProcessRunner.php', true) . '; require ' . var_export($root . '/src/Guided/ProcessFailure.php', true) . '; require ' . var_export($root . '/src/Guided/Flow.php', true) . '; exit((new WebmanAotBuilder\\Guided\\Flow(__DIR__))->run(array_slice($argv,1)));');
     $backendPhp = $source . '/tools/backend.php';
     file_put_contents($backendPhp, <<<'BACKEND'
 <?php
@@ -211,16 +211,16 @@ BACKEND);
     }
     // Real quiet child confirms the 5-second live status and streamed stderr.
     $runnerEntry = $base . '/runner.php';
-    file_put_contents($runnerEntry, '<?php require ' . var_export($root . '/src/Guided/ProcessRunner.php', true) . '; $r=(new WebmanAotBuilder\\Guided\\ProcessRunner(' . var_export($base . '/runner.log', true) . '))->run([PHP_BINARY,"-r",\'fwrite(STDERR,"child-start\\n"); usleep(5400000); fwrite(STDOUT,$argv[1]); exit(29);\',"空格 中文"],"quiet-child"); exit($r["code"]);');
+    file_put_contents($runnerEntry, '<?php require ' . var_export($root . '/src/Cli/ProcessOutput.php', true) . '; require ' . var_export($root . '/src/Guided/ProcessRunner.php', true) . '; $r=(new WebmanAotBuilder\\Guided\\ProcessRunner(' . var_export($base . '/runner.log', true) . '))->run([PHP_BINARY,"-r",\'fwrite(STDERR,"child-start\\n"); usleep(5400000); fwrite(STDOUT,$argv[1]); exit(29);\',"空格 中文"],"quiet-child"); exit($r["code"]);');
     fwrite(STDOUT, "Testing quiet child: observing live output and five-second heartbeat...\n");
     $earlyOutput = false;
     $liveHeartbeat = false;
     $r = invoke([], '', $runnerEntry, static function (string $chunk, float $elapsed, bool $running) use (&$earlyOutput, &$liveHeartbeat): void {
         if (str_contains($chunk, 'child-start') && $running && $elapsed < 2) $earlyOutput = true;
-        if (str_contains($chunk, '[进行中] quiet-child') && $running && $elapsed >= 4.9 && $elapsed < 5.4) $liveHeartbeat = true;
+        if (str_contains($chunk, '[等待输出] quiet-child') && $running && $elapsed >= 4.9 && $elapsed < 5.4) $liveHeartbeat = true;
     });
     check($earlyOutput && $liveHeartbeat, 'output and heartbeat arrive before real child completes');
-    check($r['code'] === 29 && str_contains($r['text'], '[进行中] quiet-child') && str_contains($r['text'], '空格 中文') && str_contains($r['text'], 'child-start'), 'real child streams output, reports quiet progress and preserves arguments/exit');
+    check($r['code'] === 29 && str_contains($r['text'], '[等待输出] quiet-child') && str_contains($r['text'], '空格 中文') && str_contains($r['text'], 'child-start'), 'real child streams output, reports quiet progress and preserves arguments/exit');
     fwrite(STDOUT, "{$count} behavioral checks passed. Fixtures and raw logs: {$base}\n");
 } catch (Throwable $e) {
     fwrite(STDERR, $e->getMessage() . "\nEvidence: {$log}\n");

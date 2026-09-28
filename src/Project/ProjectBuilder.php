@@ -75,7 +75,8 @@ final class ProjectBuilder
             $cache,
             $compatibilityLockFile,
             $profile->name(),
-            'webman-server'
+            'webman-server',
+            $toolchainSha256
         );
         $beforeStage?->__invoke('overlay');
         (new FullStaticProjectOverlay())->apply(

@@ -260,6 +260,7 @@ final class Application
         if (!is_string($project) || $project === '') {
             throw new ConfigurationException('cannot resolve the current project directory');
         }
+        fwrite(STDERR, "[构建] 检查项目与构建环境...\n");
         try {
             (new ProfileDetector($project))->detect();
         } catch (ConfigurationException $exception) {
@@ -282,17 +283,28 @@ final class Application
             }
         }
         if ($manager !== null) {
+            fwrite(STDERR, "[构建] 校验并准备锁定工具链，缺少的组件将显示下载状态...\n");
             $output = new ProgressOutput(STDERR);
+            $sampleTime = microtime(true);
+            $sampleBytes = null;
+            $downloadStarted = $sampleTime;
             try {
                 $manager->ensure(
                     null,
                     static function (string $message) use ($output): void {
                         $output->message('[prepare] ' . $message);
                     },
-                    static function (int $bytes, ?int $total) use ($output): void {
+                    static function (int $bytes, ?int $total) use ($output, &$sampleTime, &$sampleBytes, &$downloadStarted): void {
+                        $now = microtime(true);
+                        $speed = $sampleBytes === null || $bytes < $sampleBytes
+                            ? null : ($bytes - $sampleBytes) / max(0.001, $now - $sampleTime);
                         $status = $total === null
-                            ? sprintf('[prepare] %.1f MiB received', $bytes / 1048576)
-                            : sprintf('[prepare] %.1f%%', min(99.9, $bytes * 100 / $total));
+                            ? sprintf('[prepare] %d bytes received', $bytes)
+                            : sprintf('[prepare] %d / %d bytes (%.1f%%)', $bytes, $total, min(100, $bytes * 100 / max(1, $total)));
+                        $status .= $speed === null ? '; measuring speed' : sprintf('; %.2f MiB/s', $speed / 1048576);
+                        $status .= sprintf('; preparation elapsed %.0fs', $now - $downloadStarted);
+                        $sampleTime = $now;
+                        $sampleBytes = $bytes;
                         $output->update($status);
                     }
                 );
@@ -300,6 +312,7 @@ final class Application
                 $output->finish();
             }
         }
+        fwrite(STDERR, "[构建] 验证已准备的工具链...\n");
         $doctor = ($this->doctorFactory)()->inspect();
         if (!$doctor->healthy()) {
             throw new UnavailableException('build doctor failed; run webman-aot doctor for details');

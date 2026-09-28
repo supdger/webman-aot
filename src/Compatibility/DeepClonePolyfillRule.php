@@ -1,0 +1,105 @@
+<?php
+
+declare(strict_types=1);
+
+namespace WebmanAotBuilder\Compatibility;
+
+use WebmanAotBuilder\Cli\ConfigurationException;
+
+final class DeepClonePolyfillRule
+{
+    /**
+     * The locked PHP 8.4 static SDK has no deepclone module. Select its PHP
+     * fallback from the target lock, never from the build host's extensions.
+     *
+     * @return list<array{path:string,shadow:string,sourceSha256:string,shadowSha256:string}>
+     */
+    public function apply(string $directory, array $policy, ?string $toolchainSha256): array
+    {
+        $mirror = realpath($directory);
+        if (!is_string($mirror) || is_link($directory)
+            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
+        ) {
+            throw new ConfigurationException('deepclone adaptation requires an isolated project mirror');
+        }
+        $composer = json_decode($this->read($mirror . '/composer.lock'), true, flags: JSON_THROW_ON_ERROR);
+        $packages = array_values(array_filter(
+            array_merge($composer['packages'] ?? [], $composer['packages-dev'] ?? []),
+            static fn (array $package): bool => ($package['name'] ?? null) === 'symfony/polyfill-deepclone'
+        ));
+        $prefix = 'vendor/symfony/polyfill-deepclone/';
+        if ($packages === [] && !file_exists($mirror . '/' . $prefix)) {
+            return [];
+        }
+        if (count($packages) !== 1
+            || ($policy['rule'] ?? null) !== 'symfony.deepclone-php84-fallback.v1'
+            || ($policy['version'] ?? null) !== ($packages[0]['version'] ?? null)
+            || ($policy['reference'] ?? null) !== ($packages[0]['source']['reference'] ?? null)
+            || !is_string($toolchainSha256)
+            || ($policy['toolchainSha256'] ?? null) !== $toolchainSha256
+        ) {
+            throw new ConfigurationException('deepclone package or PHP 8.4 target lock drifted');
+        }
+        $names = ['bootstrap.php', 'bootstrap81.php', 'Resources/stubs/ClassNotFoundException.php',
+            'Resources/stubs/NotInstantiableException.php', 'DeepClone.php'];
+        $sources = [];
+        foreach ($names as $name) {
+            $sources[$name] = $this->read($mirror . '/' . $prefix . $name);
+            if (($policy['files'][$name] ?? null) !== hash('sha256', $sources[$name])) {
+                throw new ConfigurationException("deepclone source drifted: {$name}");
+            }
+        }
+        $shadows = [];
+        // bootstrap.php only selects bootstrap81.php for PHP >= 8.1.
+        $shadows['bootstrap.php'] = "<?php\n// PHP 8.4 fallback declarations are compiled from deepclone-bootstrap81.php.\n";
+        $bootstrap = $sources['bootstrap81.php'];
+        $bootstrap = str_replace("if (extension_loaded('deepclone')) {\n    return;\n}\n", '', $bootstrap);
+        $bootstrap = preg_replace("/^if \(!(?:function_exists|defined)\('[A-Za-z0-9_]+'\)\) \{\n(.*?)^\}\n/ms", '$1', $bootstrap);
+        $bootstrap = preg_replace("/    define\('(DEEPCLONE_[A-Z_]+)', (1 << [012])\);/", 'const $1 = $2;', $bootstrap);
+        $shadows['bootstrap81.php'] = $bootstrap;
+        foreach (['ClassNotFoundException', 'NotInstantiableException'] as $class) {
+            $name = "Resources/stubs/{$class}.php";
+            $source = str_replace("if (!\\extension_loaded('deepclone')) {\n", '', $sources[$name]);
+            $shadows[$name] = substr($source, 0, -2);
+        }
+        $projectFile = $mirror . '/project.linux.yml';
+        $project = $this->read($projectFile);
+        if (substr_count($project, "\nignore:\n") !== 1) {
+            throw new ConfigurationException('deepclone project source sections drifted');
+        }
+        $mappings = [];
+        $writes = [];
+        foreach ($shadows as $name => $source) {
+            $relative = $prefix . $name;
+            $shadow = '.typephp/build/deepclone-' . basename($name);
+            if (!is_string($source) || file_exists($mirror . '/' . $shadow)
+                || str_contains($project, "  - {$relative}\n")
+                || str_contains($project, "  - {$shadow}\n")
+            ) {
+                throw new ConfigurationException("deepclone generated source entry drifted: {$name}");
+            }
+            $project = str_replace("\nignore:\n", "\n  - {$shadow}\n\nignore:\n  - {$relative}\n", $project);
+            $writes[$mirror . '/' . $shadow] = $source;
+            $mappings[] = ['path' => $relative, 'shadow' => $shadow,
+                'sourceSha256' => hash('sha256', $sources[$name]), 'shadowSha256' => hash('sha256', $source)];
+        }
+        foreach ($writes + [$projectFile => $project] as $path => $source) {
+            if (file_put_contents($path, $source, LOCK_EX) === false) {
+                throw new ConfigurationException('unable to write deepclone fallback adaptation');
+            }
+        }
+        return $mappings;
+    }
+
+    private function read(string $path): string
+    {
+        if (!is_file($path) || is_link($path)) {
+            throw new ConfigurationException('deepclone adaptation source is missing or unsafe');
+        }
+        $source = file_get_contents($path);
+        if (!is_string($source)) {
+            throw new ConfigurationException('deepclone adaptation source is unreadable');
+        }
+        return $source;
+    }
+}

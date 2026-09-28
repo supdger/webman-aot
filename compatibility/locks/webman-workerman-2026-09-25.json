@@ -48,6 +48,19 @@
     }
   },
   "optionalAdaptations": {
+    "symfony/polyfill-deepclone": {
+      "rule": "symfony.deepclone-php84-fallback.v1",
+      "version": "v1.42.0",
+      "reference": "70ba0627efc68e97ea392843458a2dd9d6dbd156",
+      "toolchainSha256": "a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f",
+      "files": {
+        "bootstrap.php": "18ecc97e1cc4bb01c94ecb5a90625f8cdebd705cea43490c1895818c746f0369",
+        "bootstrap81.php": "f285e676d2f2ae97e221e7c472f8ba90e95d15835aa8c987239247268725249a",
+        "Resources/stubs/ClassNotFoundException.php": "7fdf21dcc2e09bd6a015ed46e2b1f5207acb77ef38904d4d7c06b0fc087c0ae9",
+        "Resources/stubs/NotInstantiableException.php": "4a91a9e3cf000bdbef2e05b4a0600ae498c43a73dd60f0b4e8ce1b34991435f6",
+        "DeepClone.php": "ac14fa09d48582a37b868d0b3a6dc5854afc95f2f7c377963453238ca1642869"
+      }
+    },
     "monolog/monolog": {
       "path": "vendor/monolog/monolog/src/Monolog/Processor/WebProcessor.php",
       "version": "2.11.1",
