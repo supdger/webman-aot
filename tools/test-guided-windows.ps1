@@ -20,6 +20,9 @@ $failure = $null
 $tlsProcess = $null
 $tlsStarted = $false
 $tlsPort = $null
+$crlProcess = $null
+$crlStarted = $false
+$crlPort = $null
 $httpsAccepted = $false
 $started = [Diagnostics.Stopwatch]::StartNew()
 
@@ -479,15 +482,85 @@ try {
     $csr = Join-Path $tls 'server.csr'
     $certificate = Join-Path $tls 'server.pem'
     $extensions = Join-Path $tls 'server.ext'
-    [IO.File]::WriteAllText($extensions, "subjectAltName=IP:127.0.0.1`nbasicConstraints=critical,CA:FALSE`nkeyUsage=critical,digitalSignature,keyEncipherment`nextendedKeyUsage=serverAuth`n", $utf8)
     [void](Invoke-Cmd 'tls-private-ca' $openssl @('req', '-x509', '-newkey', 'rsa:2048', '-nodes',
         '-keyout', $caKey, '-out', $ca, '-days', '1', '-subj', '/CN=Guided task CA',
         '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign'))
+    # Schannel checks revocation normally against this task-only, signed CRL.
+    $crlPem = Join-Path $tls 'ca.crl.pem'
+    $crlDer = Join-Path $tls 'ca.crl'
+    $caConfig = Join-Path $tls 'ca.conf'
+    [IO.File]::WriteAllText((Join-Path $tls 'index.txt'), '', $utf8)
+    [IO.File]::WriteAllText((Join-Path $tls 'crlnumber'), "01`n", $utf8)
+    $caDirectory = $tls.Replace('\', '/')
+    $configText = "[ca]`ndefault_ca=task_ca`n[task_ca]`ndatabase=$caDirectory/index.txt`n" +
+        "private_key=$caDirectory/ca.key`ncertificate=$caDirectory/ca.pem`ncrlnumber=$caDirectory/crlnumber`n" +
+        "default_md=sha256`ndefault_crl_days=1`n"
+    [IO.File]::WriteAllText($caConfig, $configText, $utf8)
+    [void](Invoke-Cmd 'tls-crl-create' $openssl @('ca', '-gencrl', '-batch', '-config', $caConfig, '-out', $crlPem) '' $true $repository 60)
+    [void](Invoke-Cmd 'tls-crl-verify' $openssl @('crl', '-in', $crlPem, '-CAfile', $ca, '-verify',
+        '-noout', '-issuer', '-lastupdate', '-nextupdate') '' $true $repository 60)
+    [void](Invoke-Cmd 'tls-crl-der' $openssl @('crl', '-in', $crlPem, '-outform', 'DER', '-out', $crlDer) '' $true $repository 60)
+    $crlScript = Join-Path $tls 'crl-server.py'
+    $crlReady = Join-Path $tls 'crl-ready.json'
+    $crlRequests = Join-Path $logs 'crl-requests.jsonl'
+    $crlSource = @'
+import http.server, json, os, pathlib, sys
+from urllib.parse import urlsplit
+crl, ready, log = sys.argv[1:]
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = urlsplit(self.path).path
+        status = 200 if path == "/ca.crl" else 404
+        with open(log, "a", encoding="utf-8") as out:
+            out.write(json.dumps({"path": path, "status": status}) + "\n")
+        self.send_response(status)
+        if status == 200:
+            data = pathlib.Path(crl).read_bytes()
+            self.send_header("Content-Type", "application/pkix-crl")
+            self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        if status == 200:
+            self.wfile.write(data)
+    def log_message(self, *args):
+        pass
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+ready_tmp = pathlib.Path(ready + ".tmp")
+ready_tmp.write_text(json.dumps({"pid": os.getpid(), "port": server.server_port}), encoding="utf-8")
+ready_tmp.replace(ready)
+server.serve_forever()
+'@
+    [IO.File]::WriteAllText($crlScript, $crlSource, $utf8)
+    $crlInfo = [Diagnostics.ProcessStartInfo]::new()
+    $crlInfo.FileName = $python.Source
+    $crlInfo.Arguments = (@('-u', $crlScript, $crlDer, $crlReady, $crlRequests) | ForEach-Object { Quote-Cmd $_ }) -join ' '
+    $crlInfo.UseShellExecute = $false
+    $crlProcess = [Diagnostics.Process]::new()
+    $crlProcess.StartInfo = $crlInfo
+    $crlStarted = $crlProcess.Start()
+    if (-not $crlStarted) { throw 'Task CRL server did not start.' }
+    $crlWait = [Diagnostics.Stopwatch]::StartNew()
+    while (-not (Test-Path -LiteralPath $crlReady)) {
+        if ($crlProcess.HasExited -or $crlWait.Elapsed.TotalSeconds -ge 30) { throw 'Task CRL server did not become ready.' }
+        Start-Sleep -Milliseconds 100
+    }
+    $crlServer = Get-Content -Raw -LiteralPath $crlReady | ConvertFrom-Json
+    Assert-Check ($crlServer.pid -eq $crlProcess.Id) 'HTTP CRL listener readiness belongs to this task process'
+    $crlPort = [int]$crlServer.port
+    $crlUrl = "http://127.0.0.1:$crlPort/ca.crl"
+    Write-Host "[STEP] Task HTTP CRL server PID $($crlProcess.Id); $crlUrl; requests $crlRequests"
+    Write-Json (Join-Path $logs 'crl-server.json') @{
+        pid = $crlProcess.Id; port = $crlPort; distributionPoint = $crlUrl
+        crlSha256 = (Get-FileHash -LiteralPath $crlDer -Algorithm SHA256).Hash.ToLowerInvariant()
+        scope = 'DER CRL only; task CA signing key and configuration are never served'
+    }
+    [IO.File]::WriteAllText($extensions, "subjectAltName=IP:127.0.0.1`nbasicConstraints=critical,CA:FALSE`nkeyUsage=critical,digitalSignature,keyEncipherment`nextendedKeyUsage=serverAuth`ncrlDistributionPoints=URI:$crlUrl`n", $utf8)
     [void](Invoke-Cmd 'tls-server-request' $openssl @('req', '-newkey', 'rsa:2048', '-nodes',
         '-keyout', $serverKey, '-out', $csr, '-subj', '/CN=127.0.0.1'))
     [void](Invoke-Cmd 'tls-server-certificate' $openssl @('x509', '-req', '-in', $csr,
         '-CA', $ca, '-CAkey', $caKey, '-CAcreateserial', '-out', $certificate,
         '-days', '1', '-sha256', '-extfile', $extensions))
+    [void](Invoke-Cmd 'tls-leaf-distribution-point' $openssl @('x509', '-in', $certificate,
+        '-noout', '-ext', 'crlDistributionPoints') '' $true $repository 60)
     [IO.File]::WriteAllText((Join-Path $trusted '.curlrc'), ('cacert = "' + $ca.Replace('\', '/') + '"' + "`n"), $utf8)
     [IO.File]::WriteAllText((Join-Path $untrusted '.curlrc'), "# Task-private config deliberately has no CA trust.`n", $utf8)
     $serverScript = Join-Path $tls 'server.py'
@@ -622,6 +695,9 @@ server.serve_forever()
         -not $tlsFailure.Text.Contains('包检查成功') -and
         -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https untrusted home')) -and
         -not (Test-Path -LiteralPath (Join-Path $WorkRoot 'https untrusted bin'))) 'Untrusted task CA returns curl 60 before HTTP GET or package execution'
+    $crlServed = @(Get-Content -LiteralPath $crlRequests | ForEach-Object { $_ | ConvertFrom-Json } |
+        Where-Object { $_.path -eq '/ca.crl' -and $_.status -eq 200 })
+    Assert-Check ($crlServed.Count -ge 1) 'Native Schannel fetched the signed task CRL over HTTP without weakening revocation checks'
     $httpsAccepted = $true
     $badArchive = Join-Path $WorkRoot 'corrupt.zip'
     [IO.File]::WriteAllText($badArchive, 'intentionally invalid archive', $utf8)
@@ -672,6 +748,21 @@ server.serve_forever()
             if (-not $portClosed) { $failure = 'Task HTTPS server port remained open after cleanup.' }
         }
         $tlsProcess.Dispose()
+    }
+    if ($null -ne $crlProcess) {
+        if ($crlStarted) {
+            if (-not $crlProcess.HasExited) { $crlProcess.Kill(); $crlProcess.WaitForExit() }
+            $crlPid = $crlProcess.Id
+            $crlPortClosed = $true
+            if ($null -ne $crlPort) {
+                $crlClient = [Net.Sockets.TcpClient]::new()
+                try { $crlClient.Connect('127.0.0.1', $crlPort); $crlPortClosed = $false } catch { } finally { $crlClient.Dispose() }
+            }
+            Write-Json (Join-Path $logs 'crl-cleanup.json') @{ pid = $crlPid; port = $crlPort; stopped = $true; portClosed = $crlPortClosed }
+            Write-Host "[cleanup] Task HTTP CRL server PID $crlPid stopped; port closed: $crlPortClosed"
+            if (-not $crlPortClosed) { $failure = 'Task HTTP CRL server port remained open after cleanup.' }
+        }
+        $crlProcess.Dispose()
     }
     if ($pathDigests.Count) {
         foreach ($target in @('User', 'Machine')) {
