@@ -339,10 +339,28 @@ try {
     }
 
     $command = [PHP_BINARY];
-    $loadedIni = php_ini_loaded_file();
-    if (is_string($loadedIni) && $loadedIni !== '') {
-        $command[] = '-c';
-        $command[] = $loadedIni;
+    $packageCwd = $root;
+    $packageEnvironment = null;
+    $sourceRuntime = getenv('WEBMAN_AOT_SOURCE_PHP_RUNTIME');
+    if (PHP_OS_FAMILY === 'Windows' && $sourceRuntime !== false) {
+        if (preg_match('~^(?:[A-Za-z]:[\\\\/]|\\\\\\\\)~', $sourceRuntime) !== 1
+            || !is_file($sourceRuntime . '/php.ini')
+            || !is_file($sourceRuntime . '/php.exe')
+            || !hash_equals((string) $windowsRuntime['binarySha256'],
+                (string) hash_file('sha256', $sourceRuntime . '/php.exe'))) {
+            throw new RuntimeException('Source PHP runtime path or locked binary is invalid');
+        }
+        $command = [$sourceRuntime . '/php.exe', '-c', 'php.ini', '-d', 'extension_dir=ext',
+            $root . '/tools/windows-php-bootstrap.php'];
+        $packageCwd = $sourceRuntime;
+        $packageEnvironment = getenv();
+        $packageEnvironment['WEBMAN_AOT_CALLER_CWD'] = $root;
+    } else {
+        $loadedIni = php_ini_loaded_file();
+        if (is_string($loadedIni) && $loadedIni !== '') {
+            $command[] = '-c';
+            $command[] = $loadedIni;
+        }
     }
     array_push(
         $command,
@@ -362,8 +380,8 @@ try {
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w']],
         $pipes,
-        $root,
-        null,
+        $packageCwd,
+        $packageEnvironment,
         PHP_OS_FAMILY === 'Windows' ? ['bypass_shell' => true] : []
     );
     if (!is_resource($process)) {

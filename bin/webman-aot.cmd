@@ -30,5 +30,10 @@ if not exist "%APPLICATION%" (
     exit /b 1
 )
 
-"%PRIVATE_PHP%" -c "%AOT_HOME%\current\runtime\php.ini" -d "extension_dir=%AOT_HOME%\current\runtime\ext" "%APPLICATION%" %*
-exit /b %ERRORLEVEL%
+set "WEBMAN_AOT_CALLER_CWD=%CD%"
+pushd "%AOT_HOME%\current\runtime"
+if errorlevel 1 exit /b 70
+".\php.exe" -c php.ini -d extension_dir=ext "..\app\tools\windows-php-bootstrap.php" "%APPLICATION%" %*
+set "runtime_exit=%ERRORLEVEL%"
+popd
+exit /b %runtime_exit%

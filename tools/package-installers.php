@@ -269,6 +269,7 @@ final class InstallerPackager
         ) === false) {
             throw new RuntimeException('unable to write Windows PHP runtime configuration');
         }
+        $this->copyRequiredFile($this->root . '/tools/windows-php-bootstrap.php', $stage . '/payload/app/tools/windows-php-bootstrap.php');
         $this->copyRequiredFile(
             $source . '/extras/sbom/php.spdx.json',
             $runtimeStage . '/upstream-php.spdx.json'

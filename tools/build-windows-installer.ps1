@@ -218,7 +218,7 @@ try {
     }
     $ini = Join-Path $temporary 'php.ini'
     @(
-        'extension_dir="' + (Join-Path $temporary 'ext') + '"'
+        'extension_dir=ext'
         'extension=zip'
     ) | Set-Content -LiteralPath $ini -Encoding ascii
 
@@ -226,7 +226,7 @@ try {
         # Keep user-facing logs/results outside the temporary PHP extraction cleaned below.
         $env:TEMP = $previousTemp
         $env:TMP = $previousTmp
-        $arguments = @('-c', $ini, (Join-Path $repository 'tools\guided.php'), '--mode=source')
+        $arguments = @((Join-Path $repository 'tools\guided.php'), '--mode=source')
         if ($PSBoundParameters.ContainsKey('Flavor')) { $arguments += "--flavor=$Flavor" }
         if ($Install) { $arguments += '--install' }
         if ($InstallRoot) { $arguments += "--home=$InstallRoot" }
@@ -234,8 +234,20 @@ try {
         if ($NoPath) { $arguments += '--no-path' }
         if ($Project) { $arguments += "--project=$Project" }
         Write-Output '[开始] PHP 摘要通过，进入源码构包引导。'
-        & $php @arguments
-        $buildExit = $LASTEXITCODE
+        $callerDirectory = (Get-Location).ProviderPath
+        $previousPhpCaller = $env:WEBMAN_AOT_CALLER_CWD
+        $previousSourceRuntime = $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME
+        Push-Location -LiteralPath $temporary
+        try {
+            $env:WEBMAN_AOT_CALLER_CWD = $callerDirectory
+            $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME = $temporary
+            & $php -c php.ini -d extension_dir=ext (Join-Path $repository 'tools\windows-php-bootstrap.php') @arguments
+            $buildExit = $LASTEXITCODE
+        } finally {
+            Pop-Location
+            $env:WEBMAN_AOT_CALLER_CWD = $previousPhpCaller
+            $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME = $previousSourceRuntime
+        }
     } else {
         if ($Result) {
             if (-not [IO.Path]::IsPathRooted($Result) -or (Test-Path -LiteralPath $Result) -or (Test-Path -LiteralPath ($Result + '.pending'))) { throw 'Result 必须是未存在的绝对路径。' }
@@ -251,7 +263,7 @@ try {
                 }
             }
         }
-        $arguments = @('-c', $ini, (Join-Path $repository 'tools\build-windows-installer.php'))
+        $arguments = @((Join-Path $repository 'tools\build-windows-installer.php'))
         if ($Result) { $resultPendingOwned = $true; $arguments += "--result=$Result" }
         if ($Compare) { $arguments += "--compare=$Compare" }
         if ($Output) { $arguments += "--output=$Output" }
@@ -259,8 +271,20 @@ try {
         $arguments += "--flavor=$Flavor"
         if ($MinimalComponent) { $arguments += "--minimal-component=$MinimalComponent" }
         Write-Output '[构包] 开始制作 Windows 安装包。'
-        & $php @arguments
-        $buildExit = $LASTEXITCODE
+        $callerDirectory = (Get-Location).ProviderPath
+        $previousPhpCaller = $env:WEBMAN_AOT_CALLER_CWD
+        $previousSourceRuntime = $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME
+        Push-Location -LiteralPath $temporary
+        try {
+            $env:WEBMAN_AOT_CALLER_CWD = $callerDirectory
+            $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME = $temporary
+            & $php -c php.ini -d extension_dir=ext (Join-Path $repository 'tools\windows-php-bootstrap.php') @arguments
+            $buildExit = $LASTEXITCODE
+        } finally {
+            Pop-Location
+            $env:WEBMAN_AOT_CALLER_CWD = $previousPhpCaller
+            $env:WEBMAN_AOT_SOURCE_PHP_RUNTIME = $previousSourceRuntime
+        }
         if ($buildExit -eq 0) {
             $versionSource = Get-Content -Raw -LiteralPath (Join-Path $repository 'src\Version.php')
             if ($versionSource -notmatch "public const VALUE = '([^']+)'") {

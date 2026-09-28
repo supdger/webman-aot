@@ -138,7 +138,7 @@ function Invoke-Cmd(
 }
 
 function Record-RuntimeInventory([string]$Name, [string]$RuntimeRoot,
-    [string]$ReportedHome, [string]$WorkingDirectory) {
+    [string]$ReportedHome, [string]$WorkingDirectory, [bool]$UseBootstrap = $false) {
     # Preserve the caller's exact mixed/native separator spelling for -c/-d.
     $runtimePhp = $RuntimeRoot + '\php.exe'
     $runtimeIni = $RuntimeRoot + '\php.ini'
@@ -167,6 +167,7 @@ $data = [
     'extensionDir' => ini_get('extension_dir'), 'zipLoaded' => extension_loaded('zip'),
     'zipArchiveExists' => class_exists('ZipArchive'), 'extensions' => get_loaded_extensions(),
     'builderHome' => getenv('WEBMAN_AOT_BUILDER_HOME'), 'cwd' => getcwd(),
+    'relativeInputExists' => isset($argv[7]) ? is_file($argv[7]) : null,
 ];
 $json = json_encode($data, $flags);
 if (file_put_contents($argv[1], $json . "\n") === false) { exit(1); }
@@ -174,12 +175,26 @@ echo $json, "\n";
 '@
     [IO.File]::WriteAllText($probe, $probeSource, $utf8)
     $previousHome = $env:WEBMAN_AOT_BUILDER_HOME
+    $previousCallerDirectory = $env:WEBMAN_AOT_CALLER_CWD
     try {
         $env:WEBMAN_AOT_BUILDER_HOME = $ReportedHome
-        [void](Invoke-Cmd $Name $runtimePhp @('-c', $runtimeIni, '-d',
-            ('extension_dir=' + $runtimeExt), $probe, $output, $fileOutput,
-            $RuntimeRoot, $runtimeIni, $runtimeExt, $ReportedHome) '' $true $WorkingDirectory 60)
-    } finally { $env:WEBMAN_AOT_BUILDER_HOME = $previousHome }
+        $probeArguments = @($probe, $output, $fileOutput, $RuntimeRoot, $runtimeIni, $runtimeExt, $ReportedHome)
+        if ($UseBootstrap) {
+            $env:WEBMAN_AOT_CALLER_CWD = $WorkingDirectory
+            [void](Invoke-Cmd $Name '.\php.exe' (@('-c', 'php.ini', '-d', 'extension_dir=ext',
+                '..\app\tools\windows-php-bootstrap.php') + $probeArguments + @('composer.json')) '' $true $RuntimeRoot 60)
+            $state = [IO.File]::ReadAllText($output, $utf8) | ConvertFrom-Json
+            Assert-Check ($state.loadedIni -and $state.zipLoaded -and $state.zipArchiveExists) 'Relative runtime configuration loads ZIP and ZipArchive'
+            Assert-Check ([IO.Path]::GetFullPath($state.cwd) -eq [IO.Path]::GetFullPath($WorkingDirectory) -and
+                $state.relativeInputExists) 'Runtime bootstrap restores the Chinese caller directory and relative project input'
+        } else {
+            [void](Invoke-Cmd $Name $runtimePhp (@('-c', $runtimeIni, '-d',
+                ('extension_dir=' + $runtimeExt)) + $probeArguments) '' $true $WorkingDirectory 60)
+        }
+    } finally {
+        $env:WEBMAN_AOT_BUILDER_HOME = $previousHome
+        $env:WEBMAN_AOT_CALLER_CWD = $previousCallerDirectory
+    }
 }
 
 function Copy-Project([string]$Name) {
@@ -340,6 +355,7 @@ try {
         if ($flavor -eq 'small') {
             Assert-Check ($run.Text.Contains('项目构建与校验成功') -and
                 (Test-Path -LiteralPath (Join-Path $project 'dist-aot') -PathType Container)) 'Source entry built and verified the real fixture'
+            Record-RuntimeInventory 'runtime-chinese-relative' (Join-Path $installHome 'current\runtime') $installHome $project $true
         }
         $archives[$flavor] = Read-SourceResult $flavor $before
         $package = Join-Path $WorkRoot "安装包 $flavor 中文"
@@ -388,9 +404,8 @@ try {
     Assert-Check (-not (Test-Path -LiteralPath (Join-Path $WorkRoot 'damaged home\current'))) 'Damaged payload is never promoted'
 
     $installHome = Join-Path $WorkRoot '工具 full home'
-    $php = Join-Path $installHome 'current\runtime\php.exe'
-    $phpArguments = @('-c', (Join-Path $installHome 'current\runtime\php.ini'), '-d',
-        ('extension_dir=' + (Join-Path $installHome 'current\runtime\ext')))
+    $producerRuntime = Join-Path $installHome 'current\runtime'
+    $phpArguments = @('-c', 'php.ini', '-d', 'extension_dir=ext', '..\app\tools\windows-php-bootstrap.php')
     foreach ($flavor in @('small', 'full')) {
         Write-Json (Join-Path $logs "$flavor-packager-result.json") @{
             schema = 'webman-aot-builder-installer-package-result-v1'; revision = $archives[$flavor].revision
@@ -485,12 +500,16 @@ server.serve_forever()
     $producer = $phpArguments + @((Join-Path $repository 'tools\package-setup.php'),
         ('--small-result=' + (Join-Path $logs 'small-packager-result.json')),
         ('--full-result=' + (Join-Path $logs 'full-packager-result.json')), '--platform=windows-x86_64')
-    $setupResult = Invoke-Cmd 'setup-producer' $php ($producer + @(
-        "--base-url=$baseUrl", ('--output=' + (Join-Path $WorkRoot 'setup'))))
-    $setup = ($setupResult.Stdout | ConvertFrom-Json).launcherPath
-    $missingResult = Invoke-Cmd 'setup-404-producer' $php ($producer + @(
-        "--base-url=$baseUrl/missing", ('--output=' + (Join-Path $WorkRoot 'setup-404'))))
-    $missingSetup = ($missingResult.Stdout | ConvertFrom-Json).launcherPath
+    $previousCallerDirectory = $env:WEBMAN_AOT_CALLER_CWD
+    try {
+        $env:WEBMAN_AOT_CALLER_CWD = $repository
+        $setupResult = Invoke-Cmd 'setup-producer' '.\php.exe' ($producer + @(
+            "--base-url=$baseUrl", ('--output=' + (Join-Path $WorkRoot 'setup')))) '' $true $producerRuntime
+        $setup = ($setupResult.Stdout | ConvertFrom-Json).launcherPath
+        $missingResult = Invoke-Cmd 'setup-404-producer' '.\php.exe' ($producer + @(
+            "--base-url=$baseUrl/missing", ('--output=' + (Join-Path $WorkRoot 'setup-404')))) '' $true $producerRuntime
+        $missingSetup = ($missingResult.Stdout | ConvertFrom-Json).launcherPath
+    } finally { $env:WEBMAN_AOT_CALLER_CWD = $previousCallerDirectory }
     Write-Json (Join-Path $logs 'tls-setup.json') @{
         setupSha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
         smallArchiveSha256 = $archives.small.sha256; fullArchiveSha256 = $archives.full.sha256
