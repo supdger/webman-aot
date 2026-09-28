@@ -21,35 +21,21 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 轻量包首次使用时联网准备编译组件；完整包包含组件，可在安装时离线准备。
 两种包安装后都提供 `webman-aot` 命令。GitHub 的 `Source code (zip)` 是源码压缩包，不是安装包。
 
-## 当前开发源码：单入口引导流程
+## v0.3.0：一次启动，按提示完成
 
-本仓库当前开发源码新增了面向用户的引导入口：macOS 使用 `build.command`，Windows 使用 `build.cmd`。它会按提示选择轻量包或完整包，显示安装位置和 PATH 影响后再确认安装，然后可选择 Webman / SaiAdmin 项目目录；工具会依次构建并验证 `dist-aot/`。过程显示当前阶段、日志位置和失败原因，日志只保存在本机；无法解决时可把错误摘要提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
+直接安装时，在 [v0.3.0 Release](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.0) 选择开发机对应的 **setup**：macOS 下载 setup ZIP，Windows 下载 setup CMD。启动后只需选择轻量包或完整包、确认安装，再选择自己的 Webman / SaiAdmin 项目目录；工具会自动下载、校验、安装、检查新版本、构建项目并验证 `dist-aot/`。包类型由入口菜单选择，无需自己拼接构建或安装命令。
 
-独立安装入口由已校验的同平台安装包生成：macOS setup ZIP 解开后运行其中的 `.command` 文件，Windows 运行 `.cmd` 文件。选好包类型后，setup 会自动下载对应安装包、核验大小和 SHA-256、检查归档后解压，再进入同一安装和项目引导流程。轻量包首次构建时需要联网下载锁定组件；完整包可离线准备组件。
+从源码开始时，macOS 在源码根目录执行 `sh ./build.command`，Windows 在 PowerShell 执行 `.\build.cmd`。入口会自动准备锁定材料、制作安装包并检查包清单，随后进入相同的安装和项目流程。具体启动步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-**以上引导入口属于当前开发源码及其新构建产物，尚未包含在公开 v0.2.3 Release 中。** 公开下载和 v0.2.3 的原有安装、命令行使用方式仍见 [v0.2.3 安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。当前开发源码版本号仍是 `0.2.3`，版本号相同不表示开发快照就是该 Release 的资产。
+过程会显示当前步骤和实际下载状态。成功时告诉你产物位置和下一步；失败时保留原始原因，提供恢复建议、本机日志位置和 [Issues](https://github.com/supdger/webman-aot-builder/issues) 地址。项目构建失败后可选择重试、重选目录或结束。安装前会显示安装位置和 PATH 影响，由你确认。
 
-引导流程中的 `verify` 检查构建产物的结构、完整性及工具报告的静态属性，不代替 Linux 目标机上的启动、数据库和业务接口验收。
+发布状态以 Release 中实际提供的资产为准；源码候选不等于已公开的安装包。v0.2.3 的历史操作说明保留在 [历史安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.3)。
 
-## 安装与使用
+自动 `verify` 检查构建产物的结构、完整性及工具报告的静态属性；Linux 目标机启动、数据库和业务接口仍需部署后验收。
 
-下载、校验和安装请按 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install) 操作。
-安装后可在任意目录运行以下命令，检查开发机并准备缺失的编译组件，健康时输出 `Result: healthy`：
+## 安装后的命令行使用
 
-```sh
-webman-aot doctor
-```
-
-构建时进入**自己的 Webman 项目根目录**（包含 `composer.json`、`composer.lock`、`start.php` 和 `app/`），运行：
-
-```sh
-webman-aot build
-webman-aot verify
-```
-
-`build` 生成 `dist-aot/`，`verify` 检查该目录的分发结构和静态属性。
-SaiAdmin 项目使用 `webman-aot build --profile=saiadmin`，适用版本及要求见
-[SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。
+引导入口会自动执行校验。需要以后单独构建其他项目时，可在已安装的终端中使用 `webman-aot`；命令和启动示例见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。SaiAdmin 的适用版本及要求见 [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。
 
 ## 构建结果
 
