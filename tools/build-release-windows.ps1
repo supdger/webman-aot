@@ -58,7 +58,7 @@ try {
         $record = Get-Content -LiteralPath $result -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($record.schema -ne 'webman-aot-builder-source-build-result-v1' -or $record.revision -ne $Revision -or $record.platform -ne 'windows-x86_64' -or $record.flavor -ne $flavor -or -not (Test-Path -LiteralPath ($result+'.package.json'))) { throw 'Native result identity or packager sidecar is invalid.' }
         if ((Get-Item -LiteralPath $record.archive).Length -ne $record.size -or (Get-FileHash -LiteralPath $record.archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $record.sha256) { throw 'Native output differs from the verified result.' }
-        Write-Host "[package] Verified $flavor: $($record.sha256) / $($record.size) bytes"
+        Write-Host "[package] Verified ${flavor}: $($record.sha256) / $($record.size) bytes"
     }
     Write-Host ("[release] Both Windows packages and isolated installation/version selftests passed in {0:F1}s. Output: {1}" -f ([DateTime]::UtcNow-$started).TotalSeconds,$Output)
     exit 0
