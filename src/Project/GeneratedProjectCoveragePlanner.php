@@ -169,9 +169,26 @@ final class GeneratedProjectCoveragePlanner
             if ($this->digest($mirror, $projectBootstrap)
                 !== $entrypoint['sourceSha256']
             ) {
-                throw new ConfigurationException(
-                    'project bootstrap differs from the locked Webman startup source'
-                );
+                $vendorBootstrap = $mirror . '/' . $entrypoint['source'];
+                $projectBootstrapFile = $mirror . '/' . $projectBootstrap;
+                $vendorBytes = file_get_contents($vendorBootstrap);
+                $projectBytes = is_file($projectBootstrapFile)
+                    && !is_link($projectBootstrapFile)
+                    ? file_get_contents($projectBootstrapFile)
+                    : false;
+                if (!is_string($vendorBytes)
+                    || hash('sha256', $vendorBytes) !== $entrypoint['sourceSha256']
+                    || !is_string($projectBytes)
+                    || str_replace("\r\n", "\n", $projectBytes) !== $vendorBytes
+                    || file_put_contents($projectBootstrapFile, $vendorBytes)
+                        !== strlen($vendorBytes)
+                    || $this->digest($mirror, $projectBootstrap)
+                        !== $entrypoint['sourceSha256']
+                ) {
+                    throw new ConfigurationException(
+                        'project bootstrap differs from the locked Webman startup source'
+                    );
+                }
             }
             $decisions[$projectBootstrap] = [
                 'status' => CoverageLedger::COMPILED_SHADOW,
