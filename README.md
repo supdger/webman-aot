@@ -1,6 +1,25 @@
 # Webman AOT Builder
 
-在 macOS Apple Silicon 或 Windows x64 开发机上，把 Webman / SaiAdmin 项目编译成面向 Linux amd64 的全静态程序。工具安装在开发机上，无需装进 Webman 项目，也无需 Docker。
+Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
+在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
+
+## 实现方式
+
+构建器在项目副本中做兼容适配，通过 TypePHP 编译 PHP 代码，再用 Clang 和 PHPx 静态 SDK 生成可执行程序。
+原项目源码保持不变，配置、模板和静态资源按需保留为外置文件。
+
+![Webman AOT Builder 构建流程](https://raw.githubusercontent.com/wiki/supdger/webman-aot-builder/assets/build-flow.svg)
+
+## 源码与安装包
+
+本仓库是构建工具的源码，包含命令行程序、项目适配、编译组件管理和安装包制作脚本。
+开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
+具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
+
+直接使用请下载 [最新正式版安装包](https://github.com/supdger/webman-aot-builder/releases/latest)，
+选择与你的**开发机**匹配的 macOS Apple Silicon 或 Windows x64 包。
+轻量包首次使用时联网准备编译组件；完整包包含组件，可在安装时离线准备。
+两种包安装后都提供 `webman-aot` 命令。GitHub 的 `Source code (zip)` 是源码压缩包，不是安装包。
 
 ## 当前开发源码：单入口引导流程
 
@@ -12,21 +31,56 @@
 
 引导流程中的 `verify` 检查构建产物的结构、完整性及工具报告的静态属性，不代替 Linux 目标机上的启动、数据库和业务接口验收。
 
-## 公开 v0.2.3 命令行流程
+## 安装与使用
 
-**v0.2.3 的下载、SHA-256 校验、安装、组件准备、构建、验证与卸载，请按 [完整安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install) 操作。** 安装包见 [v0.2.3 Release](https://github.com/supdger/webman-aot-builder/releases/tag/v0.2.3)；GitHub 自动生成的源码 ZIP 不是安装包。
+下载、校验和安装请按 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install) 操作。
+安装后可在任意目录运行以下命令，检查开发机并准备缺失的编译组件，健康时输出 `Result: healthy`：
 
-选择与你的**开发机**匹配的 macOS Apple Silicon 或 Windows x64 安装包。轻量包首次使用时需联网下载并准备编译组件；完整包已包含组件，可在安装时离线准备。两种包安装后使用相同的 `webman-aot` 命令。`doctor` 在任意目录检查开发机并准备组件；`build` 须在自己的 Webman 项目根目录运行；`verify` 默认检查当前目录的 `dist-aot/`，也可用 `--path` 指定分发目录。
+```sh
+webman-aot doctor
+```
 
-安装或升级后请按 v0.2.3 指南确认实际调用的命令位置，版本应显示 `webman-aot 0.2.3`。旧版不再推荐使用；[Release 历史](https://github.com/supdger/webman-aot-builder/releases)仅供查询历史版本。
+构建时进入**自己的 Webman 项目根目录**（包含 `composer.json`、`composer.lock`、`start.php` 和 `app/`），运行：
+
+```sh
+webman-aot build
+webman-aot verify
+```
+
+`build` 生成 `dist-aot/`，`verify` 检查该目录的分发结构和静态属性。
+SaiAdmin 项目使用 `webman-aot build --profile=saiadmin`，适用版本及要求见
+[SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。
+
+## 构建结果
+
+产物结构示意（运行资源随项目而异）：
+
+```text
+dist-aot/
+├── server          # Linux amd64 全静态程序
+├── start.sh        # 启动脚本
+├── stop.sh         # 停止脚本
+├── config/         # 外置配置
+├── …               # 项目所需的模板、静态资源等
+└── manifest.json   # 分发清单
+```
+
+把**整个 `dist-aot/`** 复制到 Linux amd64 目标机，按项目需要配置 `.env`、数据库等运行环境后，
+在该目录启动：
+
+```sh
+./start.sh
+```
+
+后台运行用 `./start.sh --daemon`，停止用 `./stop.sh`。
+目标机配置和启动后的业务检查见 [Linux 部署与验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)。
 
 ## 文档
 
-- [Wiki 首页](https://github.com/supdger/webman-aot-builder/wiki/Home)：全部使用与维护文档
-- [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)：适用范围与构建要求
-- [Linux 目标机验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)：部署后验证启动、数据库与业务接口
-- [验证记录](https://github.com/supdger/webman-aot-builder/wiki/Verification)：已测试的组合与证据边界
+- [Wiki](https://github.com/supdger/webman-aot-builder/wiki/Home)：安装、使用与维护文档
+- [更新日志](https://github.com/supdger/webman-aot-builder/blob/main/CHANGELOG.md)：功能、修复与升级影响
 
-## 源码与许可
+## 许可与反馈
 
-本仓库是工具源码；[v0.2.3 源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)说明公开版本的历史流程。原创代码采用 [MIT 许可证](LICENSE)，第三方组件的许可与归属见 [NOTICE](NOTICE.md)。问题可提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
+原创代码采用 [MIT 许可证](LICENSE)，第三方组件的许可与归属见 [NOTICE](NOTICE.md)。
+问题与建议请提交到 [Issues](https://github.com/supdger/webman-aot-builder/issues)。
