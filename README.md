@@ -3,6 +3,9 @@
 Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
 在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
 
+当前处于开发阶段，公开包可用于开发验证，完整安装、项目构建及 Linux 业务流程尚未验收通过。
+已有检查及其适用范围见 [测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。
+
 ## 实现方式
 
 构建器在项目副本中做兼容适配，通过 TypePHP 编译 PHP 代码，再用 Clang 和 PHPx 静态 SDK 生成可执行程序。
@@ -16,25 +19,19 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-第一次安装，请打开 [最新正式版下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。
-Windows x64 选 `windows-x86_64-setup.cmd`；macOS Apple Silicon 选 `macos-arm64-setup.zip`，解压后运行其中的 `.command`。
-setup 会让你选择轻量包或完整包，再自动下载、校验和安装。以下为 v0.3.1 下载页的全部资产：
+第一次安装，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
 
-| 文件名 | 用途与适用情况 |
-| --- | --- |
-| `webman-aot-builder-0.3.1-windows-x86_64-setup.cmd` | **Windows 首次安装推荐**。运行后按提示选择包类型；下载时需要联网。 |
-| `webman-aot-builder-0.3.1-macos-arm64-setup.zip` | **macOS Apple Silicon 首次安装推荐**。解压运行 `.command`，按提示选择包类型；下载时需要联网。 |
-| `webman-aot-builder-0.3.1-windows-x86_64.zip` | Windows 轻量安装包；手动解压运行 `install.cmd`。首次构建时联网下载编译组件。 |
-| `webman-aot-builder-0.3.1-macos-arm64.tar.gz` | macOS Apple Silicon 轻量安装包；手动解压运行 `install.command`。首次构建时联网下载编译组件。 |
-| `webman-aot-builder-0.3.1-full-windows-x86_64.zip` | Windows 完整安装包；包含编译组件。适合提前下载后复制到离线开发机，解压运行 `install.cmd`。 |
-| `webman-aot-builder-0.3.1-full-macos-arm64.tar.gz` | macOS Apple Silicon 完整安装包；包含编译组件。适合提前下载后复制到离线开发机，解压运行 `install.command`。 |
-| `webman-aot-builder-0.3.1-windows-x86_64-components.zip` | Windows 编译组件，由工具自动下载和校验；普通安装无需单独下载，不能独立安装工具。 |
-| `webman-aot-builder-0.3.1-macos-arm64-components.zip` | macOS Apple Silicon 编译组件，由工具自动下载和校验；普通安装无需单独下载，不能独立安装工具。 |
-| `SHA256SUMS` | 上述八项资产的 SHA-256 校验清单，用于核对下载文件；setup 会自动校验所选安装包。 |
-| GitHub 自动提供的 `Source code (zip)` / `Source code (tar.gz)` | 对应版本的源码，供开发或自行构包；直接安装请选择上面的 setup 或安装包。 |
+| 开发机 | 首次安装推荐下载 | 启动方式 |
+| --- | --- | --- |
+| macOS Apple Silicon | 文件名以 `macos-arm64-setup.zip` 结尾的 ZIP | 解压后运行其中的 `.command` |
+| Windows x64 | 文件名以 `windows-x86_64-setup.cmd` 结尾的 CMD | 运行该 `.cmd` |
 
-文件名没有 `full` 的安装包就是轻量包；轻量包和完整包安装后都提供 `webman-aot` 命令。
-完整包的离线范围是工具安装和编译组件准备；自己的项目仍须事先备好 Composer 依赖及构建所需文件。
+setup 会让你选择轻量包或完整包，再自动下载、校验和安装；下载时需要联网。
+
+- **轻量包**：安装包较小，首次构建时联网下载编译组件。
+- **完整包**：包含编译组件，可提前下载后复制到离线开发机；自己的项目仍须事先备好 Composer 依赖及构建所需文件。
+
+两种包安装后都提供 `webman-aot` 命令。需要手动下载或离线安装时，具体资产及校验清单以 [最新 Release](https://github.com/supdger/webman-aot-builder/releases/latest) 为准，步骤见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。编译组件包不能独立安装工具，GitHub 的 `Source code` 是源码；首次安装请选择 setup。
 这些下载包安装在开发机上；Linux 目标机接收构建生成的整个 `dist-aot/`。
 
 ### macOS 首次打开被拦截时
@@ -55,15 +52,23 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 
 若找不到“仍要打开”，重新双击一次文件，再回到该设置页面；该按钮通常只在尝试打开后约一小时内显示。详见 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。以上步骤适用于“无法验证”提示；若提示“将损坏你的电脑”或“文件已损坏”，请停止安装，重新下载并核对校验值。
 
-## v0.3.1：一次启动，按提示完成
+## 开始使用
 
-直接安装时，在 [v0.3.1 Release](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.1) 选择开发机对应的 **setup**：macOS 下载 setup ZIP，Windows 下载 setup CMD。启动后只需选择轻量包或完整包、确认安装，再选择自己的 Webman / SaiAdmin 项目目录；工具会自动下载、校验、安装、检查新版本、构建项目并验证 `dist-aot/`。包类型由入口菜单选择，无需自己拼接构建或安装命令。
+无论选择轻量包还是完整包，都须先按目标项目自身的安装要求完成 Composer 依赖安装（包括 `vendor/`）。
+选择项目目录时，请使用包含 `composer.json`、`composer.lock`、`start.php` 和 `app/` 的 Webman / SaiAdmin 后端根目录。
+
+准备好项目后，按以下步骤完成安装和首次构建：
+
+1. 在 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest) 下载上表中对应开发机的 **setup** 并启动。
+2. 按提示选择轻量包或完整包，确认安装位置及 PATH 影响；工具会下载、校验、安装并核对安装版本。
+3. 选择“构建项目”，输入自己的 Webman / SaiAdmin 后端根目录。
+4. 等待构建及自动校验完成。成功时会显示产物位置，项目目录中会生成 `dist-aot/`，下一步见 [构建结果](#构建结果)。
 
 从源码开始时，macOS 在源码根目录执行 `sh ./build.command`，Windows 在 PowerShell 执行 `.\build.cmd`。入口会自动准备锁定材料、制作安装包并检查包清单，随后进入相同的安装和项目流程。具体启动步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-过程会显示当前步骤、实际下载状态和编译器输出的文件计数。较长步骤没有新输出时，会显示进程状态、已用时间和无输出时长；沉默期间的工作进度会标为未知。成功时告诉你产物位置和下一步；失败时保留原始原因，提供恢复建议、本机日志位置和 [Issues](https://github.com/supdger/webman-aot-builder/issues) 地址。项目构建失败后可选择重试、重选目录或结束。安装前会显示安装位置和 PATH 影响，由你确认。
+过程会显示当前步骤、实际下载状态和编译器输出的文件计数。较长步骤没有新输出时，会显示进程状态、已用时间和无输出时长；沉默期间的工作进度会标为未知。成功时告诉你产物位置和下一步；失败时保留原始原因，提供恢复建议、本机日志位置和 [Issues](https://github.com/supdger/webman-aot-builder/issues) 地址。项目构建失败后可选择重试、重选目录或结束。
 
-发布状态以 Release 中实际提供的资产为准；源码候选不等于已公开的安装包。v0.2.3 的历史操作说明保留在 [历史安装指南](https://github.com/supdger/webman-aot-builder/wiki/Install-0.2.3)。
+发布状态以 Release 中实际提供的资产为准；源码候选不等于已公开的安装包。开发状态及已有记录见 [开发状态与历史记录](https://github.com/supdger/webman-aot-builder/wiki/History)。
 
 自动 `verify` 检查构建产物的结构、完整性及工具报告的静态属性；Linux 目标机启动、数据库和业务接口仍需部署后验收。
 
