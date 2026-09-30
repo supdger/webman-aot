@@ -25,12 +25,12 @@
         {
             "path": "src/Build/SourcePipelineTrait.php",
             "beforeSha256": "41d51d474b4c127ec2c8ad8b8f0189f5ee7af8a00ac56cd8f61e50fdbfffa8ac",
-            "afterSha256": "e844dd9c93337c0a53450bb366b8764c18020bcd8a33cde2b95a8dad546c4ce3"
+            "afterSha256": "315b4e751e190d7a96136eceaa0273f47ded412d14aaa043b1f13251e56b0cd6"
         },
         {
             "path": "src/CompilerBase.php",
             "beforeSha256": "f67b86b42ee6f6e868ffa78316263828d2ebc2caa89f950b5d6cb50f968668a4",
-            "afterSha256": "dc8fb9acb4d451160725bc2da3d25b2c956b846146bb2ef782dbc8b19d479353"
+            "afterSha256": "40049353541979b70f58a63f5e8358b702f693f786a3435155d2e0b56f42c6bf"
         },
         {
             "path": "src/Generator/AnonClassGenerator.php",
@@ -40,7 +40,7 @@
         {
             "path": "src/Generator/CallArgumentGenerator.php",
             "beforeSha256": "6b4e41529a911c9ffef102aaf493f42096bc8bd27ef5b6ec3f55bedec8050480",
-            "afterSha256": "53db96dcbc1330dd511d57d6856611c8daa0236b235906750fbcb3e18f78c8fb"
+            "afterSha256": "73e4b48c9e8d8148f543f0c8dc5ed71ac6ab5af21404f75aa2a486e97bdd658f"
         },
         {
             "path": "src/Generator/Utils.php",
@@ -60,7 +60,7 @@
         {
             "path": "src/Parser/AssignOpTrait.php",
             "beforeSha256": "10697be0b6c77ce90296055f35d72def15e6f39f2726f7c07b16c6209b586866",
-            "afterSha256": "623b135c72f1bd6c4fce06ad3a63d744112dbbaff5cd52b9976eb7e845bc9ffa"
+            "afterSha256": "d029a422f199fd9bc00847b71c61e03668a154c7f8096149e1e80c1ab4391247"
         },
         {
             "path": "src/Parser/ConstantExpressionTrait.php",
@@ -70,7 +70,7 @@
         {
             "path": "src/Parser/MethodCallTrait.php",
             "beforeSha256": "64f941d2b5fe0a263282d4fc871539239477dc9ff769cf2e1961f3e68ffc50f1",
-            "afterSha256": "13943f08021a2029f8a05bdc39ae86e629be61a85403aca6a718a3b2c362855a"
+            "afterSha256": "5d0246c7cbfc8aa2e2284d65cf2f35df0d9ad778ed5c60e2db159b9055e81f22"
         },
         {
             "path": "src/Parser/StdContainerTrait.php",
@@ -90,7 +90,7 @@
         {
             "path": "src/Translator.php",
             "beforeSha256": "553c40c83d85fb14c6780ef4a02f2c32c1b5703c81f3b35d6e9cb066b5fcacf4",
-            "afterSha256": "108828d7e38243544d5b00f0960a2950ff58bf94ae9766c4b16e9a1dc234c5d6"
+            "afterSha256": "2bfe921feba175564f35eca104e5baf83a2ee6eb8d56533ad09ecde40b32a6bc"
         },
         {
             "path": "src/TypeSystem/NativeTypeCompatibilityTrait.php",
@@ -106,6 +106,51 @@
             "path": "vendor/swoole/phpx/src/misc/typephp_runtime.cc",
             "beforeSha256": "0bd21015eb6a2b3027aa8f5658eaf6ce624f50b3645c1faf0dee30f5eeba961d",
             "afterSha256": "56390337e2e6d4ef5fac0d42aa775a088b46ac44b260e1fb1b6308ace37828f0"
+        },
+        {
+            "path": "src/Context/CompilationStateTrait.php",
+            "beforeSha256": "158d16dc36e46951f601fd4b996d6920aa4475270e4696ce8958c455cf786484",
+            "afterSha256": "52e043b83550b0e224fa2a3c19c2ac4ad0c1a864d68a1dee0383eeacacfe4005"
+        },
+        {
+            "path": "src/Generator/ClosureGenerator.php",
+            "beforeSha256": "fc23c9113e8b90e0f24e4819506190de592aa565fae340caed594b15e7af5882",
+            "afterSha256": "b8e46ec8df2e4895bb2952c0035cdbf728c1cef135765057a9d66454e8de43b7"
+        },
+        {
+            "path": "src/Parser/ClassConstantFetchTrait.php",
+            "beforeSha256": "4d2bd3c7e2639bebd78dfc1aeeb1e5fdfbb966cea74ec90298349c4ed38aaa63",
+            "afterSha256": "b25e8cd4ec6150bbcceab8644b153f981f63474cb755b73a7b9c24b1bc38991e"
+        },
+        {
+            "path": "src/Parser/PropertyAccessTrait.php",
+            "beforeSha256": "b9ce2e5a082dc568589f360c84c8b92f4aaa0698921863d2e638192cf32c908d",
+            "afterSha256": "a35f56de3813c27ad55b1f1a53b62b89ed6ed73b2aab2a4221ff93903e0c9540"
+        },
+        {
+            "path": "vendor/swoole/phpx/include/phpx.h",
+            "beforeSha256": "65bf094e06694cc5540965f8c717d5a56b86f06e32001ddc91dcc55b958246ed",
+            "afterSha256": "74b762d2d0bdc7f32ac20a60d041e6ffffa2dce8228d1ee41963b6907c90c1f5"
+        },
+        {
+            "path": "vendor/swoole/phpx/include/typephp_helper.h",
+            "beforeSha256": "656562859b60174afbc43d223dc8da5a1fef16f2bfdb25f7a1aa724788ca6e72",
+            "afterSha256": "0a89f8c783daabc3ded5a2e68170b6535e0d23aa8d158523f2f197b49bd6ab57"
+        },
+        {
+            "path": "vendor/swoole/phpx/src/core/closure.cc",
+            "beforeSha256": "ad8e47b3fcb5b6dc32fd83449473602e1a561c785b0c12cd38fa1b6ed57eb220",
+            "afterSha256": "5b7523075dfed6a97476e2c117eeeafdec227db7bf1ae27eacb712b623f8b42e"
+        },
+        {
+            "path": "vendor/swoole/phpx/src/core/scope.cc",
+            "beforeSha256": "970e1fe4192dbe6436d024a763870e73792d76b692f440e55c1270600490b167",
+            "afterSha256": "9737f0c3d9733572f847f05973162d962275f64172825cc387e781c8473c65f3"
+        },
+        {
+            "path": "vendor/swoole/phpx/src/typephp/typephp_property.cc",
+            "beforeSha256": "5eb0ffa6e07d1596c2e4cd59a80ccb3e4ad6f45a2e7b8e88a6fbcacdc6e67649",
+            "afterSha256": "026e9b9cc9232d24f995d8fb6761b5f59496e2b7afe680a13fb61079d5dc7b01"
         }
     ],
     "reason": "Derive the Linux musl target from the locked SDK, register locked static PECL modules, map generated source identities to a host-independent prefix including arginfo attributes, separate host filesystem behavior from Linux target code generation, normalize Windows object paths for Clang response files, preserve PCNTL and OpenSSL output references when build-host PHP lacks target extensions, avoid requiring Windows host PHP import libraries when linking the independent full-static target SDK, classify target builtins, preserve native-parent covariance and dynamic method dispatch, avoid speculative loop type probes before foreach variables exist, include declarations for unqualified calls that can fall back to global PHP functions, preserve runtime constant, object-default and fixed global reference semantics in generated C++, resolve full-static __DIR__ and __FILE__ from the portable runtime directory, keep embedded anonymous-class return and parent types valid on both build hosts, use portable anonymous-class source embedding for full-static output regardless of host OPcache, resolve PHP_EOL, PHP_MAXPATHLEN and tokenizer IDs from the Linux target rather than the build host, exclude Windows-only SAPI functions from Linux target builtins, internal functions and reflection metadata, and sort scanned source paths using portable separators."

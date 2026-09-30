@@ -78,6 +78,13 @@ final class PreparedToolchain
         }
         $sdk = $tools['phpx'] . '/full-static/sdk';
         $expected = $data['sdkSha256'] ?? null;
+        $approved = json_decode((string) file_get_contents($lockFile), true, flags: JSON_THROW_ON_ERROR);
+        $sdkPolicy = $approved['evidence']['patchedSdk'] ?? null;
+        if ($sdkPolicy !== null && (!is_array($sdkPolicy)
+                || !is_string($sdkPolicy['sdkSha256'] ?? null)
+                || ($sdkPolicy['sdkSha256'] ?? null) !== $expected)) {
+            throw new ConfigurationException('prepared static SDK differs from the approved patched SDK');
+        }
         if (!is_string($expected)
             || preg_match('/^[a-f0-9]{64}$/D', $expected) !== 1
             || !is_dir($sdk)
@@ -85,6 +92,9 @@ final class PreparedToolchain
             || (new StaticSdkFingerprint())->digest($sdk) !== $expected
         ) {
             throw new ConfigurationException('prepared static SDK fingerprint differs');
+        }
+        if (is_array($sdkPolicy)) {
+            (new SdkArchiveGuard())->assertDerivation($sdk, $sdkPolicy);
         }
         $tools['sdkSha256'] = $expected;
 

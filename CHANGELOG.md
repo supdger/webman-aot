@@ -2,6 +2,13 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.2](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.2)
+
+- 支持锁定的 Carbon 3.14.1，修复 SaiAdmin 项目因 Carbon 版本拒绝、生成配置选择或生成代码不兼容而中止构建的问题。
+- 补齐 DeepClone 1.42.0 编译所需的闭包绑定、引用存储和反射行为，修复类被跳过及生成代码无法编译的问题；保留完整 DeepClone 适配，不通过排除依赖绕过失败。`Closure::call()` 仍不支持。
+- 使用本项目从锁定官方输入重建的 PHPX 静态 SDK，记录来源、补丁、库与头文件摘要，并由编译组件和源码构建入口校验。新增衍生 SDK 素材供维护者重建；普通安装继续使用 setup。
+- 本版需要更新安装包及对应编译组件，旧组件不能作为新版 SDK 使用。项目源码保持不变；编译与本机校验通过仍需另行完成 Linux 启动、数据库和业务验收。
+
 ## [v0.3.1](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.1)
 
 - 修复 Windows 与 macOS 安装引导进入项目构建后，阶段和编译日志不能及时显示的问题。现在会持续显示准备阶段、编译器的逐文件进度与真实完成数；没有新输出时显示等待时间，完成或失败时保留耗时、原始错误和退出码。

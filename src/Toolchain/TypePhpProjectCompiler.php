@@ -76,6 +76,16 @@ final class TypePhpProjectCompiler
             throw new ConfigurationException('full-static SDK fingerprint differs from the locked input');
         }
 
+        $lock = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/toolchain.lock.json'), true, flags: JSON_THROW_ON_ERROR);
+        $sdkPolicy = $lock['evidence']['patchedSdk'] ?? null;
+        if ($sdkPolicy !== null) {
+            if (!is_array($sdkPolicy)) { throw new ConfigurationException('patched SDK approval is malformed'); }
+            if (($sdkPolicy['sdkSha256'] ?? null) !== $tools['sdkSha256']) {
+                throw new ConfigurationException('full-static SDK differs from the approved patched SDK');
+            }
+            (new SdkArchiveGuard())->assertDerivation($tools['phpx'] . '/full-static/sdk', $sdkPolicy);
+        }
+
         $environment = [];
         foreach (getenv() as $name => $value) {
             if (is_string($name) && is_string($value)) {

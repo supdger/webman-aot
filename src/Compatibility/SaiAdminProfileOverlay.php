@@ -12,7 +12,8 @@ final class SaiAdminProfileOverlay
         string $sourceFile,
         string $expectedSourceSha256,
         string $projectLockFile,
-        string $privateCache
+        string $privateCache,
+        array $policy
     ): string {
         $lock = json_decode(
             (string) file_get_contents($projectLockFile),
@@ -26,7 +27,19 @@ final class SaiAdminProfileOverlay
                 break;
             }
         }
-        if ($version !== '3.14.0') {
+        $supported = $policy['supportedVersions'] ?? null;
+        $baseVersion = $policy['baseVersion'] ?? null;
+        if (!is_array($supported) || !is_string($baseVersion)
+            || !in_array($baseVersion, $supported, true)
+        ) {
+            throw new ConfigurationException('Carbon profile version policy is missing');
+        }
+        foreach ($supported as $candidate) {
+            if (!is_string($candidate) || preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $candidate) !== 1) {
+                throw new ConfigurationException('Carbon profile version policy is invalid');
+            }
+        }
+        if ($version === $baseVersion || !in_array($version, $supported, true)) {
             return $sourceFile;
         }
         $source = file_get_contents($sourceFile);
@@ -35,8 +48,8 @@ final class SaiAdminProfileOverlay
         ) {
             throw new ConfigurationException('locked SaiAdmin profile source drifted');
         }
-        $before = "'nesbot/carbon' => ['3.13.2'],";
-        $after = "'nesbot/carbon' => ['3.13.2', '3.14.0'],";
+        $before = "'nesbot/carbon' => ['{$baseVersion}'],";
+        $after = "'nesbot/carbon' => ['" . implode("', '", $supported) . "'],";
         if (substr_count($source, $before) !== 1) {
             throw new ConfigurationException('locked Carbon version gate structure drifted');
         }
@@ -48,7 +61,7 @@ final class SaiAdminProfileOverlay
         if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
             throw new ConfigurationException('cannot create private SaiAdmin profile overlay directory');
         }
-        $target = $directory . '/carbon-3.14.0-' . hash('sha256', $shadow) . '.php';
+        $target = $directory . '/carbon-' . $version . '-' . hash('sha256', $shadow) . '.php';
         if (is_file($target)) {
             if (hash_file('sha256', $target) !== hash('sha256', $shadow)) {
                 throw new ConfigurationException('private SaiAdmin profile overlay drifted');

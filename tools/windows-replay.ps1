@@ -245,28 +245,32 @@ if ($null -eq $sdkTar) {
 $sdkPayload = Join-Path $WorkRoot 'sdk-payload'
 New-Item -ItemType Directory -Path $sdkPayload | Out-Null
 $sdkLock = Get-LockedComponent $lock 'phpx-sdk-linux-x64'
-if ([string] $sdkLock.sha256 -ne 'e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981') {
-    throw 'PHPX SDK symlink compatibility rule requires the locked archive'
+$sdkArchiveName = [IO.Path]::GetFileName((Get-ArchivePath $sdkLock $Artifacts))
+if ($sdkArchiveName -notmatch '^(webman-aot-builder-[0-9]+\.[0-9]+\.[0-9]+-derived-linux-x86_64-sdk)\.tar\.xz$') {
+    throw 'PHPX SDK requires the locked builder-derived archive'
 }
-$ncursesLink = 'phpx-sdk_v2.9.1_php8.4.25_linux-x64/include/ncursesw/ncurses.h'
-& $sevenZip x '-y' "-o$sdkPayload" "-x!$ncursesLink" $sdkTar.FullName | Out-Host
+$sdkArchiveRoot = $Matches[1]
+$approvedSdkSha256 = [string] $lock.evidence.patchedSdk.sdkSha256
+if ($approvedSdkSha256 -notmatch '^[a-f0-9]{64}$') {
+    throw 'PHPX SDK approved derived fingerprint is missing or invalid'
+}
+& $sevenZip x '-y' "-o$sdkPayload" $sdkTar.FullName | Out-Host
 Assert-LastExitCode 'PHPX SDK tar extraction'
 $sdkSource = Get-SingleDirectory $sdkPayload 'PHPX SDK archive'
+if ([IO.Path]::GetFileName($sdkSource) -ne $sdkArchiveRoot) {
+    throw 'PHPX SDK derived archive root differs from the locked filename'
+}
 $ncursesTarget = Join-Path $sdkSource 'include\ncursesw\curses.h'
 $ncursesCopy = Join-Path $sdkSource 'include\ncursesw\ncurses.h'
-if (-not (Test-Path -LiteralPath $ncursesTarget -PathType Leaf) -or
-    (Test-Path -LiteralPath $ncursesCopy)) {
-    throw 'PHPX SDK ncurses compatibility source is missing or link was not excluded'
-}
-$ncursesHash = (Get-FileHash -LiteralPath $ncursesTarget -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($ncursesHash -ne 'd020361b2ac530ccf0494a479264976ee3a0c903ba30291b23c266ef926f85de') {
-    throw 'PHPX SDK ncurses compatibility source digest mismatch'
-}
-# The locked archive contains one symlink to this same-directory header. A copy
-# preserves the header content without requiring Windows symlink privileges.
-Copy-Item -LiteralPath $ncursesTarget -Destination $ncursesCopy
-if ((Get-FileHash -LiteralPath $ncursesCopy -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ncursesHash) {
-    throw 'PHPX SDK ncurses compatibility copy digest mismatch'
+foreach ($header in @($ncursesTarget, $ncursesCopy)) {
+    if (-not (Test-Path -LiteralPath $header -PathType Leaf)
+        -or ((Get-Item -LiteralPath $header).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Derived PHPX SDK requires portable regular ncurses headers'
+    }
+    if ((Get-FileHash -LiteralPath $header -Algorithm SHA256).Hash.ToLowerInvariant()
+        -ne 'd020361b2ac530ccf0494a479264976ee3a0c903ba30291b23c266ef926f85de') {
+        throw 'Derived PHPX SDK ncurses header digest mismatch'
+    }
 }
 $fullStatic = Join-Path $phpx 'full-static'
 New-Item -ItemType Directory -Path $fullStatic -Force | Out-Null
@@ -308,7 +312,7 @@ $strippedSdk = & $php (Join-Path $repository 'tools\strip-sdk-debug.php') `
     "--objcopy=$llvmObjcopy" |
     ConvertFrom-Json
 Assert-LastExitCode 'private SDK debug stripping'
-if ($strippedSdk.sha256 -ne 'bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb') {
+if ($strippedSdk.sha256 -ne $approvedSdkSha256) {
     throw "stripped SDK digest mismatch: $($strippedSdk.sha256)"
 }
 $strippedSdk | ConvertTo-Json -Depth 4 | Write-Host

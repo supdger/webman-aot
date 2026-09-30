@@ -221,7 +221,10 @@ function prepare(array $arguments): void
         flags: JSON_THROW_ON_ERROR
     );
     $sdkDigest = $stripped['sha256'] ?? null;
-    if ($sdkDigest !== 'bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb') {
+    $approvedSdkDigest = $lock['evidence']['patchedSdk']['sdkSha256']
+        ?? 'bc4b4053092176f8e046a5db0b66c659daa4f23468c09c982223d4fea24d7eeb';
+    if (!is_string($approvedSdkDigest) || preg_match('/^[a-f0-9]{64}$/D', $approvedSdkDigest) !== 1
+        || $sdkDigest !== $approvedSdkDigest) {
         throw new RuntimeException('stripped private SDK digest differs from locked cross-host SDK');
     }
     $phprc = $workRoot . '/php-config';
