@@ -73,6 +73,66 @@ dist-aot/
 后台运行用 `./start.sh --daemon`，停止用 `./stop.sh`。
 目标机配置和启动后的业务检查见 [Linux 部署与验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)。
 
+## 实机构建与启动验证
+
+2026-09-30，用户在 macOS Apple Silicon 和 Windows x64 实机构建 SaiAdmin 项目，并分别将产物复制到 Linux x86_64 服务器启动。以下为用户提供的终端关键输出摘录；macOS 和 Windows 是构建宿主，生成的程序面向 Linux。
+
+### macOS Apple Silicon：构建并在 Linux 启动
+
+使用 v0.3.2 轻量包安装并准备编译组件，构建 SaiAdmin 项目。以下保留安装、组件准备、编译及产物校验的关键节点，省略重复进度行：
+
+```text
+Package contents SHA-256 verified.
+[成功] 校验包并安装，耗时 0.8 秒，退出码 0
+webman-aot 0.3.2
+[prepare] Extracted 7614/7614 verified entries
+[prepare] Minimal component SHA-256 verification complete
+[prepare] Minimal toolchain activated and ready.
+[2063/2063] 100% extension-webman_server.cc
+Successfully compiled 2063 files
+[build] Compiler process completed in 529.8s; exit code 0.
+[成功] 构建项目，耗时 582.3 秒，退出码 0
+[成功] 校验本次项目产物，耗时 0.8 秒，退出码 0
+项目构建与校验成功。
+```
+
+将这次 Mac 构建的产物复制到 Linux x86_64 服务器，在产物目录执行 `./start.sh`，报告 8 个 worker 启动成功（进程用户名已脱敏）：
+
+```text
+Workerman[main.php] start in DEBUG mode
+Workerman/5.2.2         PHP/8.4.25 (JIT off)          Linux/5.10.134-16.3.al8.x86_64
+event-loop  proto       user        worker      listen                 count       state
+select      tcp         <用户>      webman      http://0.0.0.0:8788    8            [OK]
+Press Ctrl+C to stop. Start success.
+```
+
+### Windows x64：构建并在 CentOS 7 启动
+
+使用 v0.3.2 Windows 完整包构建 SaiAdmin 项目。现有日志保留了编译尾段、构建完成和产物校验，构建总耗时约 35 分 43 秒：
+
+```text
+[1920/2063] 94% vendor\symfony\console\Formatter\OutputFormatterStyleStack.cc
+[2063/2063] 100% extension-webman_server.cc
+Successfully compiled 2063 files
+[build] Compiler process completed in 2083.7s; exit code 0.
+[成功] 构建项目，耗时 2142.9 秒，退出码 0
+[成功] 校验本次项目产物，耗时 1.3 秒，退出码 0
+实际校验范围：本机构建产物结构和完整性
+项目构建与校验成功。
+```
+
+将这次 Windows 构建的产物复制到另一台 CentOS 7 服务器，在产物目录执行 `./start.sh`，报告 4 个 worker 启动成功（进程用户名已脱敏）：
+
+```text
+Workerman[main.php] start in DEBUG mode
+Workerman/5.2.2         PHP/8.4.25 (JIT off)          Linux/3.10.0-1160.95.1.el7.x86_64
+event-loop  proto       user        worker      listen                 count       state
+select      tcp         <用户>      webman      http://0.0.0.0:1717    4            [OK]
+Press Ctrl+C to stop. Start success.
+```
+
+两台开发机的构建与产物校验均成功，两个 Linux 目标环境均报告服务启动成功；Mac 安装过程另有成功记录。启动仍有兼容性告警，HTTP、数据库和业务接口尚未验收。详细过程见 [实机测试记录](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source#v032-实机测试记录)。
+
 ## 文档
 
 - [Wiki](https://github.com/supdger/webman-aot-builder/wiki/Home)：安装、使用与维护文档
