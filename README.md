@@ -129,7 +129,9 @@ Successfully compiled 2063 files
 项目构建与校验成功。
 ```
 
-将这次 Mac 构建的产物复制到 Alibaba Cloud 3 (Soaring Falcon) x86_64 服务器，在产物目录执行 `./start.sh`，报告 8 个 worker 启动成功（进程用户名已脱敏）。用户提供的服务器环境标注为 `x86_64 (Py3.7.16)`；`Py3.7.16` 是服务器环境信息，程序的 PHP 版本见下方启动日志：
+![macOS 实机构建及产物校验成功，构建耗时 582.3 秒](docs/images/macos-build-success.png)
+
+将这次 Mac 构建的产物复制到 Alibaba Cloud 3 (Soaring Falcon) x86_64 服务器，在产物目录执行 `./start.sh`，报告 8 个 worker 启动成功（文字日志中的进程用户名已脱敏）。用户提供的服务器环境标注为 `x86_64 (Py3.7.16)`；`Py3.7.16` 是服务器环境信息，程序的 PHP 版本见下方启动日志：
 
 ```text
 Workerman[main.php] start in DEBUG mode
@@ -138,6 +140,8 @@ event-loop  proto       user        worker      listen                 count    
 select      tcp         <用户>      webman      http://0.0.0.0:8788    8            [OK]
 Press Ctrl+C to stop. Start success.
 ```
+
+![Mac 构建产物在 Alibaba Cloud Linux 启动成功，8788 端口和 8 个 worker](docs/images/macos-artifact-alibaba-linux-start.png)
 
 ### Windows x64：构建并在 CentOS 7 启动
 
@@ -154,7 +158,9 @@ Successfully compiled 2063 files
 项目构建与校验成功。
 ```
 
-将这次 Windows 构建的产物复制到另一台 CentOS 7 服务器，在产物目录执行 `./start.sh`，报告 4 个 worker 启动成功（进程用户名已脱敏）：
+![Windows 实机完成 2063 个编译单元及产物校验，构建耗时 2142.9 秒](docs/images/windows-build-success.png)
+
+将这次 Windows 构建的产物复制到另一台 CentOS 7 服务器，在产物目录执行 `./start.sh`，报告 4 个 worker 启动成功（文字日志中的进程用户名已脱敏）：
 
 ```text
 Workerman[main.php] start in DEBUG mode
@@ -163,6 +169,8 @@ event-loop  proto       user        worker      listen                 count    
 select      tcp         <用户>      webman      http://0.0.0.0:1717    4            [OK]
 Press Ctrl+C to stop. Start success.
 ```
+
+![Windows 构建产物在 CentOS 7 启动成功，1717 端口和 4 个 worker](docs/images/windows-artifact-centos7-start.png)
 
 两台开发机的构建与产物校验均成功，两个 Linux 目标环境均报告服务启动成功；Mac 安装过程另有成功记录。启动仍有兼容性告警，HTTP、数据库和业务接口尚未验收。详细过程见 [实机测试记录](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source#v032-实机测试记录)。
 
