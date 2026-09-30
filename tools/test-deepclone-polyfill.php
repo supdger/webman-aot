@@ -56,7 +56,7 @@ try {
     }
     file_put_contents($stub, $original);
     $mappings = $rule->apply($mirror, $policy, hash_file('sha256', $repo . '/toolchain.lock.json'));
-    checkDeepClone(count($mappings) === 4, 'all four conditional declaration files must be mapped');
+    checkDeepClone(count($mappings) === 5, 'conditional declarations and complete DeepClone implementation must be mapped');
     require $typephp . '/bin/bootstrap.php';
     $preprocessor = new TypePhp\Preprocessor($root);
     $preprocessor->setDiagnosticReporter(new TypePhp\Diagnostics\ThrowingDiagnosticReporter());
@@ -73,7 +73,6 @@ try {
             'vendor source must remain intact');
         $preprocessor->prepareFile($mirror . '/' . $mapping['shadow']);
     }
-    $preprocessor->prepareFile($mirror . $prefix . 'DeepClone.php');
     echo "PASS: original failure reproduced; complete deepclone package preprocesses; drift rejected\n";
 
     $probe = <<<'PROBE'
@@ -82,12 +81,30 @@ require $argv[1];
 require $argv[2];
 require $argv[3];
 require $argv[4];
-$value = (object) ['name' => 'roundtrip', 'nested' => [1, 2]];
-$copy = deepclone_from_array(deepclone_to_array($value));
-echo json_encode([$copy == $value, $copy !== $value, DEEPCLONE_HYDRATE_CALL_HOOKS,
+class FirstObject { public string $name = 'first'; private int $secret = 7; public function secret(): int { return $this->secret; } }
+class SecondObject { public string $name = 'second'; }
+class ScopeRoot { private int $same = 1; protected int $protected = 2; }
+class ScopeMiddle extends ScopeRoot { private int $same = 3; }
+class ScopeLeaf extends ScopeMiddle { private int $same = 4; }
+$scopesMethod = new ReflectionMethod(Symfony\Polyfill\DeepClone\DeepClone::class, 'getPropertyScopes');
+$scopes = [];
+foreach ([ScopeRoot::class, ScopeMiddle::class, ScopeLeaf::class, SecondObject::class] as $scopeClass) {
+    $scopes[$scopeClass] = $scopesMethod->invoke(null, new ReflectionClass($scopeClass));
+}
+
+$shared = (object) ['counter' => 1];
+$value = (object) ['name' => 'roundtrip', 'nested' => [new FirstObject(), new SecondObject()],
+    'left' => $shared, 'right' => $shared];
+$encoded = deepclone_to_array($value);
+$copy = deepclone_from_array($encoded);
+$countEncoded = deepclone_to_array((object) ['single' => 'count branch']);
+$hydrated = deepclone_hydrate(FirstObject::class, ["\0FirstObject\0secret" => 9]);
+echo json_encode([is_array($encoded['objectMeta']), is_int($countEncoded['objectMeta']),
+    $encoded, $countEncoded, $copy == $value, $copy !== $value, $copy->left === $copy->right,
+    $copy->left !== $shared, DEEPCLONE_HYDRATE_CALL_HOOKS,
     DEEPCLONE_HYDRATE_NO_LAZY_INIT, DEEPCLONE_HYDRATE_PRESERVE_REFS,
     get_parent_class(DeepClone\ClassNotFoundException::class),
-    get_parent_class(DeepClone\NotInstantiableException::class)]);
+    get_parent_class(DeepClone\NotInstantiableException::class), $scopes, $hydrated->secret()]);
 PROBE;
     file_put_contents($root . '/probe.php', $probe);
     $results = [];
@@ -97,7 +114,7 @@ PROBE;
                 $mirror . $prefix . 'Resources/stubs/NotInstantiableException.php']
             : [$mirror . '/.typephp/build/deepclone-bootstrap81.php', $mirror . '/.typephp/build/deepclone-ClassNotFoundException.php',
                 $mirror . '/.typephp/build/deepclone-NotInstantiableException.php'];
-        $process = proc_open([PHP_BINARY, $root . '/probe.php', ...$paths, $mirror . $prefix . 'DeepClone.php'],
+        $process = proc_open([PHP_BINARY, $root . '/probe.php', ...$paths, ($mode === 'original' ? $mirror . $prefix . 'DeepClone.php' : $mirror . '/.typephp/build/deepclone-DeepClone.php')],
             [1 => ['pipe', 'w'], 2 => STDERR], $pipes);
         checkDeepClone(is_resource($process), 'probe process failed');
         $results[$mode] = stream_get_contents($pipes[1]);
@@ -105,7 +122,13 @@ PROBE;
         checkDeepClone(proc_close($process) === 0, 'behavior probe failed');
     }
     checkDeepClone($results['original'] === $results['adapted']
-        && str_starts_with($results['adapted'], '[true,true,1,2,4,'), 'fallback behavior differs');
+        && str_starts_with($results['adapted'], '[true,true,'), 'fallback behavior differs');
+    $decoded = json_decode($results['adapted'], true, flags: JSON_THROW_ON_ERROR);
+    checkDeepClone(array_slice($decoded, 4, 4) === [true, true, true, true]
+        && end($decoded) === 9, 'identity or scoped hydration differs');
+    checkDeepClone(count($decoded[count($decoded) - 2]['ScopeLeaf']) === 6
+        && $decoded[count($decoded) - 2]['SecondObject'] === ['name' => ['SecondObject', 'name']],
+        'three-level or parentless property scopes differ');
     echo 'PASS: original/adapted PHP roundtrip, identity, constants and exception ancestry match; elapsed '
         . number_format(microtime(true) - $started, 2) . "s\n";
 } finally {

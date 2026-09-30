@@ -62,7 +62,9 @@ final class UpstreamProjectGenerator
                 $generatorFile,
                 $generatorSha256,
                 $lock['generator']['mainStubSha256'],
-                $privateCache
+                $privateCache,
+                $mirror,
+                $lock['optionalAdaptations']['nesbot/carbon'] ?? []
             );
             $generatorFile = $generatorOverlay['path'];
             $generatorSha256 = $generatorOverlay['sha256'];
@@ -70,7 +72,8 @@ final class UpstreamProjectGenerator
                 $profileFile,
                 $lock['generator']['profileSha256'],
                 $mirror . '/composer.lock',
-                $privateCache
+                $privateCache,
+                $lock['optionalAdaptations']['nesbot/carbon'] ?? []
             );
         }
         require_once $profileFile;
@@ -94,6 +97,7 @@ final class UpstreamProjectGenerator
         $adaptations = (new GeneratedProjectAdapter())->apply($mirror, $lock);
         if ($profile === ProjectProfile::SAIADMIN) {
             $adaptations['saiAdminGeneratorOverlaySha256'] = $generatorSha256;
+            $adaptations['saiAdminProfileOverlaySha256'] = hash_file('sha256', $profileFile);
             $monologPolicy = $lock['optionalAdaptations']['monolog/monolog'] ?? null;
             if (!is_array($monologPolicy)) {
                 throw new ConfigurationException('SaiAdmin Monolog adaptation policy is missing');

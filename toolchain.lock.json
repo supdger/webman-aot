@@ -53,10 +53,10 @@
         {
             "id": "phpx-sdk-linux-x64",
             "kind": "sdk",
-            "version": "2.9.1+php8.4.25",
+            "version": "2.9.1+php8.4.25+builder0.3.2",
             "revision": "864aed3a46ef5a865b966062e15d10b9efefed10",
-            "sourceUrl": "https://github.com/swoole/phpx/releases/download/v2.9.1/phpx-sdk_v2.9.1_php8.4.25_linux-x64.tar.xz",
-            "sha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "sourceUrl": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.2/webman-aot-builder-0.3.2-derived-linux-x86_64-sdk.tar.xz",
+            "sha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "typephp-macos-arm64",
@@ -186,7 +186,7 @@
             "sourceUrl": "https://github.com/openssl/openssl/releases/download/openssl-3.6.0/openssl-3.6.0.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "curl",
@@ -194,7 +194,7 @@
             "sourceUrl": "https://github.com/curl/curl/releases/download/curl-8_16_0/curl-8.16.0.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "libzip",
@@ -202,7 +202,7 @@
             "sourceUrl": "https://libzip.org/download/libzip-1.9.2.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "icu",
@@ -210,7 +210,7 @@
             "sourceUrl": "https://github.com/unicode-org/icu/releases/download/release-73-2/icu4c-73_2-src.tgz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "libpq",
@@ -218,7 +218,7 @@
             "sourceUrl": "https://ftp.postgresql.org/pub/source/v16.3/postgresql-16.3.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "zlib",
@@ -226,7 +226,7 @@
             "sourceUrl": "https://github.com/madler/zlib/archive/refs/tags/v1.3.1.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "libxml2",
@@ -234,7 +234,7 @@
             "sourceUrl": "https://github.com/GNOME/libxml2/archive/refs/tags/v2.9.14.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         },
         {
             "id": "oniguruma",
@@ -242,7 +242,7 @@
             "sourceUrl": "https://github.com/kkos/oniguruma/archive/refs/tags/v6.9.9.tar.gz",
             "recipeRevision": "f7903840c3e959612dac7d413205e1bdb0067029",
             "coveredBy": "phpx-sdk-linux-x64",
-            "artifactSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981"
+            "artifactSha256": "6672f8cfa62d8e55308cb5008b625e68ecd9cc93ba000731fbba0838d0c5ffed"
         }
     ],
     "requiredExtensions": {
@@ -327,6 +327,43 @@
             "igbinary",
             "msgpack"
         ],
-        "pendingStaticMerge": []
+        "pendingStaticMerge": [],
+        "patchedSdk": {
+            "archiveRoot": "webman-aot-builder-0.3.2-derived-linux-x86_64-sdk",
+            "sdkSha256": "47705a92ff965250fb197087dddf8745da46a29249b0d6d0d1e40cc5b958d9f0",
+            "derivationSha256": "6bd209ab980650e80c908df098a53d73f87108c784d7f00fa7e1c74a0b96b319",
+            "libraries": {
+                "libphp.a": "182909b33512b88e22ebc67d79650f67d48003b8c8b5bbfb64a7cf7481806e15",
+                "libphpx.a": "702bda7f2f270c81a8e452e03df950f1ac5d68ad7157717454a52d7021a91e95"
+            },
+            "librariesBeforeStripping": {
+                "libphp.a": "edef07bd8e532334e02061481b4bbbd70210cd8505fe90d6bec155ea04133003",
+                "libphpx.a": "923a63936c02b9af011fa46c0cbda1f3afdaa9c37493f0b957f0019ef8acedbe"
+            },
+            "patchManifestSha256": "66590d909c64c81bbe744fb79fa9375af23e758b6bb5822c89e2e0ef1d776dc0",
+            "upstreamArchiveSha256": "e993dbad10a2f349d97c8a9f94f53ee652ce1a5d1dcb04f29038a1ce29028981",
+            "upstreamSourceUrl": "https://github.com/swoole/phpx/releases/download/v2.9.1/phpx-sdk_v2.9.1_php8.4.25_linux-x64.tar.xz",
+            "sysrootInput": {
+                "archive": "webman-aot-builder-0.3.1-macos-arm64-components.zip",
+                "sha256": "d37c3b818d0dd93aea7442f58d3ddc618b669d3f585c7b23a99580d2e59f63ab",
+                "manifestSha256": "abafd1207ea98c27b1712f5fcf2526def411409fa10baa322cf4bb3781aa4f39"
+            },
+            "componentInputs": {
+                "macos-arm64": {
+                    "archive": "webman-aot-builder-0.3.1-macos-arm64-components.zip",
+                    "sha256": "d37c3b818d0dd93aea7442f58d3ddc618b669d3f585c7b23a99580d2e59f63ab",
+                    "manifestSha256": "abafd1207ea98c27b1712f5fcf2526def411409fa10baa322cf4bb3781aa4f39",
+                    "toolchainLockSha256": "a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f",
+                    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.1/webman-aot-builder-0.3.1-macos-arm64-components.zip"
+                },
+                "windows-x86_64": {
+                    "archive": "webman-aot-builder-0.3.1-windows-x86_64-components.zip",
+                    "sha256": "cca96e4878fc0850eb9525f62ef84bd26528397fcdf4732ca866818b3c814eae",
+                    "manifestSha256": "38e2b3007d7a664528ef42268c9e77a19ab0f924a22cd4f132dcd42bce36c8f2",
+                    "toolchainLockSha256": "a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f",
+                    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.1/webman-aot-builder-0.3.1-windows-x86_64-components.zip"
+                }
+            }
+        }
     }
 }

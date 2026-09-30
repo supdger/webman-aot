@@ -72,6 +72,12 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 
 自动 `verify` 检查构建产物的结构、完整性及工具报告的静态属性；Linux 目标机启动、数据库和业务接口仍需部署后验收。
 
+## v0.3.2 兼容范围
+
+v0.3.2 适配锁定的 Carbon 3.14.1 与 `symfony/polyfill-deepclone` 1.42.0，并使用本项目重建的 PHPX 静态 SDK 支持其所需的闭包绑定和引用存储。适配只作用于隔离构建副本，版本或源码摘要不匹配时拒绝应用；`Closure::call()` 仍不支持。适用组合与限制见 [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。
+
+普通安装继续选择 setup。维护者的 `webman-aot-builder-0.3.2-derived-linux-x86_64-sdk.tar.xz` 是 Linux x86_64 musl 目标 SDK 素材，不是开发机安装包或 PHPX 官方发行资产；来源与重建步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
+
 ## 安装后的命令行使用
 
 引导入口会自动执行校验。需要以后单独构建其他项目时，可在已安装的终端中使用 `webman-aot`；命令和启动示例见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。SaiAdmin 的适用版本及要求见 [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。

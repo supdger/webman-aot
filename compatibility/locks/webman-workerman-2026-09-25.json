@@ -52,7 +52,7 @@
       "rule": "symfony.deepclone-php84-fallback.v1",
       "version": "v1.42.0",
       "reference": "70ba0627efc68e97ea392843458a2dd9d6dbd156",
-      "toolchainSha256": "a5fabd75d20e563f1382ceff1fa06df9f92e3caf4cc1c404a21f8f9d3bb58a4f",
+      "toolchainSha256": "79fce2da1dafe1184228130a8aa6c9eda16d72bdd51e05cb40630c8ae7836399",
       "files": {
         "bootstrap.php": "18ecc97e1cc4bb01c94ecb5a90625f8cdebd705cea43490c1895818c746f0369",
         "bootstrap81.php": "f285e676d2f2ae97e221e7c472f8ba90e95d15835aa8c987239247268725249a",
@@ -94,6 +94,24 @@
         "normalizer": {"sourceSha256": "f967d0c8dc18119eae82319c16a1d89c8c3d3e342298e1c4e0e0f638951f0194"}
       },
       "adaptedGraphemeSha256": "6904b982be5c476b50c81ea8f5fc8e5218bc268041461ee3ec7f3f670778c7d0"
+    },
+    "nesbot/carbon": {
+      "baseVersion": "3.13.2",
+      "supportedVersions": [
+        "3.13.2",
+        "3.14.0",
+        "3.14.1"
+      ],
+      "versions": {
+        "3.14.1": {
+          "reference": "34e9109535165bf1d7ff17a610492372ae73a896",
+          "sourcePath": "vendor/nesbot/carbon/src/Carbon/CarbonPeriod.php",
+          "sourceSha256": "f32639af4549777fd27f9f856086237fbc08d621cc885dbae9cf68da12a0b64e",
+          "replacements": {
+            "CarbonInterval::year()": "CarbonInterval::__callStatic('year', [])"
+          }
+        }
+      }
     }
   },
   "runtimeResources": {

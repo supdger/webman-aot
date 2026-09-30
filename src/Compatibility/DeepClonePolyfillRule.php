@@ -62,6 +62,63 @@ final class DeepClonePolyfillRule
             $source = str_replace("if (!\\extension_loaded('deepclone')) {\n", '', $sources[$name]);
             $shadows[$name] = substr($source, 0, -2);
         }
+        // Keep the count-or-metadata value in the mixed array slot. TypePHP
+        // cannot change the inferred type of a local from int to array.
+        $originalMeta = <<<'PHP'
+        $n = \count($metaOut);
+        foreach ($metaOut as $v) {
+            if (0 !== $v) {
+                $n = $metaOut;
+                break;
+            }
+        }
+
+        $data = [
+            'classes' => 1 === \count($classes) ? $classes[0] : ($classes ?: ''),
+            'objectMeta' => $n,
+            'prepared' => $prepared,
+        ];
+PHP;
+        $adaptedMeta = <<<'PHP'
+        $data = [
+            'classes' => 1 === \count($classes) ? $classes[0] : ($classes ?: ''),
+            'objectMeta' => \count($metaOut),
+            'prepared' => $prepared,
+        ];
+        foreach ($metaOut as $v) {
+            if (0 !== $v) {
+                $data['objectMeta'] = $metaOut;
+                break;
+            }
+        }
+PHP;
+        if (substr_count($sources['DeepClone.php'], $originalMeta) !== 1) {
+            throw new ConfigurationException('deepclone metadata source structure drifted');
+        }
+        $shadows['DeepClone.php'] = str_replace($originalMeta, $adaptedMeta, $sources['DeepClone.php']);
+        // The cached entry is either a two-string scope/name tuple or absent.
+        // Keep assignment outside the condition; TypePHP rejects a list there.
+        $originalScope = '            if ([$scopeName, $realName] = $propertyScopes[$name] ?? null) {';
+        $adaptedScope = <<<'PHP'
+            $propertyScope = $propertyScopes[$name] ?? null;
+            if ($propertyScope) {
+                $scopeName = $propertyScope[0];
+                $realName = $propertyScope[1];
+PHP;
+        if (substr_count($sources['DeepClone.php'], $originalScope) !== 1) {
+            throw new ConfigurationException('deepclone property scope source structure drifted');
+        }
+        $shadows['DeepClone.php'] = str_replace($originalScope, $adaptedScope, $shadows['DeepClone.php']);
+
+        // The typed reflector is not used after the parent traversal. Test the
+        // ReflectionClass|false result before assigning the next real parent.
+        $originalParent = '        while ($class = $class->getParentClass()) {';
+        $adaptedParent = "        while (\$parentClass = \$class->getParentClass()) {\n            \$class = \$parentClass;";
+        if (substr_count($sources['DeepClone.php'], $originalParent) !== 1) {
+            throw new ConfigurationException('deepclone parent reflection source structure drifted');
+        }
+        $shadows['DeepClone.php'] = str_replace($originalParent, $adaptedParent, $shadows['DeepClone.php']);
+
         $projectFile = $mirror . '/project.linux.yml';
         $project = $this->read($projectFile);
         if (substr_count($project, "\nignore:\n") !== 1) {
