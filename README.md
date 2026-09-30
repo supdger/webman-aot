@@ -37,6 +37,24 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 完整包的离线范围是工具安装和编译组件准备；自己的项目仍须事先备好 Composer 依赖及构建所需文件。
 这些下载包安装在开发机上；Linux 目标机接收构建生成的整个 `dist-aot/`。
 
+### macOS 首次打开被拦截时
+
+首次双击 `setup.command` 或 `install.command`，可能看到“未打开”或“Apple 无法验证”提示。先确认文件来自本项目 [正式发行页](https://github.com/supdger/webman-aot-builder/releases/latest)，并用同一版本的 `SHA256SUMS` 核对下载文件，然后按以下步骤操作：
+
+1. 在提示窗口点 **“完成”**，保留文件，不要点“移到废纸篓”。
+
+   ![首次打开 install.command 时，点“完成”保留文件](docs/images/macos-install-unverified.png)
+
+2. 打开苹果菜单 → **系统设置 → 隐私与安全性**，向下滚动到 **“安全性”**。
+3. 找到“已阻止 `install.command`（或 `setup.command`）”的提示，确认文件名后点 **“仍要打开”**。
+
+   ![在“隐私与安全性”的“安全性”中，为 install.command 点“仍要打开”](docs/images/macos-install-open-anyway.png)
+
+4. 按系统提示再次确认“打开”或“仍要打开”，并完成登录密码或 Touch ID 验证。若终端未自动出现，回到解压目录，再双击同一个 `.command`。
+5. 终端打开后，按安装器提示继续。
+
+若找不到“仍要打开”，重新双击一次文件，再回到该设置页面；该按钮通常只在尝试打开后约一小时内显示。详见 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。以上步骤适用于“无法验证”提示；若提示“将损坏你的电脑”或“文件已损坏”，请停止安装，重新下载并核对校验值。
+
 ## v0.3.1：一次启动，按提示完成
 
 直接安装时，在 [v0.3.1 Release](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.1) 选择开发机对应的 **setup**：macOS 下载 setup ZIP，Windows 下载 setup CMD。启动后只需选择轻量包或完整包、确认安装，再选择自己的 Webman / SaiAdmin 项目目录；工具会自动下载、校验、安装、检查新版本、构建项目并验证 `dist-aot/`。包类型由入口菜单选择，无需自己拼接构建或安装命令。
