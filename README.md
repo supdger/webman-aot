@@ -129,7 +129,7 @@ Successfully compiled 2063 files
 项目构建与校验成功。
 ```
 
-将这次 Mac 构建的产物复制到 Linux x86_64 服务器，在产物目录执行 `./start.sh`，报告 8 个 worker 启动成功（进程用户名已脱敏）：
+将这次 Mac 构建的产物复制到 Alibaba Cloud 3 (Soaring Falcon) x86_64 服务器，在产物目录执行 `./start.sh`，报告 8 个 worker 启动成功（进程用户名已脱敏）。用户提供的服务器环境标注为 `x86_64 (Py3.7.16)`；`Py3.7.16` 是服务器环境信息，程序的 PHP 版本见下方启动日志：
 
 ```text
 Workerman[main.php] start in DEBUG mode
