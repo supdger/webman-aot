@@ -2,7 +2,7 @@
 
 通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.4.0 自动识别开发机，使用对应的 0.4.0 完整运行时。
 
-系统 PHP 须为 8.1+，Composer 须为 2.5.3+；作者实际验证为 PHP 8.4/Composer 2.9.5/macOS，PHP 8.1 与 Windows 真机验收仍未完成。运行 `composer global require supdger/webman-aot-builder`，首次接受 Composer 本身的插件信任询问后，包安装和自动加载完成即打开已有引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
+系统 PHP 须为 8.1+，Composer 须为 2.5.3+；作者实际验证为 PHP 8.4/Composer 2.9.5/macOS，PHP 8.1 与 Windows 真机验收仍未完成。 配套原生运行时的 Windows CI 已通过安装及续编，记录见[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。运行 `composer global require supdger/webman-aot-builder`，首次接受 Composer 本身的插件信任询问后，包安装和自动加载完成即打开已有引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
 
 已安装时直接运行：
 

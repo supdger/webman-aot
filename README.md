@@ -7,7 +7,7 @@
 Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
 在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
 
-当前处于开发阶段，公开包可用于开发验证，完整安装、项目构建及 Linux 业务流程尚未验收通过。
+当前处于开发阶段，公开包可用于开发验证；安装、构建和续编的现有验证见下方记录，Linux 业务流程尚未完整验收。
 已有检查及其适用范围见 [测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。
 
 ## 实现方式
@@ -92,7 +92,7 @@ Windows 在 PowerShell 运行：
 
 0.4.0 默认复用输入一致且大小、SHA-256 校验通过的已完成编译单元；未完成或损坏的单元从头编译。项目失败后先修正错误，再在引导中选 `1 继续编译`；`2` 重选目录、`3` 全量重建此目录、`0` 结束。以后在项目根目录运行 `webman-aot build` 也会自动恢复，每次仍重新链接并校验最终产物。
 
-`webman-aot build --fresh` 会重新编译全部单元，不清理旧缓存或失败构建目录。对象缓存位于项目内 `.webman-aot-builder/cache/objects/`；失败构建目录会保留并占用磁盘，成功后清理本轮临时镜像。规则及验证边界见[源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)与[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。Windows 与 PHP 8.1 的真实续编尚未验证。
+`webman-aot build --fresh` 会重新编译全部单元，不清理旧缓存或失败构建目录。对象缓存位于项目内 `.webman-aot-builder/cache/objects/`；失败构建目录会保留并占用磁盘，成功后清理本轮临时镜像。规则及验证边界见[源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)与[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。Windows 原生 CI 已验证安装、续编及强制中断恢复；用户 Windows 实机续编与 PHP 8.1 原生流程仍未验收。
 
 ## v0.3.2 兼容范围
 
@@ -132,7 +132,7 @@ dist-aot/
 
 ## 完整包续编验证
 
-2026-10-01，Agent 在 macOS Apple Silicon 隔离安装实际完整包，构建中立 Webman 109 单元项目。首轮复用 0/109；不改输入重试复用 109/109 并重新链接；损坏对象与完成记录后复用 107/109、重编两单元；源码变化后复用 108/109；`--fresh` 复用 0/109。各轮产物校验通过，首轮与同输入重试 ELF 摘要一致。此处是实际安装包的 Agent 测试，不能代替真人试用或 Linux 业务验收；固定包身份、耗时及其他平台边界见[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。
+2026-10-01，Agent 在 macOS Apple Silicon 隔离安装实际完整包，构建中立 Webman 109 单元项目。首轮复用 0/109；不改输入重试复用 109/109 并重新链接；损坏对象与完成记录后复用 107/109、重编两单元；源码变化后复用 108/109；`--fresh` 复用 0/109。各轮产物校验通过，首轮与同输入重试 ELF 摘要一致。 [Windows 原生 CI](https://github.com/supdger/webman-aot-builder/actions/runs/36894653041) 也通过五轮回归；强制终止构建父进程及其编译子树后，重试复用 14/109、编译剩余 95 单元，重新链接及校验通过，同项目并发构建安全拒绝。此处是实际安装包的 Agent 测试，不能代替真人试用或 Linux 业务验收；固定包身份、耗时及其他平台边界见[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。
 
 ## 实机构建与启动验证
 
