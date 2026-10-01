@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace SaiAdmin\WebmanAotInstaller;
+namespace Supdger\WebmanAotInstaller;
 
 final class Archive
 {

@@ -1,5 +1,5 @@
 {
-  "name": "saiadmin/webman-aot-builder",
+  "name": "supdger/webman-aot-builder",
   "description": "Composer entry point for Webman AOT Builder; platform runtime is prepared separately",
   "type": "library",
   "license": "MIT",
@@ -11,7 +11,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "SaiAdmin\\WebmanAotInstaller\\": "packages/composer-installer/src/"
+      "Supdger\\WebmanAotInstaller\\": "packages/composer-installer/src/"
     }
   },
   "scripts": {
@@ -50,6 +50,6 @@
   },
   "dist": {
     "type": "zip",
-    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.4/webman-aot-builder-0.3.4-composer.zip"
+    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.5/webman-aot-builder-0.3.5-composer.zip"
   }
 }

@@ -13,12 +13,12 @@ try {
     if (!class_exists(ZipArchive::class)) {
         throw new RuntimeException('Packaging requires system PHP ext-zip and Composer; the installed bridge does not require ext-zip.');
     }
-    $version = SaiAdmin\WebmanAotInstaller\Installer::VERSION;
+    $version = Supdger\WebmanAotInstaller\Installer::VERSION;
     $name = 'webman-aot-builder-' . $version . '-composer';
     $metadata = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
-    if (($metadata['name'] ?? null) !== 'saiadmin/webman-aot-builder'
+    if (($metadata['name'] ?? null) !== 'supdger/webman-aot-builder'
         || ($metadata['bin'] ?? null) !== ['packages/composer-installer/bin/webman-aot']
-        || ($metadata['autoload']['psr-4']['SaiAdmin\\WebmanAotInstaller\\'] ?? null) !== 'packages/composer-installer/src/'
+        || ($metadata['autoload']['psr-4']['Supdger\\WebmanAotInstaller\\'] ?? null) !== 'packages/composer-installer/src/'
         || isset($metadata['version'])
         || ($metadata['dist']['type'] ?? null) !== 'zip'
         || ($metadata['dist']['url'] ?? null) !== 'https://github.com/supdger/webman-aot-builder/releases/download/v' . $version . '/' . $name . '.zip') {

@@ -6,4 +6,4 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/src/Process.php';
 require dirname(__DIR__) . '/src/Archive.php';
 require dirname(__DIR__) . '/src/Installer.php';
-exit((new SaiAdmin\WebmanAotInstaller\Installer())->run($argv));
+exit((new Supdger\WebmanAotInstaller\Installer())->run($argv));

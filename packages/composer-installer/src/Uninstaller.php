@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace SaiAdmin\WebmanAotInstaller;
+namespace Supdger\WebmanAotInstaller;
 
 /** Shared by the lightweight Composer entry and the native uninstallers; PHP 8.1+. */
 final class Uninstaller
 {
-    private const PACKAGE = 'saiadmin/webman-aot-builder';
+    private const PACKAGES = ['supdger/webman-aot-builder', 'saiadmin/webman-aot-builder'];
     private array $items = [];
     private array $roots = [];
     private array $bins = [];
@@ -150,9 +150,9 @@ final class Uninstaller
         foreach ($this->uniquePaths($states) as $state) {
             if (!file_exists($state) && !is_link($state)) { continue; }
             $owner = $this->json($state . '/owner.json');
-            $owned = ($owner['schema'] ?? null) === 1 && ($owner['package'] ?? '') === self::PACKAGE && $this->safe($state);
+            $owned = ($owner['schema'] ?? null) === 1 && in_array($owner['package'] ?? '', self::PACKAGES, true) && $this->safe($state);
             $version = $this->json($state . '/ready.json')['version'] ?? '未知';
-            $this->add(['path' => $state, 'type' => 'Composer 私有运行时/缓存', 'version' => (string) $version,
+            $this->add(['path' => $state, 'package' => (string) ($owner['package'] ?? ''), 'type' => 'Composer 私有运行时/缓存（' . ($owner['package'] ?? '未知') . '）', 'version' => (string) $version,
                 'owned' => $owned, 'reason' => $owned ? '仅卸载本入口所有权白名单，保留其他文件。' : '归属或路径无法确认，保留。', 'kind' => 'state']);
         }
         foreach ($this->bins as $bin) {
@@ -169,15 +169,17 @@ final class Uninstaller
         if (!$this->windows && $home !== '') { $globals[] = $home . '/.composer'; $globals[] = $home . '/.config/composer'; }
         foreach ($this->uniquePaths($globals) as $global) {
             $manifest = $this->json($global . '/composer.json');
-            if (!isset($manifest['require'][self::PACKAGE])) { continue; }
-            $version = '未知';
-            foreach ($this->json($global . '/composer.lock')['packages'] ?? [] as $package) {
-                if (($package['name'] ?? '') === self::PACKAGE) { $version = (string) ($package['version'] ?? '未知'); }
+            foreach (self::PACKAGES as $packageName) {
+                if (!isset($manifest['require'][$packageName])) { continue; }
+                $version = '未知';
+                foreach ($this->json($global . '/composer.lock')['packages'] ?? [] as $package) {
+                    if (($package['name'] ?? '') === $packageName) { $version = (string) ($package['version'] ?? '未知'); }
+                }
+                $owned = $this->safe($global) && $this->composerCommand() !== null;
+                $this->add(['path' => $global, 'package' => $packageName, 'type' => 'Composer 全局包（' . $packageName . '）', 'version' => $version, 'owned' => $owned,
+                    'reason' => $owned ? 'Composer 仅移除 ' . $packageName . '；其他全局工具保留，scripts/plugins 禁用。'
+                        : '无法安全调用 Composer；保留。可在核对 global home 后运行 composer global remove ' . $packageName . '。', 'kind' => 'composer']);
             }
-            $owned = $this->safe($global) && $this->composerCommand() !== null;
-            $this->add(['path' => $global, 'type' => 'Composer 全局包', 'version' => $version, 'owned' => $owned,
-                'reason' => $owned ? 'Composer 仅移除 ' . self::PACKAGE . '；其他全局工具保留，scripts/plugins 禁用。'
-                    : '无法安全调用 Composer；保留。可在核对 global home 后运行 composer global remove ' . self::PACKAGE . '。', 'kind' => 'composer']);
         }
     }
 
@@ -224,7 +226,7 @@ final class Uninstaller
         $root = getenv($family === 'legacy' ? 'WEBMAN_AOT_HOME' : 'WEBMAN_AOT_BUILDER_HOME') ?: $base . '/' . ($family === 'legacy' ? 'webman-aot' : 'webman-aot-builder');
         $version = $family !== null ? ($this->nativeVersion($root . '/current') ?? '未知') : '未知';
         // Composer proxies deliberately remain managed by Composer, including .bat/extensionless pairs.
-        $composer = str_contains($text, 'saiadmin/webman-aot-builder/') || str_contains($text, 'composer-installer/bin/webman-aot');
+        $composer = str_contains($text, 'supdger/webman-aot-builder/') || str_contains($text, 'saiadmin/webman-aot-builder/') || str_contains($text, 'composer-installer/bin/webman-aot');
         $this->add(['path' => $path, 'type' => $type, 'version' => $version, 'owned' => $owned,
             'reason' => $owned ? '仅移除此已确认归属的命令文件；不卸载工具链，不恢复备份。'
                 : ($composer ? 'Composer 代理；由全局包卸载处理，单独保留。' : '无足够所有权证据，保留；请核对来源后处理此精确路径。'), 'kind' => 'launcher']);
@@ -247,28 +249,32 @@ final class Uninstaller
         $path = $item['path'];
         if (!$this->safe($path)) { throw new \RuntimeException('路径已改变或位于保护范围'); }
         if ($item['kind'] === 'composer') {
-            if (!isset($this->json($path . '/composer.json')['require'][self::PACKAGE])) { throw new \RuntimeException('全局包记录已改变'); }
+            $packageName = $item['package'] ?? '';
+            if (!in_array($packageName, self::PACKAGES, true)) { throw new \RuntimeException('未知全局包身份'); }
+            if (!isset($this->json($path . '/composer.json')['require'][$packageName])) { throw new \RuntimeException('全局包记录已改变'); }
             $command = $this->composerCommand();
             if ($command === null) { throw new \RuntimeException('找不到可安全调用的 Composer'); }
             $environment = getenv();
             $environment['COMPOSER_HOME'] = $path;
-            $command = array_merge($command, ['--no-plugins', '--no-scripts', 'global', 'remove', '--no-interaction', self::PACKAGE]);
+            $command = array_merge($command, ['--no-plugins', '--no-scripts', 'global', 'remove', '--no-interaction', $packageName]);
             fwrite(STDOUT, "[卸载] Composer 全局包；保留其他包…\n");
             $process = proc_open($command, [STDIN, STDOUT, STDERR], $pipes, $path, $environment, ['bypass_shell' => true]);
             if (!is_resource($process)) { throw new \RuntimeException('Composer 未能启动'); }
             $code = proc_close($process);
             if ($code !== 0) { throw new \RuntimeException('Composer remove 退出码 ' . $code); }
-            if (isset($this->json($path . '/composer.json')['require'][self::PACKAGE])) { throw new \RuntimeException('Composer 结束后包记录仍在'); }
+            if (isset($this->json($path . '/composer.json')['require'][$packageName])) { throw new \RuntimeException('Composer 结束后包记录仍在'); }
             return;
         }
         if ($item['kind'] === 'state') {
             $owner = $this->json($path . '/owner.json');
-            if (($owner['schema'] ?? null) !== 1 || ($owner['package'] ?? '') !== self::PACKAGE) { throw new \RuntimeException('Composer 状态所有权已改变'); }
+            if (($owner['schema'] ?? null) !== 1 || ($owner['package'] ?? '') !== ($item['package'] ?? '') || !in_array($owner['package'] ?? '', self::PACKAGES, true)) { throw new \RuntimeException('Composer 状态所有权已改变'); }
             $lockFile = $path . '/setup.lock';
             if (is_link($lockFile)) { throw new \RuntimeException('状态锁是链接'); }
             $lock = fopen($lockFile, 'c+');
             if (!is_resource($lock) || !flock($lock, LOCK_EX | LOCK_NB)) { throw new \RuntimeException('资源正在安装，稍后重试'); }
             try {
+                $owner = $this->json($path . '/owner.json');
+                if (($owner['schema'] ?? null) !== 1 || ($owner['package'] ?? '') !== ($item['package'] ?? '') || !in_array($owner['package'] ?? '', self::PACKAGES, true)) { throw new \RuntimeException('取得安装锁后状态所有权已改变'); }
                 foreach (['runtime', 'bin', 'cache', 'ready.json'] as $name) {
                     $target = $path . '/' . $name;
                     if (file_exists($target) || is_link($target)) { $this->assertTree($target); }
@@ -333,7 +339,9 @@ final class Uninstaller
     private function add(array $item): void
     {
         $key = $this->key($item['path']);
-        foreach ($this->items as $existing) { if ($this->key($existing['path']) === $key) { return; } }
+        foreach ($this->items as $existing) {
+            if ($this->key($existing['path']) === $key && ($existing['package'] ?? '') === ($item['package'] ?? '')) { return; }
+        }
         $this->items[] = $item;
     }
 
