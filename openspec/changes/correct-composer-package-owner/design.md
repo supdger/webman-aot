@@ -9,3 +9,8 @@
 ## Release Gate
 
 19项入口检查及新增卸载迁移检查，严格metadata/11文件source-identical小ZIP、真实localZIP迁移/self-remove、独立审查；fixed PASS后PR合并/tag/nonlatestRelease/新包注册、真实官方消费、Wiki公开reread与旧资产不变。Windows物理导出auto_review曾拒，不再重试；PHP8.1/Windows实机明确未跑，不发新fullnative。
+
+
+## Publication Outcome
+
+正确新包0.3.5已注册、非latest轻量Release已公开，默认官方实际安装/自卸载通过；完整证据在本change任务记录。旧registry弃用replacement没有执行：旧管理页redirect package_not_found，而只读API/p2呈不同层状态；未尝试删除或重建，外部原因未知。历史GitHub发行/tag/下载不可变。最终准出可进入灰度仅Supdger Composer切片，Windows/PHP8.1及fullruntime重装未宣称通过。

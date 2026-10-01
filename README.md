@@ -1,5 +1,9 @@
 # Webman AOT Builder
 
+[![macOS ARM64 构建](https://img.shields.io/badge/macOS%20ARM64%20%E6%9E%84%E5%BB%BA-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![Windows x64 构建](https://img.shields.io/badge/Windows%20x64%20%E6%9E%84%E5%BB%BA-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![Linux x86_64 启动](https://img.shields.io/badge/Linux%20x86__64%20%E5%90%AF%E5%8A%A8-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/supdger/webman-aot-builder/blob/main/LICENSE)
+
+徽章链接到 v0.3.2 在 2026-09-30 的实机构建与启动记录。
+
 Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
 在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
 
@@ -20,8 +24,6 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
 Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.5**，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
-
-已装旧 `saiadmin/webman-aot-builder` 时，先运行 `composer global remove saiadmin/webman-aot-builder`，再安装下面的新包；新入口可逐项清理旧运行时状态，不会自动接管。完整迁移步骤见[升级与卸载](https://github.com/supdger/webman-aot-builder/wiki/Upgrade-Uninstall)。
 
 ```sh
 composer global require supdger/webman-aot-builder:^0.3.5
