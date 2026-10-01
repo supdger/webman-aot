@@ -23,27 +23,15 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。入口版本 **0.3.6** 使用固定的 0.3.2 完整运行时；可安装版本以 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)为准。开发机须已安装系统 PHP 8.1+ 与 Composer，复制整段命令，安装成功后直接进入引导；程序自动识别系统、取得对应组件并接到项目菜单。
-
-macOS Apple Silicon：
+Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。入口版本 **0.3.7** 使用固定的 0.3.2 完整运行时；可安装版本以 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)为准。开发机须已安装系统 PHP 8.1+ 与 Composer 2.5.3+，在 macOS 终端或 Windows PowerShell 运行：
 
 ```sh
-composer global require supdger/webman-aot-builder:^0.3.6 &&
-composer global exec -- webman-aot guide
+composer global require supdger/webman-aot-builder
 ```
 
-Windows x64 PowerShell：
+首次 Composer 会询问是否信任本包插件，输入 `y`；包安装与自动加载完成后直接进入引导，自动识别系统。选择开始或导入已有完整包，再输入或拖入已备好依赖的 Webman 项目**完整路径**；构建后自动校验并显示 `dist-aot/` 位置，失败可在同一菜单重试或重选。包安装与项目构建分别显示结果，Composer 后续安全审计照常执行。重复这条安装命令也会打开菜单；下次也可直接运行 `composer global exec -- webman-aot guide`。准备组件不会覆盖旧安装或修改 PATH。非交互或拒绝插件信任时只安装入口，手动启动方式见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。PHP 8.1 与 Windows 真机验收仍未完成。
 
-```powershell
-composer global require supdger/webman-aot-builder:^0.3.6
-if ($LASTEXITCODE -eq 0) {
-    composer global exec -- webman-aot guide
-}
-```
-
-按菜单选择开始或导入已有完整包，再输入已备好 Composer 依赖的 Webman 项目目录；构建后自动校验并显示 `dist-aot/` 位置，失败可在同一菜单重试或重选。下次直接运行 `composer global exec -- webman-aot guide`；终端已配置 Composer 命令目录时，也可直接运行 `webman-aot`。准备组件不会覆盖旧安装或修改 PATH。详细步骤见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。PHP 8.1 与 Windows 真机验收仍未完成。
-
-0.3.6 是 Composer 入口版本，完整运行时仍为 0.3.2。补充 Release 只提供轻量 Composer 入口，不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
+0.3.7 是 Composer 入口版本，完整运行时仍为 0.3.2。补充 Release 只提供轻量 Composer 入口，不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
 
 使用独立安装包时，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
 

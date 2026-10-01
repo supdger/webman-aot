@@ -2,6 +2,12 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.7](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.7)
+
+- 普通 `composer global require supdger/webman-aot-builder` 首次接受 Composer 插件信任后，包安装与自动加载完成即进入组件和项目引导；升级、无变更重复安装均适用，不再需要组合启动命令。
+- 只有交互终端中单独全局 require 本包自动启动；其他命令、局部项目、非交互、CI 和禁用插件/脚本不自动引导。Composer 2.5.3+ 的可选插件保持无人安装和普通 bin 使用，信任配置由 Composer 管理。
+- 项目流程结果与包安装分别显示，后续安全审计照常执行。完整运行时仍为 0.3.2；本版只提供非 latest 轻量 Composer 包。
+
 ## [v0.3.6](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.6)
 
 - Composer 入口无参数即可进入引导，选择自动准备或导入完整包，随后选项目、构建并自动校验；失败可重试或重选。
