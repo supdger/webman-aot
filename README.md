@@ -19,6 +19,17 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
+Composer 安装入口的源码也在本仓库，包名为 `saiadmin/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.3**，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/saiadmin/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
+
+```sh
+composer global require saiadmin/webman-aot-builder:^0.3.3
+composer global config bin-dir --absolute
+```
+
+将输出的命令目录放到旧版 `webman-aot` 所在目录之前，或使用此目录下代理的完整路径。`webman-aot --version` 应显示入口 0.3.3、目标构建器 0.3.2。第一次 `webman-aot build` 会准备经校验的既有 0.3.2 完整运行时；进入含 `composer.json`、`composer.lock` 和 `start.php` 的项目目录后执行。网络失败可导入对应完整安装包。Composer 只安装轻量入口 ZIP，源码回退时会取得整个仓库；原有安装不会被覆盖。入口的 PHP 8.1 与 Windows 真机验收仍未完成。受影响用法见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。
+
+0.3.3 是仓库标签与 Composer 入口版本，已验收完整运行时仍为 0.3.2。本次补充 Release 只提供 Composer 入口，发布时不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
+
 第一次安装，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
 
 | 开发机 | 首次安装推荐下载 | 启动方式 |
