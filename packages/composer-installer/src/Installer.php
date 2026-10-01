@@ -5,7 +5,7 @@ namespace Supdger\WebmanAotInstaller;
 
 final class Installer
 {
-    public const VERSION = '0.3.6';
+    public const VERSION = '0.3.7';
     private array $release;
     private bool $interactive;
     private bool $consoleRecoveryAllowed;

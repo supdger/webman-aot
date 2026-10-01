@@ -17,6 +17,11 @@ try {
     $name = 'webman-aot-builder-' . $version . '-composer';
     $metadata = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
     if (($metadata['name'] ?? null) !== 'supdger/webman-aot-builder'
+        || ($metadata['type'] ?? null) !== 'composer-plugin'
+        || ($metadata['require']['composer-plugin-api'] ?? null) !== '^2.0'
+        || ($metadata['require']['composer'] ?? null) !== '>=2.5.3'
+        || ($metadata['extra']['class'] ?? null) !== 'Supdger\\WebmanAotInstaller\\Plugin'
+        || ($metadata['extra']['plugin-optional'] ?? null) !== true
         || ($metadata['bin'] ?? null) !== ['packages/composer-installer/bin/webman-aot']
         || ($metadata['autoload']['psr-4']['Supdger\\WebmanAotInstaller\\'] ?? null) !== 'packages/composer-installer/src/'
         || isset($metadata['version'])
@@ -43,7 +48,7 @@ try {
     $expected = ['LICENSE', 'README.md', 'composer.json', 'packages/composer-installer/bin/webman-aot',
         'packages/composer-installer/resources/extract-windows.ps1', 'packages/composer-installer/resources/releases.json',
         'packages/composer-installer/resources/uninstall-launchers.json', 'packages/composer-installer/src/Uninstaller.php',
-        'packages/composer-installer/src/Archive.php', 'packages/composer-installer/src/Console.php', 'packages/composer-installer/src/Installer.php', 'packages/composer-installer/src/Process.php'];
+        'packages/composer-installer/src/Archive.php', 'packages/composer-installer/src/Console.php', 'packages/composer-installer/src/Installer.php', 'packages/composer-installer/src/Plugin.php', 'packages/composer-installer/src/Process.php'];
     $zip = new ZipArchive();
     if ($zip->open($archive) !== true) {
         throw new RuntimeException('Cannot inspect generated ZIP.');

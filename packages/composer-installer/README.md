@@ -1,8 +1,8 @@
 # Webman AOT Builder Composer 入口
 
-通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.3.6 自动识别开发机，使用固定 0.3.2 完整运行时。
+通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.3.7 自动识别开发机，使用固定 0.3.2 完整运行时。
 
-系统 PHP 须为 8.1+，需 Composer；作者实际验证为 PHP 8.4/macOS，PHP 8.1 与 Windows 真机验收仍未完成。一次复制的安装与启动命令见[仓库 README](https://github.com/supdger/webman-aot-builder#源码与安装包)，安装成功后直接进入引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
+系统 PHP 须为 8.1+，Composer 须为 2.5.3+；作者实际验证为 PHP 8.4/Composer 2.9.5/macOS，PHP 8.1 与 Windows 真机验收仍未完成。运行 `composer global require supdger/webman-aot-builder`，首次接受 Composer 本身的插件信任询问后，包安装和自动加载完成即打开已有引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
 
 已安装时直接运行：
 
@@ -10,7 +10,9 @@
 composer global exec -- webman-aot guide
 ```
 
-选择开始会自动复用资源或准备当前开发机的完整包；也可导入已下载包、结束。准备成功后进入原有项目菜单，构建成功自动校验并显示产物位置；失败可重试或重选。无需查 bin、修改 PATH 或先查版本。已配置 Composer 命令目录的终端也可直接运行 `webman-aot`。非终端无参仅提示入口，不准备资源。显式 `guide` 只在确认为已连接控制台时恢复交互；`--non-interactive`、`COMPOSER_NO_INTERACTION=1` 或 `CI=1` 阻止恢复和隐式准备。
+选择开始会自动复用资源或准备当前开发机的完整包；也可导入已下载包、结束。准备成功后进入原有项目菜单，输入或拖入项目完整路径，构建成功自动校验并显示产物位置；失败可重试或重选。无需查 bin、修改 PATH 或先查版本。包安装与项目流程结果分别显示，Composer 后续安全审计照常执行。只有终端中单独全局 require 本包会自动引导；其他包、局部项目、其他 Composer 命令、`--no-plugins`、`--no-scripts`、`--dry-run`、`--no-update`、`--no-install`、非交互与 CI 不自动打开菜单。拒绝信任后仍可使用上方显式命令；插件不会自行更改信任配置。
+
+已配置 Composer 命令目录的终端也可直接运行 `webman-aot`。非终端无参仅提示入口，不准备资源。显式 `guide` 只在确认为已连接控制台时恢复交互；`--non-interactive`、`COMPOSER_NO_INTERACTION=1` 或 `CI=1` 阻止恢复和隐式准备。
 
 需要原构建参数的自动化调用仍可直接进入项目目录运行：
 
@@ -38,7 +40,7 @@ webman-aot setup --archive="/完整包所在目录/对应完整安装包" --non-
 
 构建器详细安装、兼容性与 Linux 部署要求见[现有 Wiki](https://github.com/supdger/webman-aot-builder/wiki)。现有安装包与发行版的行为保持不变。Packagist 登记状态以[包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准；没有自动镜像切换，网络不可用时使用已校验的本地完整包。
 
-0.3.6 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
+0.3.7 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
 
 当前入口提供统一卸载入口；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
 
@@ -50,7 +52,7 @@ webman-aot uninstall
 清理旧安装后改用 Composer：
 
 ```powershell
-composer global require supdger/webman-aot-builder:^0.3.6
+composer global require supdger/webman-aot-builder:^0.3.7 --no-scripts
 if ($LASTEXITCODE -ne 0) { throw 'Composer 安装失败，未开始卸载。' }
 $aotBin = (composer global config bin-dir --absolute).Trim()
 & (Join-Path $aotBin 'webman-aot.bat') uninstall --list
@@ -59,7 +61,7 @@ $aotBin = (composer global config bin-dir --absolute).Trim()
 & (Join-Path $aotBin 'webman-aot.bat') --version
 ```
 
-按列表对旧原生版本、旧公开命令和历史备份选择 `y`；对“Composer 全局包（supdger/webman-aot-builder）”选择 `n` 保留新入口。需要清空已有 Composer 私有运行时以重新准备时，单独确认该状态项；安装锁与用户文件保留。若也选了卸载 Composer 全局包，需再次运行首行安装命令，然后重新取得命令目录。清理后运行 `composer global exec -- webman-aot guide`，按同一菜单准备资源并选择项目。上述参数不修改用户 PATH，旧空 PATH 目录可另行核对整理。
+此清理流程用 `--no-scripts` 先跳过自动项目菜单。按列表对旧原生版本、旧公开命令和历史备份选择 `y`；对“Composer 全局包（supdger/webman-aot-builder）”选择 `n` 保留新入口。需要清空已有 Composer 私有运行时以重新准备时，单独确认该状态项；安装锁与用户文件保留。若也选了卸载 Composer 全局包，需再次运行首行安装命令，然后重新取得命令目录。清理后运行 `composer global exec -- webman-aot guide`，按同一菜单准备资源并选择项目。上述参数不修改用户 PATH，旧空 PATH 目录可另行核对整理。
 
 先只读查看类型、静态版本和绝对路径，再逐项输入 `y` 卸载、回车保留或 `q` 结束；非交互环境始终保留。入口不会先下载或安装运行时。自定义状态目录使用 `webman-aot uninstall --state-dir="目录"`；自定义原生目录可用 `--home="目录"`、命令目录用 `--bin-dir="目录"`。仅清理可确认归属的选中对象，未知旧入口保留并显示精确路径；Composer 全局包由 Composer 移除这一包，其他全局工具保留。Composer 状态根的 `setup.lock` 与额外用户文件保留，避免并发安装换锁；项目产物、共享工具链与 PATH 保留，旧备份命令不会恢复；失败返回非零并列出残留。
 
@@ -70,6 +72,8 @@ composer validate --strict
 php packages/composer-installer/tests/run.php
 php packages/composer-installer/tests/guide.php
 php packages/composer-installer/tests/uninstall.php
+# 实际 macOS Composer PTY：先制作候选 ZIP，再传入其绝对路径；旧版 ZIP 可选。
+python3 packages/composer-installer/tests/plugin.py /候选包绝对路径.zip /旧0.3.6入口包.zip
 ```
 
 本地验收不需要发布。先建立一个临时 Composer 工作目录，在该目录创建 `composer.json`，其中 `url` 改成此包的绝对目录：
