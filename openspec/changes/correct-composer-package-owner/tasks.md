@@ -38,3 +38,5 @@ base公开main d532728，独立worktree；19run/首轮36uninstall检查通过。
 - 结论：**可进入灰度，仅本次Supdger Composer发行切片**。旧registry弃用setting不可管理未执行、Windows/PHP8.1缺口明示，不影响正确新包的实际公开消费结果。
 
 用户后续文案收窄：引用“已装旧saiadmin时先remove”要求删除，并明确“不管saiadmin的”。当前README、ComposerREADME和Wiki两页去掉旧包迁移/remove指引，仅保留正确supdger安装、原生旧版本清理与业务SaiAdmin兼容说明。source legacy安全识别/tests、历史CHANGELOG/发行tag/ZIP不改；不再管理/重建/abandon旧registry。当前网页文本同步经文档提交完成，不为README一句重发0.3.5或升版。不同旧环境是否存在同名proxy须以实际入口版本核对，未宣称require后任意旧代理必然变成新代理。
+
+用户另授权README少量真实验证徽章：3个静态Shields标签分别标注macOS ARM64构建、Windows x64构建、Linux x86_64启动的2026-09-30实机记录，链接现有v0.3.2证据段；第四个MIT链接原repo绝对LICENSE。四SVG经Curl实际HTTP200且label/status/date匹配，现有证据anchor独立核对存在；不使用上游CI/PHP矩阵/GPL徽章。caption正面指出对应历史记录，原证据段的业务/兼容限制保持。不改原已发tag/ZIP。
