@@ -2,6 +2,12 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.5](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.5)
+
+- 将 Composer 包归属更正为 `supdger/webman-aot-builder`，入口命名空间与状态所有权同步为 Supdger。SaiAdmin 是业务兼容生态，不代表该工具的包归属。
+- 新入口可逐项清理已识别的旧 `saiadmin/webman-aot-builder` 状态和全局包；只卸载选中的精确包，不自动接管旧运行时。两包同用命令名，迁移先移除旧全局包再安装新包。
+- 只提供 Composer 轻量 ZIP 和校验清单，运行时与 native latest 仍为 0.3.2，旧标签和资产保留。Windows 实机、PHP 8.1 验证仍未完成。
+
 ## [v0.3.4](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.4)
 
 - Composer 入口新增 `uninstall` 与只读 `uninstall --list`，有限发现原生当前/历史版本、备份命令、PATH 入口、Composer 私有状态和全局包，显示类型、静态版本与路径，逐项默认保留确认；不运行旧命令探版本。

@@ -15,7 +15,8 @@
   "entries": {
     "6abf9c2ca7f59ce1577f35eea27570256f37775adc4274b8a1f1d2e9a26a1c31": "legacy",
     "d8c833ce0fd3593137e783c322d866bb7d9e37dcc18880edc5d7b3a7fb8dff9c": "builder",
-    "7b9af7040fc420c5fafad4c0523f04906adbbc5b898eb08383941bba6cc950d2": "builder"
+    "7b9af7040fc420c5fafad4c0523f04906adbbc5b898eb08383941bba6cc950d2": "builder",
+    "ec7a6f1eeffc31351888c3748c0fe6b4b44429468a4d10bb8ca8183002fe79e2": "builder"
   },
   "runtimes": {
     "macos-arm64": "5aebf5e4f036b4182b4959c06c9f88ed8b67e4118b30d3cad8ef556d9324c102",

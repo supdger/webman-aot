@@ -5,9 +5,9 @@ require dirname(__DIR__) . '/src/Process.php';
 require dirname(__DIR__) . '/src/Archive.php';
 require dirname(__DIR__) . '/src/Installer.php';
 
-use SaiAdmin\WebmanAotInstaller\Archive;
-use SaiAdmin\WebmanAotInstaller\Installer;
-use SaiAdmin\WebmanAotInstaller\Process;
+use Supdger\WebmanAotInstaller\Archive;
+use Supdger\WebmanAotInstaller\Installer;
+use Supdger\WebmanAotInstaller\Process;
 
 $temporaryRoot = getenv('WEBMAN_AOT_TEST_TMP') ?: (PHP_OS_FAMILY === 'Darwin' ? '/private/tmp' : sys_get_temp_dir());
 $directory = $temporaryRoot . '/composer-aot-tests-' . bin2hex(random_bytes(6));
@@ -60,7 +60,7 @@ $help = Process::output([PHP_BINARY, $bin, '--help', '--state-dir=' . $directory
 check(str_contains($help, '尚未') === false && str_contains($help, '目标构建器：0.3.2'), 'help报告入口和目标版本');
 check(!file_exists($directory . '/untouched'), 'help不创建运行时状态');
 $version = Process::output([PHP_BINARY, $bin, '--version']);
-check(str_contains($version, 'Composer 入口 0.3.4') && str_contains($version, '目标 Webman AOT Builder 0.3.2'), 'version不冒充已安装版本');
+check(str_contains($version, 'Composer 入口 0.3.5') && str_contains($version, '目标 Webman AOT Builder 0.3.2'), 'version不冒充已安装版本');
 
 if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     $code = Process::run([PHP_BINARY, $bin, '--state-dir=' . $directory . '/fresh', '--non-interactive', 'build']);
@@ -71,6 +71,13 @@ if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     $code = Process::run([PHP_BINARY, $bin, 'setup', '--state-dir=' . $unowned, '--archive=' . $file, '--non-interactive']);
     check($code !== 0 && file_get_contents($unowned . '/runtime/current/sentinel') === 'must survive'
         && !file_exists($unowned . '/owner.json'), '未owned的已有runtime不接管，哨兵和所有权状态不变');
+    $oldState = $directory . '/old package state';
+    mkdir($oldState . '/runtime/current', 0700, true);
+    file_put_contents($oldState . '/runtime/current/sentinel', 'legacy-owned');
+    file_put_contents($oldState . '/owner.json', json_encode(['schema' => 1, 'package' => 'saiadmin/webman-aot-builder']));
+    $code = Process::run([PHP_BINARY, $bin, 'setup', '--state-dir=' . $oldState, '--archive=' . $file, '--non-interactive']);
+    check($code === 70 && file_get_contents($oldState . '/runtime/current/sentinel') === 'legacy-owned'
+        && json_decode(file_get_contents($oldState . '/owner.json'), true)['package'] === 'saiadmin/webman-aot-builder', '新setup不接管旧包owner，不修改旧payload并提示逐项卸载迁移');
     $state = $directory . '/fake state';
     mkdir($state . '/runtime/current/runtime/bin', 0700, true);
     mkdir($state . '/runtime/current/app/bin', 0700, true);
@@ -80,7 +87,7 @@ if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     chmod($state . '/runtime/current/runtime/bin/php', 0700);
     file_put_contents($state . '/runtime/current/app/bin/webman-aot-builder.php',
         '<?php file_put_contents(' . var_export($record, true) . ', json_encode([getcwd(), array_slice($argv,1), getenv("WEBMAN_AOT_BUILDER_HOME")])); exit(23);');
-    file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'saiadmin/webman-aot-builder']));
+    file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'supdger/webman-aot-builder']));
     file_put_contents($state . '/ready.json', json_encode(['version' => '0.3.2', 'host' => 'macos-arm64']));
     $code = Process::run([PHP_BINARY, $bin, '--state-dir=' . $state, '--non-interactive', 'build', '--profile=saiadmin', '--', '--yes', '--archive=not-a-bridge-option', '--non-interactive'], $directory);
     $actual = json_decode((string) file_get_contents($record), true);

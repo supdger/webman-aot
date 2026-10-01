@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace SaiAdmin\WebmanAotInstaller;
+namespace Supdger\WebmanAotInstaller;
 
 final class Installer
 {
-    public const VERSION = '0.3.4';
+    public const VERSION = '0.3.5';
     private array $release;
     private bool $interactive;
 
@@ -127,9 +127,9 @@ final class Installer
 
     private function help(): void
     {
-        $this->say("saiadmin/webman-aot-builder Composer 入口 " . self::VERSION . "\n目标构建器：" . $this->release['version']
+        $this->say("supdger/webman-aot-builder Composer 入口 " . self::VERSION . "\n目标构建器：" . $this->release['version']
             . "\n\n用法：\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot uninstall [--list]\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
-            . "\n\n首次运行需准备完整包；交互模式自动准备，非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup 的选项可放后面。\n默认只支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。准备成功后重跑原命令，不提供编译断点续跑。");
+            . "\n\n首次 build/doctor 需准备完整包；help/version/uninstall 不准备资源。交互模式自动准备，非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup 的选项可放后面。\n默认只支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。准备成功后重跑原命令，不提供编译断点续跑。");
     }
 
     private function defaultState(string $host): string
@@ -181,8 +181,11 @@ final class Installer
         if (is_file($file)) {
             $owner = json_decode((string) file_get_contents($file), true);
             if (!is_array($owner) || ($owner['schema'] ?? null) !== 1
-                || ($owner['package'] ?? '') !== 'saiadmin/webman-aot-builder') {
-                throw new \RuntimeException('状态目录不属于本 Composer 入口；不会接管或覆盖。');
+                || ($owner['package'] ?? '') !== 'supdger/webman-aot-builder') {
+                $legacy = is_array($owner) && ($owner['schema'] ?? null) === 1 && ($owner['package'] ?? '') === 'saiadmin/webman-aot-builder';
+                throw new \RuntimeException($legacy
+                    ? '状态目录属于旧 saiadmin/webman-aot-builder；不会接管。请从新 Composer 代理完整路径运行 uninstall --state-dir="' . $state . '" 逐项确认清理，再重新准备；也可选择独立空目录。'
+                    : '状态目录不属于 supdger/webman-aot-builder；不会接管或覆盖。请核对来源或选择独立空目录。');
             }
             return;
         }
@@ -229,7 +232,7 @@ final class Installer
             $this->assertOwnership($state);
             if (!is_file($state . '/owner.json')
                 && file_put_contents($state . '/owner.json', json_encode([
-                    'schema' => 1, 'package' => 'saiadmin/webman-aot-builder',
+                    'schema' => 1, 'package' => 'supdger/webman-aot-builder',
                 ], JSON_THROW_ON_ERROR) . "\n", LOCK_EX) === false) {
                 throw new \RuntimeException('无法写入隔离状态所有权。');
             }

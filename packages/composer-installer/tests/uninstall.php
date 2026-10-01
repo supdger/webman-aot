@@ -32,7 +32,7 @@ function execute(array $arguments, string $input = '', bool $interactive = true,
         'XDG_CONFIG_HOME' => $temporary . '/config', 'PATH' => $temporary . '/fake-bin:/usr/bin:/bin',
         'WEBMAN_AOT_HOME' => '', 'WEBMAN_AOT_BUILDER_HOME' => ''], $extraEnvironment);
     $engine = $repository . '/packages/composer-installer/src/Uninstaller.php';
-    $command = $interactive ? [PHP_BINARY, '-r', 'require $argv[1]; exit((new SaiAdmin\\WebmanAotInstaller\\Uninstaller(true))->run(array_slice($argv, 2)));', $engine]
+    $command = $interactive ? [PHP_BINARY, '-r', 'require $argv[1]; exit((new Supdger\\WebmanAotInstaller\\Uninstaller(true))->run(array_slice($argv, 2)));', $engine]
         : [PHP_BINARY, $repository . '/packages/composer-installer/bin/webman-aot', 'uninstall'];
     $process = proc_open(array_merge($command, $arguments), [['pipe', 'r'], ['pipe', 'w'], ['redirect', 1]], $pipes, $repository, $environment);
     if (!is_resource($process)) { throw new RuntimeException('无法启动测试'); }
@@ -109,7 +109,7 @@ try {
 
     }
     $state = $temporary . '/composer 状态'; directory($state . '/runtime/current');
-    file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'saiadmin/webman-aot-builder']));
+    file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'supdger/webman-aot-builder']));
     file_put_contents($state . '/ready.json', json_encode(['version' => '0.3.2']));
     file_put_contents($state . '/runtime/current/payload', 'owned'); file_put_contents($state . '/user-file', 'keep');
     $heldLock = fopen($state . '/setup.lock', 'c+');
@@ -124,16 +124,47 @@ try {
     $badState = $temporary . '/badstate'; directory($badState . '/runtime'); file_put_contents($badState . '/runtime/sentinel', 'keep');
     [$code, $output] = execute(['--state-dir=' . $badState], "y\n");
     verify(is_file($badState . '/runtime/sentinel') && str_contains($output, '保留'), '无ownerComposer状态保留');
+    $oldState = $temporary . '/legacy composer state'; directory($oldState . '/runtime/current');
+    file_put_contents($oldState . '/owner.json', json_encode(['schema' => 1, 'package' => 'saiadmin/webman-aot-builder']));
+    file_put_contents($oldState . '/runtime/current/sentinel', 'old');
+    [$code, $output] = execute(['--state-dir=' . $oldState, '--list']);
+    verify($code === 0 && str_contains($output, 'Composer 私有运行时/缓存（saiadmin/webman-aot-builder）') && is_file($oldState . '/runtime/current/sentinel'), '旧schema1状态明示精确归属，只读不迁移');
+    [$code, $output] = execute(['--state-dir=' . $oldState], "n\n");
+    verify($code === 0 && is_file($oldState . '/owner.json') && is_file($oldState . '/runtime/current/sentinel'), '旧包状态默认保留不自动adopt');
+    [$code, $output] = execute(['--state-dir=' . $oldState], "y\n");
+    verify($code === 0 && !is_dir($oldState . '/runtime') && !is_file($oldState . '/owner.json') && is_file($oldState . '/setup.lock'), '新入口明确确认仅清理旧owner白名单并保留锁');
+    if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
+        $retainedInode = fileinode($oldState . '/setup.lock');
+        $invalidArchive = $temporary . '/invalid-runtime.tar.gz'; file_put_contents($invalidArchive, 'invalid');
+        $setup = proc_open([PHP_BINARY, $repository . '/packages/composer-installer/bin/webman-aot', 'setup', '--state-dir=' . $oldState, '--archive=' . $invalidArchive, '--non-interactive'], [STDIN, ['pipe', 'w'], ['redirect', 1]], $setupPipes, $repository);
+        $setupOutput = stream_get_contents($setupPipes[1]); fclose($setupPipes[1]); $setupCode = proc_close($setup);
+        verify($setupCode === 70 && json_decode(file_get_contents($oldState . '/owner.json'), true)['package'] === 'supdger/webman-aot-builder' && fileinode($oldState . '/setup.lock') === $retainedInode && !str_contains($setupOutput, '状态目录不属于'), '清旧owner后新setup可claim锁保留根，失败仅因为fixture资源损坏而非所有权');
+    }
+    $unknownState = $temporary . '/other package state'; directory($unknownState . '/runtime');
+    file_put_contents($unknownState . '/owner.json', json_encode(['schema' => 1, 'package' => 'other/webman-aot-builder']));
+    file_put_contents($unknownState . '/runtime/sentinel', 'keep');
+    [$code, $output] = execute(['--state-dir=' . $unknownState], "y\n");
+    verify($code === 0 && is_file($unknownState . '/runtime/sentinel'), '相似包名owner不在精确名单，保留');
     $global = $temporary . '/global'; directory($global); directory($temporary . '/fake-bin');
-    file_put_contents($global . '/composer.json', json_encode(['require' => ['saiadmin/webman-aot-builder' => '^0.3.3', 'other/tool' => '*']]));
-    file_put_contents($global . '/composer.lock', json_encode(['packages' => [['name' => 'saiadmin/webman-aot-builder', 'version' => '0.3.3']]]));
+    file_put_contents($global . '/composer.json', json_encode(['require' => ['supdger/webman-aot-builder' => '^0.3.3', 'other/tool' => '*']]));
+    file_put_contents($global . '/composer.lock', json_encode(['packages' => [['name' => 'supdger/webman-aot-builder', 'version' => '0.3.3']]]));
     $fakeComposer = $temporary . '/fake-bin/composer';
     file_put_contents($fakeComposer, "#!/bin/sh\nprintf '%s\\n' \"\$COMPOSER_HOME\" \"\$@\" > " . escapeshellarg($temporary . '/composer-args') . "\nexit 7\n"); chmod($fakeComposer, 0700);
     [$code, $output] = execute([], "y\n");
     verify($code === 70 && str_contains($output, '退出码 7') && isset(json_decode(file_get_contents($global . '/composer.json'), true)['require']['other/tool']), 'Composer失败非零且其他全局包记录保持');
     $args = file_get_contents($temporary . '/composer-args');
-    verify(str_starts_with($args, $global . "\n") && str_contains($args, "global\nremove\n--no-interaction\nsaiadmin/webman-aot-builder") && str_contains($args, '--no-scripts') && str_contains($args, '--no-plugins'), 'Composer指向选定globalhome且精确package，禁用hook与plugin');
+    verify(str_starts_with($args, $global . "\n") && str_contains($args, "global\nremove\n--no-interaction\nsupdger/webman-aot-builder") && str_contains($args, '--no-scripts') && str_contains($args, '--no-plugins'), 'Composer指向选定globalhome且精确package，禁用hook与plugin');
     verify(str_contains($output, '[剩余]') && str_contains($output, $global), '完成重新检查并显示残留路径');
+    file_put_contents($global . '/composer.json', json_encode(['require' => ['supdger/webman-aot-builder' => '^0.3.5', 'saiadmin/webman-aot-builder' => '^0.3.4', 'other/webman-aot-builder' => '*']]));
+    file_put_contents($global . '/composer.lock', json_encode(['packages' => [['name' => 'supdger/webman-aot-builder', 'version' => '0.3.5'], ['name' => 'saiadmin/webman-aot-builder', 'version' => '0.3.4']]]));
+    [$code, $output] = execute(['--list']);
+    verify($code === 0 && substr_count($output, 'Composer 全局包（') === 2 && str_contains($output, 'Composer 全局包（saiadmin/webman-aot-builder）') && str_contains($output, 'Composer 全局包（supdger/webman-aot-builder）'), '同globalhome两个身份分别列项，路径去重不吞包');
+    $removeFixture = $temporary . '/remove-exact.php';
+    file_put_contents($removeFixture, '<?php $p=getenv("COMPOSER_HOME")."/composer.json"; $x=json_decode(file_get_contents($p),true); $name=end($argv); file_put_contents(' . var_export($temporary . '/removed-package', true) . ', $name); unset($x["require"][$name]); file_put_contents($p,json_encode($x));');
+    file_put_contents($fakeComposer, "#!/bin/sh\nexec " . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($removeFixture) . ' "$@"' . "\n"); chmod($fakeComposer, 0700);
+    [$code, $output] = execute([], "n\ny\n");
+    $remainingPackages = json_decode(file_get_contents($global . '/composer.json'), true)['require'];
+    verify($code === 0 && file_get_contents($temporary . '/removed-package') === 'saiadmin/webman-aot-builder' && !isset($remainingPackages['saiadmin/webman-aot-builder']) && isset($remainingPackages['supdger/webman-aot-builder'], $remainingPackages['other/webman-aot-builder']), '选择旧包仅精确remove旧包，新包和相似其他包保留');
     [$code, $output] = execute(['--yes']); verify($code !== 0 && str_contains($output, '免确认'), '无免确认全删入口');
     $legacyRoot = $temporary . '/用户 空格/Library/Application Support/webman-aot';
     native($legacyRoot . '/current', '0.1.2', true);
