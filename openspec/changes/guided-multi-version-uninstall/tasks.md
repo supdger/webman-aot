@@ -52,7 +52,7 @@ prepare-for-launch进度（同本任务唯一记录）:
 - [x] 5. 物料与合规 checklist
 - [x] 6. 灰度方案
 - [x] 7. 优化风险速扫
-- [ ] 8. 结论
+- [x] 8. 结论
 
 
 v0.3.4发布候选证据（替代前述0.3.3开发包的发行材料）:
@@ -61,3 +61,14 @@ v0.3.4发布候选证据（替代前述0.3.3开发包的发行材料）:
 - 真Composer消费该ZIP（非path源码）2.03秒通过：help/version/list不prepare，PTY卸载旧0.1.2及绑定旧入口、保留全局Composer，重新列剩余；再PTY真self-remove精确包、其他global工具保留，收尾remaining0正常。日志`/private/tmp/aot-034-localzip-consumer-20261001.log`；隔离temp已清理。
 - Wiki受影响2页已准备0.3.4清理后用Composer流程，20页107本地目标0error；既有2历史页未直链警告，49外链未验证。尚未Wiki push。
 - public主仓main已实时CLI核对d365363；0.3.4尚无tag。Windows SSH确认连接，但TEMP源码/包上传被auto_review拒绝特定物理机export授权；主Agent正在请求该具体许可，不换入口绕过。Windows实跑依赖此许可，发行结论由独立review最终判定。
+
+
+v0.3.4实际公开发行结果：
+- 独立fixed候选准出PASS，PR [#45](https://github.com/supdger/webman-aot-builder/pull/45)已merge；源码/tag `v0.3.4`精确对应`ba29240a38aaa66fc9eb7af919d773d4de8a586d`。未对现有tag改写。
+- 从该merge SHA的干净源码重打11成员25,376bytes最终ZIP，所有成员与该commit的git blob逐字一致；SHA256 `a816674a0694e632f321d8bc30b1cbc0e058f3bccfdeab625493e866297d00f8`。归档元数据改变导致候选与最终ZIP摘要不同，内容相同；最终ZIP再次真实消费全部通过1.92秒，证据`/private/tmp/aot-034-finalzip-consumer-20261001.json`与`.log`。
+- [v0.3.4 Release](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.4)明确非latest，仅上述轻量ZIP和104bytes SHA256SUMS两个资产。native0.3.2的10资产和Composer0.3.3的2资产前后ID/名称/大小/digest/URL完全相同；latest API实读仍`v0.3.2`。
+- 官方Packagist首次未自动索引；Composer CLI无registry更新命令，官方更新API需要已有username/apiToken认证，未读取凭据。主Agent在既有认证本包页面Manage→Update精确刷新，未改repository/name或重复建包；官方p2随后可见`v0.3.4`，source.reference对应上述tag SHA，dist指向本Release小ZIP，旧版本保留。
+- 默认官方`composer global require saiadmin/webman-aot-builder:^0.3.4`隔离真实安装PASS（无repositories覆盖），下载ZIP摘要/11成员matches正式tag；实际proxy help/version/list与PTY self-remove通过8.32秒，不prepare运行时，任务HOME/global/cache已清理。证据`/private/tmp/aot-034-public-consumer-20261001.json`与`.log`，未将原始日志纳入源码。
+- Wiki仅Install/Upgrade-Uninstall两页公开，commit`d8e25de`；公开raw正文实读与验证页面逐字一致。最新指南链接：[安装](https://github.com/supdger/webman-aot-builder/wiki/Install)、[升级与卸载](https://github.com/supdger/webman-aot-builder/wiki/Upgrade-Uninstall)。
+- 发布范围没有原生full包、真实用户安装/清理或PATH操作。Windows实机TEMP文件上传被auto_review以specific export授权不足拒绝，该依赖没有绕过；Windows/PHP8.1仍未实跑，任务3.2的full目标平台项保留未完成，不用Composer切片发行替代该证据。
+- prepare-for-launch结论：**可进入灰度**（本次Composer轻量发行切片）；独立验收与真实官方消费完成，旧完整发行不变。原生wrapper/full目标平台门槛仍单列未完成。

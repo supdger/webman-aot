@@ -32,4 +32,5 @@ Windows native launcher 转给当前 app 的 PowerShell 卸载器；先复制受
 - 物料与合规：MIT LICENSE保留，CHANGELOG/README/Wiki同步，固定版本/资源校验/小ZIP清单；CLI无隐私权限新增，无数据库迁移、服务配置、客户端商店或签名操作。
 - 优化风险速扫：只读有限管理根/PATH/metadata，无全盘扫描；删除前重复归属校验；setup.lock保持inode，避免并发换锁；无明显剩余高风险。压测Not run，此CLI卸载路径无服务负载目标。
 - 预发验证：本地实际ZIP消费者通过；独立现有Mac/common安全验收通过，新的0.3.4候选独立消费与Windows受限验证等待结论。发布准出不将缺失平台层伪装为通过。
-- 当前结论：验证受阻（物理Windows上传许可）；小包发布最终结论由主Agent结合独立review与明示平台边界确认。tag/Release尚未执行。
+- 发行前阶段结论：物理Windows上传许可受阻；未据此声称Windows通过。主Agent随后依据独立Composer切片准出PASS，确认只发布轻量小包并保留完整原生发行。
+- 本次最终结论：可进入灰度（Composer0.3.4轻量切片）；PR/tag/非latestRelease/Wiki/官方索引和实际默认消费均完成。精确发行结果见本change任务记录；Windows实机、PHP8.1和新原生完整包验证仍单列未完成。
