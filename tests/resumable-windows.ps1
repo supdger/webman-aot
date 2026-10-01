@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$Home,
     [Parameter(Mandatory=$true)][string]$Launcher,
