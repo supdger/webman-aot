@@ -23,7 +23,7 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.5**，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
+Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.5**，使用固定的 0.3.2 完整运行时；可安装版本以 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
 
 ```sh
 composer global require supdger/webman-aot-builder:^0.3.5
