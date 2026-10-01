@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)][string]$Home,
+    [Parameter(Mandatory=$true)][string]$InstallHome,
     [Parameter(Mandatory=$true)][string]$Launcher,
     [Parameter(Mandatory=$true)][string]$Fixture,
     [Parameter(Mandatory=$true)][string]$Evidence
@@ -14,13 +14,13 @@ New-Item -ItemType Directory -Path $project | Out-Null
 foreach ($name in @('composer.json','composer.lock','start.php','app','config','vendor')) {
     Copy-Item -LiteralPath (Join-Path $Fixture $name) -Destination $project -Recurse
 }
-$runtime = Join-Path $Home 'current\runtime'
+$runtime = Join-Path $InstallHome 'current\runtime'
 $php = Join-Path $runtime 'php.exe'
-$builder = Join-Path $Home 'current\app\bin\webman-aot-builder.php'
-$bootstrap = Join-Path $Home 'current\app\tools\windows-php-bootstrap.php'
+$builder = Join-Path $InstallHome 'current\app\bin\webman-aot-builder.php'
+$bootstrap = Join-Path $InstallHome 'current\app\tools\windows-php-bootstrap.php'
 $keys = @('WEBMAN_AOT_BUILDER_HOME','WEBMAN_AOT_CALLER_CWD','WEBMAN_AOT_BUILDER_BOOTSTRAPPED')
 $saved = @{}; foreach ($key in $keys) { $saved[$key] = [Environment]::GetEnvironmentVariable($key,'Process') }
-$env:WEBMAN_AOT_BUILDER_HOME = $Home
+$env:WEBMAN_AOT_BUILDER_HOME = $InstallHome
 $env:WEBMAN_AOT_CALLER_CWD = $project
 $env:WEBMAN_AOT_BUILDER_BOOTSTRAPPED = '1'
 $ownedProcesses = @()

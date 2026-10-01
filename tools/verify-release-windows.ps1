@@ -63,6 +63,10 @@ try {
     if ($LASTEXITCODE -ne 0 -or $head -ne $Revision) { throw 'Checkout differs from the fixed release revision.' }
     $changes = & git -C $repository status --porcelain --untracked-files=no
     if ($LASTEXITCODE -ne 0 -or $changes) { throw 'Release checkout status is not clean.' }
+    Write-Host '[stage] Parse Windows interruption helper before downloading release inputs.'
+    $parseTokens = $null; $parseErrors = $null
+    [Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'tests\resumable-windows.ps1'),[ref]$parseTokens,[ref]$parseErrors) | Out-Null
+    if ($parseErrors.Count -gt 0) { throw ('Interruption helper parse failed: '+($parseErrors.Message -join '; ')) }
     if (-not [IO.Path]::IsPathRooted($WorkRoot) -or (Test-Path -LiteralPath $WorkRoot)) { throw 'WorkRoot must be a new absolute task directory.' }
     New-Item -ItemType Directory -Path $WorkRoot | Out-Null; $owned = $true
     foreach ($name in @('assets','logs','temp','cache-small','cache-full','composer-home','composer-cache','curl-config')) { New-Item -ItemType Directory -Path (Join-Path $WorkRoot $name) | Out-Null }
@@ -164,7 +168,7 @@ try {
             }
             $receipt.resumableNative = $resumeResults
             $parentEvidence = Join-Path $WorkRoot 'resumable-parent'
-            & (Join-Path $repository 'tests\resumable-windows.ps1') -Home $installHome `
+            & (Join-Path $repository 'tests\resumable-windows.ps1') -InstallHome $installHome `
                 -Launcher (Join-Path $bin 'webman-aot.cmd') -Fixture $fixture -Evidence $parentEvidence
             if (-not $?) { throw 'Windows partial interruption helper failed.' }
             $parentResult = Get-Content -LiteralPath (Join-Path $parentEvidence 'results.json') -Raw -Encoding UTF8 | ConvertFrom-Json
