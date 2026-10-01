@@ -25,7 +25,7 @@ $env:WEBMAN_AOT_CALLER_CWD = $project
 $env:WEBMAN_AOT_BUILDER_BOOTSTRAPPED = '1'
 $ownedProcesses = @()
 $offsets = @{}
-$receipt = @{ success=$false; termination='installed builder PHP parent only'; publicRetryLauncher=$Launcher }
+$receipt = @{ success=$false; termination='builder PHP parent killed; after the new attempt starts, its recorded old native child tree is stopped'; publicRetryLauncher=$Launcher }
 function Read-Log([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return '' }
     $stream = New-Object IO.FileStream($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
@@ -64,6 +64,28 @@ function Wait-Owned([Diagnostics.Process]$Process,[string]$Prefix) {
     $clock = [Diagnostics.Stopwatch]::StartNew(); $next = 5
     while (-not $Process.WaitForExit(200)) {
         Show-Logs $Prefix
+        if ($Prefix -eq 'retry' -and -not $receipt.ContainsKey('oldChildrenStoppedAfterRetryStarted')) {
+            $retryStage = (Read-Log (Join-Path $Evidence 'retry-stdout.log'))+(Read-Log (Join-Path $Evidence 'retry-stderr.log'))
+            if ($retryStage.Contains('[build] fingerprint')) {
+                $newAttempts = @(Get-ChildItem -LiteralPath (Join-Path $project '.webman-aot-builder\build') -Directory |
+                    Where-Object { $_.FullName -ne $oldAttempt })
+                if ($newAttempts.Count -ne 1) { throw 'Public retry did not allocate exactly one isolated new attempt.' }
+                $stopped = @()
+                foreach ($record in $tree | Where-Object { $_.ParentProcessId -eq $parent.Id } | Sort-Object ProcessId -Unique) {
+                    $current = Get-CimInstance Win32_Process -Filter ("ProcessId="+$record.ProcessId) -ErrorAction SilentlyContinue
+                    if ($null -ne $current -and $current.CreationDate -eq $record.CreationDate) {
+                        $stopped += [int]$record.ProcessId
+                        Write-Host ("[test] New attempt active; stopping old task-owned child {0} ({1}) to preserve a partial checkpoint set." -f $record.ProcessId,$record.Name)
+                        & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $record.ProcessId /T /F | Out-Host
+                    }
+                }
+                if ($stopped.Count -eq 0) { throw 'No old child remained alive when the new isolated attempt started.' }
+                $receipt.oldChildrenStoppedAfterRetryStarted = $stopped
+                $receipt.newAttemptAtOldChildrenStop = $newAttempts[0].FullName
+                $receipt.oldChildrenStopTimeUtc = [DateTime]::UtcNow.ToString('o')
+                $receipt.completedAtOldChildrenStop = @(Get-ChildItem -LiteralPath (Join-Path $project '.webman-aot-builder\cache\objects') -Filter complete.json -File -Recurse).Count
+            }
+        }
         if ($clock.Elapsed.TotalSeconds -gt 1800) { throw "$Prefix exceeded 1800 seconds." }
         if ($clock.Elapsed.TotalSeconds -ge $next) { Write-Host ("[test] {0} alive {1:F0}s" -f $Prefix,$clock.Elapsed.TotalSeconds); $next += 5 }
     }
