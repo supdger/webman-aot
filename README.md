@@ -19,16 +19,16 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-Composer 安装入口的源码也在本仓库，包名为 `saiadmin/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.3**，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/saiadmin/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
+Composer 安装入口的源码也在本仓库，包名为 `saiadmin/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.4**，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/saiadmin/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
 
 ```sh
-composer global require saiadmin/webman-aot-builder:^0.3.3
+composer global require saiadmin/webman-aot-builder:^0.3.4
 composer global config bin-dir --absolute
 ```
 
-将输出的命令目录放到旧版 `webman-aot` 所在目录之前，或使用此目录下代理的完整路径。`webman-aot --version` 应显示入口 0.3.3、目标构建器 0.3.2。第一次 `webman-aot build` 会准备经校验的既有 0.3.2 完整运行时；进入含 `composer.json`、`composer.lock` 和 `start.php` 的项目目录后执行。网络失败可导入对应完整安装包。Composer 只安装轻量入口 ZIP，源码回退时会取得整个仓库；原有安装不会被覆盖。入口的 PHP 8.1 与 Windows 真机验收仍未完成。受影响用法见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。
+将输出的命令目录放到旧版 `webman-aot` 所在目录之前，或使用此目录下代理的完整路径。`webman-aot --version` 应显示入口 0.3.4、目标构建器 0.3.2。第一次 `webman-aot build` 会准备经校验的既有 0.3.2 完整运行时；进入含 `composer.json`、`composer.lock` 和 `start.php` 的项目目录后执行。网络失败可导入对应完整安装包。Composer 只安装轻量入口 ZIP，源码回退时会取得整个仓库；原有安装不会被覆盖。入口的 PHP 8.1 与 Windows 真机验收仍未完成。受影响用法见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。
 
-0.3.3 是仓库标签与 Composer 入口版本，已验收完整运行时仍为 0.3.2。本次补充 Release 只提供 Composer 入口，发布时不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
+0.3.4 是仓库标签与 Composer 入口版本，已验收完整运行时仍为 0.3.2。本次补充 Release 只提供 Composer 入口，发布时不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
 
 第一次安装，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
 
@@ -92,6 +92,8 @@ v0.3.2 适配锁定的 Carbon 3.14.1 与 `symfony/polyfill-deepclone` 1.42.0，�
 ## 安装后的命令行使用
 
 引导入口会自动执行校验。需要以后单独构建其他项目时，可在已安装的终端中使用 `webman-aot`；命令和启动示例见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。SaiAdmin 的适用版本及要求见 [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。
+
+Composer 入口 0.3.4 提供 `webman-aot uninstall --list`（只读列出）与 `webman-aot uninstall`（逐项输入 `y` 卸载、回车保留、`q` 结束）。清理旧原生版本时，请从 Composer 命令目录的代理启动，按列表选择旧版本，保留“Composer 全局包”这一项，再重新列出剩余入口。无法确认归属的旧入口保留并说明原因，旧备份命令不会自动恢复；项目产物、共享组件和 PATH 保留。原生 0.3.2 完整包没有此新命令；本版只更新 Composer 轻量入口，Windows 原生卸载脚本及 PHP 8.1 实机验收仍未完成。具体清理与改用 Composer 的步骤见[升级与卸载](https://github.com/supdger/webman-aot-builder/wiki/Upgrade-Uninstall)。
 
 ## 构建结果
 

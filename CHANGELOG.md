@@ -2,6 +2,14 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.4](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.4)
+
+- Composer 入口新增 `uninstall` 与只读 `uninstall --list`，有限发现原生当前/历史版本、备份命令、PATH 入口、Composer 私有状态和全局包，显示类型、静态版本与路径，逐项默认保留确认；不运行旧命令探版本。
+- 卸载当前或活动版本时撤销归属明确的公开命令，不恢复旧备份；保留项目源码、产物、共享组件与 PATH，结束重新列出残留。Composer 只移除精确的本全局包，禁用 scripts/plugins 并保留其他全局工具；状态锁保留原 inode，避免并发准备换锁。
+- 修复 POSIX 路径反斜杠、末尾空格和引号被归一化后误选另一目录的风险；官方入口使用完整模板摘要识别，无证据对象保留。
+- 本版仅提供 Composer 轻量 ZIP 与校验清单，继续使用固定的 0.3.2 完整运行时，不设为 latest，也不替换原生完整资产。源码中的新版原生卸载包装器未进入既有 0.3.2 完整包；Windows 原生脚本、PHP 8.1 验证仍待完成。
+- 质量证据包括30项长期回归、独立路径/锁9项检查、真实Mac原生与Composer全局自卸载；这些不代表Linux业务运行或完整跨平台原生发行验收。
+
 ## [v0.3.2](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.2)
 
 - 支持锁定的 Carbon 3.14.1，修复 SaiAdmin 项目因 Carbon 版本拒绝、生成配置选择或生成代码不兼容而中止构建的问题。

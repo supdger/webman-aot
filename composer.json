@@ -19,6 +19,7 @@
   },
   "archive": {
     "exclude": [
+      "/.git",
       "/.gitattributes",
       "/.github/",
       "/.gitignore",
@@ -49,6 +50,6 @@
   },
   "dist": {
     "type": "zip",
-    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.3/webman-aot-builder-0.3.3-composer.zip"
+    "url": "https://github.com/supdger/webman-aot-builder/releases/download/v0.3.4/webman-aot-builder-0.3.4-composer.zip"
   }
 }
