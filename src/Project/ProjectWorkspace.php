@@ -29,8 +29,15 @@ final class ProjectWorkspace
         if (is_link($this->root)) {
             throw new ConfigurationException('project workspace cannot be a symlink');
         }
-        if (is_dir($this->root)) {
+        if (is_dir($this->root) && is_file($this->root . '/workspace.json')) {
             $this->assertOwnedWorkspace();
+        }
+        if (is_dir($this->root) && !is_file($this->root . '/workspace.json')) {
+            foreach (new \FilesystemIterator($this->root, \FilesystemIterator::SKIP_DOTS) as $entry) {
+                if ($entry->getFilename() !== 'build.lock') {
+                    throw new ConfigurationException('refusing to adopt unmarked project workspace');
+                }
+            }
         }
         foreach ([$this->root, $this->build(), $this->cache(), $this->runs()] as $directory) {
             if (is_link($directory)) {
@@ -56,15 +63,36 @@ final class ProjectWorkspace
 
         return [
             'root' => $this->root,
-            'build' => $this->build(),
+            'build' => $this->newAttempt(),
             'cache' => $this->cache(),
             'runs' => $this->runs(),
             'cacheEntry' => $this->cache() . DIRECTORY_SEPARATOR . $cacheKey,
         ];
     }
 
+    public function finishAttempt(string $attempt): void
+    {
+        $this->assertOwnedWorkspace();
+        $actual = realpath($attempt);
+        if (!is_string($actual) || is_link($attempt) || dirname($actual) !== realpath($this->build())
+            || preg_match('/^attempt-[a-f0-9]{24}$/D', basename($actual)) !== 1) {
+            throw new ConfigurationException('refusing to clean an unrelated build attempt');
+        }
+        // Called only after compiler/link processes have exited and publication
+        // has succeeded. Failed attempts may still have orphan writers.
+        $this->removeDirectory($actual);
+    }
+
+    private function newAttempt(): string
+    {
+        $path = $this->build() . '/attempt-' . bin2hex(random_bytes(12));
+        $this->createDirectory($path);
+        return $path;
+    }
+
     public function cleanTransient(): void
     {
+        $lease = new ProjectBuildLease($this->projectDirectory);
         $this->assertOwnedWorkspace();
         foreach ([$this->build(), $this->runs()] as $directory) {
             $this->removeContents($directory);
@@ -75,7 +103,14 @@ final class ProjectWorkspace
     public function remove(): void
     {
         $this->assertOwnedWorkspace();
-        $this->removeDirectory($this->root);
+        $lease = new ProjectBuildLease($this->projectDirectory);
+        // Retain the lock inode and ownership marker so another process cannot
+        // create a different lock while cleanup still owns this one.
+        foreach (new \FilesystemIterator($this->root, \FilesystemIterator::SKIP_DOTS) as $entry) {
+            if (in_array($entry->getFilename(), ['build.lock', 'workspace.json'], true)) { continue; }
+            if ($entry->isDir() && !$entry->isLink()) { $this->removeDirectory($entry->getPathname()); }
+            elseif (!unlink($entry->getPathname())) { throw new ConfigurationException('cannot remove workspace file'); }
+        }
     }
 
     private function assertOwnedWorkspace(): void

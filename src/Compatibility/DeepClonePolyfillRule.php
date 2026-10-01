@@ -18,7 +18,7 @@ final class DeepClonePolyfillRule
     {
         $mirror = realpath($directory);
         if (!is_string($mirror) || is_link($directory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
+            || !\WebmanAotBuilder\Project\ProjectMirror::isOwnedPath($mirror)
         ) {
             throw new ConfigurationException('deepclone adaptation requires an isolated project mirror');
         }

@@ -221,7 +221,7 @@ final class Application
             '  help       Show this help',
             '  version    Show the CLI version',
             '  doctor     Check the host and toolchain; prepare missing components',
-            '  build      Compile and verify a Linux amd64 musl distribution',
+            '  build [--fresh]  Compile and verify; reuse completed units, --fresh recompiles all units',
             '  verify     Independently check dist-aot (use --deployed after editing external resources)',
             '  uninstall [--list]  List installations and confirm removal one by one',
             '  self-update [--rollback]  Install or roll back a verified CLI generation',
@@ -242,8 +242,10 @@ final class Application
     private function runBuild(array $options): void
     {
         $explicitProfile = null;
+        $fresh = false;
         $json = false;
         foreach ($options as $option) {
+            if ($option === '--fresh' && !$fresh) { $fresh = true; continue; }
             if ($option === '--json' || $option === '--format=json') {
                 $json = true;
                 continue;
@@ -261,6 +263,7 @@ final class Application
         if (!is_string($project) || $project === '') {
             throw new ConfigurationException('cannot resolve the current project directory');
         }
+        fwrite(STDERR, $fresh ? "[构建] 全量重建，所有单元重新编译。\n" : "[构建] 自动恢复：复用校验通过的已完成单元，未完成单元从头编译。\n");
         fwrite(STDERR, "[构建] 检查项目与构建环境...\n");
         try {
             (new ProfileDetector($project))->detect();
@@ -350,7 +353,8 @@ final class Application
                 $this->logger?->event('info', 'build-stage', $stage, "build entered {$stage}");
                 fwrite(STDERR, "[build] {$stage}\n");
             },
-            $explicitProfile
+            $explicitProfile,
+            $fresh
         );
         if ($json) {
             fwrite(

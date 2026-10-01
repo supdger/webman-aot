@@ -5,7 +5,7 @@ namespace Supdger\WebmanAotInstaller;
 
 final class Installer
 {
-    public const VERSION = '0.3.7';
+    public const VERSION = '0.4.0';
     private array $release;
     private bool $interactive;
     private bool $consoleRecoveryAllowed;
@@ -162,7 +162,7 @@ final class Installer
         $this->say("supdger/webman-aot-builder Composer 入口 " . self::VERSION . "\n目标构建器：" . $this->release['version']
             . "\n\n开始使用：\n  composer global exec -- webman-aot guide"
             . "\n自动识别当前系统并打开准备与项目构建菜单；已配置 Composer bin 到 PATH 时，也可直接运行 webman-aot。\n\n用法：\n  webman-aot guide\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot uninstall [--list]\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
-            . "\n\n菜单可选择自动准备或导入完整包，然后选择项目目录、构建并校验产物。\n首次 build/doctor 需准备完整包；help/version/uninstall 不准备资源。非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup/guide 的选项可放后面。\n支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。失败后可从同一菜单重试，不提供编译断点续跑。");
+            . "\n\n菜单可选择自动准备或导入完整包，然后选择项目目录、构建并校验产物。\n首次 build/doctor 需准备完整包；help/version/uninstall 不准备资源。非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup/guide 的选项可放后面。\n支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。失败后可从同一菜单继续编译：复用校验通过的已完成单元，未完成单元从头编译；每次重新链接并校验产物。需要全部重编时运行 webman-aot build --fresh，或在失败菜单选择全量重建。");
     }
 
     private function nextStep(): void

@@ -33,6 +33,8 @@ printf '%s:%s\n' "$1" "$PWD" >> "$WEBMAN_AOT_BUILDER_HOME/events"
 case "$1" in
 version) echo 'webman-aot fixture-version';;
 build)
+    if [ "${2:-}" = '--fresh' ]; then echo fresh > "$WEBMAN_AOT_BUILDER_HOME/fresh-used"; fi
+    if [ -e fail-once ]; then rm fail-once; echo 'fixture retry required' >&2; exit 23; fi
     [ ! -e fail-build ] || { echo 'fixture compiler failed' >&2; exit 23; }
     mkdir -p dist-aot
     echo 'fixture compiled';;
@@ -159,6 +161,13 @@ try {
     check($r['code'] === 23 && !str_contains((string) file_get_contents($home . '/events'), 'verify:'), 'build failure preserves exit code and never verifies');
     check(str_contains($r['text'], 'fixture compiler failed') && str_contains($r['text'], '/issues'), 'original error and recovery link visible');
     unlink($project . '/fail-build');
+    file_put_contents($project . '/fail-once', '');
+    $r = invoke(['--mode=project', '--project=' . $project, ...$common], "1\n");
+    check($r['code'] === 0 && !file_exists($home . '/fresh-used') && str_contains($r['text'], '继续编译'), 'guided normal retry uses the original build command');
+    file_put_contents($project . '/fail-once', '');
+    $r = invoke(['--mode=project', '--project=' . $project, ...$common], "3\n");
+    check($r['code'] === 0 && is_file($home . '/fresh-used') && str_contains($r['text'], '全量重建'), 'guided explicit full rebuild passes fresh to the public launcher');
+    unlink($home . '/fresh-used');
     $r = invoke(['--mode=project', '--project=' . $base . '/missing', ...$common], "2\n{$project}\n");
     check($r['code'] === 0 && str_contains($r['text'], '项目目录不存在'), 'invalid project allows reselection');
     file_put_contents($project . '/bad-report', '');

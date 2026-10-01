@@ -21,6 +21,18 @@ final class ProjectMirror
     {
     }
 
+    /** Validate both the legacy mirror and independently owned attempt paths. */
+    public static function isOwnedPath(string $path, ?string $project = null): bool
+    {
+        $mirror = realpath($path);
+        if (!is_string($mirror) || is_link($path) || basename($mirror) !== 'project') { return false; }
+        $build = dirname($mirror);
+        if (preg_match('/^attempt-[a-f0-9]{24}$/D', basename($build)) === 1) { $build = dirname($build); }
+        $workspace = dirname($build);
+        return basename($build) === 'build' && basename($workspace) === '.webman-aot-builder'
+            && ($project === null || dirname($workspace) === realpath($project));
+    }
+
     /**
      * @return array{path:string,files:int,sha256:string,sourceSha256:string}
      */
@@ -33,7 +45,9 @@ final class ProjectMirror
             : false;
         if (!is_string($project)
             || !is_string($build)
-            || $build !== $expected
+            || ($build !== $expected
+                && !(dirname($build) === $expected
+                    && preg_match('/^attempt-[a-f0-9]{24}$/D', basename($build)) === 1))
             || is_link($buildDirectory)
         ) {
             throw new ConfigurationException('project mirror requires the owned build workspace');

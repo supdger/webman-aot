@@ -122,10 +122,10 @@ try {
     $options = [];
     foreach (array_slice($argv, 1) as $argument) {
         if ($argument === '--help') {
-            fwrite(STDOUT, "Usage: tools/build-macos-installer.sh --flavor=small|full --result=<absolute> [--output=<directory>]\n");
+            fwrite(STDOUT, "Usage: tools/build-macos-installer.sh --flavor=small|full --result=<absolute> [--output=<directory>] [--inputs=<cache-directory>] [--minimal-component=<local-zip>]\n");
             exit(0);
         }
-        if (preg_match('/^--(materials|flavor|result|output)=(.+)$/D', $argument, $match) !== 1 || isset($options[$match[1]])) {
+        if (preg_match('/^--(materials|flavor|result|output|inputs|minimal-component)=(.+)$/D', $argument, $match) !== 1 || isset($options[$match[1]])) {
             throw new InvalidArgumentException("未知或重复参数：{$argument}", 64);
         }
         $options[$match[1]] = $match[2];
@@ -167,10 +167,22 @@ try {
     if (!is_array($typePhp)) {
         throw new RuntimeException('缺少锁定 TypePHP 输入');
     }
-    $inputs = $root . '/dist/installer-inputs';
+    $inputs = $options['inputs'] ?? $root . '/dist/installer-inputs';
+    if (!is_dir($inputs) && !mkdir($inputs, 0700, true)) {
+        throw new RuntimeException('无法创建材料缓存目录');
+    }
     $typeArchive = sourceDownload($typePhp['sourceUrl'], $typePhp['sha256'], $inputs);
     $component = $minimal['components']['macos-arm64'];
-    $minimalArchive = sourceDownload('https://github.com/supdger/webman-aot-builder/releases/download/v' . $minimal['version'] . '/' . $component['archive'], $component['sha256'], $inputs);
+    if (isset($options['minimal-component'])) {
+        $minimalArchive = realpath($options['minimal-component']);
+        if (!is_string($minimalArchive) || is_link($options['minimal-component'])
+            || !is_file($minimalArchive) || !hash_equals($component['sha256'], (string) hash_file('sha256', $minimalArchive))) {
+            throw new RuntimeException('本地精简组件与当前源码锁不一致');
+        }
+        fwrite(STDOUT, "[成功] 本地精简组件 SHA-256 与当前源码锁一致。\n");
+    } else {
+        $minimalArchive = sourceDownload('https://github.com/supdger/webman-aot-builder/releases/download/v' . $minimal['version'] . '/' . $component['archive'], $component['sha256'], $inputs);
+    }
     $revision = 'source-snapshot';
     if (file_exists($root . '/.git')) {
         $revision = trim(sourceProcess(['git', 'rev-parse', 'HEAD'], $root, true));

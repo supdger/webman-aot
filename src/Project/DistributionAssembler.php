@@ -53,8 +53,7 @@ final class DistributionAssembler
             || is_link($projectDirectory)
             || is_link($mirrorDirectory)
             || is_link($elfFile)
-            || $this->normalizePath($mirror)
-                !== $this->normalizePath($project) . '/.webman-aot-builder/build/project'
+            || !ProjectMirror::isOwnedPath($mirror, $project)
             || $this->normalizePath(dirname($elf))
                 !== $this->normalizePath($mirror) . '/build'
             || !is_file($elf)

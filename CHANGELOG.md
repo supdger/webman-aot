@@ -2,6 +2,16 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.4.0](https://github.com/supdger/webman-aot-builder/releases/tag/v0.4.0)
+
+- 原构建入口默认复用经过输入、大小和 SHA-256 校验的成功编译单元；未完成单元重新编译，每次重新链接并校验产物。
+- 增加 `build --fresh` 与引导中的全量重建选择；正常重试保留有效进度。
+- 各次构建写入独立目录，拒绝同项目并发构建和清理，防止残留编译进程污染下一次尝试。
+- 修复工具链补丁应用器未纳入已有第 24 号补丁的问题，并增加第 25 号完整对象 checkpoint 补丁。
+- Composer 入口、双平台编译组件、轻量/完整安装包和 setup 同版升级为0.4.0；Composer 完整运行时绑定来自实际新归档摘要。
+- 组件由锁定0.3.2前驱逐文件校验派生，保留ABI不变的已配套032目标SDK；补丁与组件清单完整核验，不修改旧版本资产。
+- Windows 原生 CI 通过实际安装、109 单元五轮恢复回归及整树强制中断后的14/109复用、95单元重编，并发安全拒绝与任务进程清理；用户Windows实机续编、PHP8.1原生链及目标Linux业务流程仍未验证，详细范围见Wiki。
+
 ## [v0.3.7](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.7)
 
 - 普通 `composer global require supdger/webman-aot-builder` 首次接受 Composer 插件信任后，包安装与自动加载完成即进入组件和项目引导；升级、无变更重复安装均适用，不再需要组合启动命令。

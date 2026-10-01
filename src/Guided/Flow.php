@@ -222,6 +222,7 @@ final class Flow
     {
         $project = $this->options['project'] ?? null;
         $lastCode = 0;
+        $fresh = false;
         while (true) {
             if ($project === null) {
                 if ($this->choose('下一步：1 构建项目；0 结束', ['1', '0']) !== '1') {
@@ -239,7 +240,7 @@ final class Flow
                     throw new \RuntimeException('项目目录不存在：' . $project);
                 }
                 $environment = $this->installedEnvironment();
-                $this->execute($this->launcher(['build']), '构建项目', $project, $environment);
+                $this->execute($this->launcher($fresh ? ['build', '--fresh'] : ['build']), $fresh ? '全量重建项目' : '构建项目（自动恢复已完成单元）', $project, $environment);
                 $verification = $this->runner->run($this->launcher(['verify', '--json']), '校验本次项目产物', $project, $environment, true);
                 if ($verification['code'] !== 0) {
                     throw new ProcessFailure('校验项目产物失败；退出码 ' . $verification['code'] . '。请查看上面的原始错误。', $verification['code']);
@@ -258,14 +259,16 @@ final class Flow
             } catch (\Throwable $failure) {
                 $lastCode = $failure instanceof ProcessFailure && $failure->getCode() > 0 ? $failure->getCode() : 1;
                 $this->failure($failure->getMessage());
-                $choice = $this->choose('项目未完成：1 重试此目录；2 重选目录；0 结束', ['1', '2', '0']);
-                if ($choice === '1') {
+                $choice = $this->choose('项目未完成：1 继续编译（复用已完成单元）；2 重选目录；3 全量重建此目录；0 结束', ['1', '2', '3', '0']);
+                if ($choice === '1' || $choice === '3') {
+                    $fresh = $choice === '3';
                     continue;
                 }
                 // EOF and explicit end both stop immediately; only 2 opens another prompt.
                 if ($choice !== '2') {
                     return $lastCode;
                 }
+                $fresh = false;
                 $project = $this->read('输入新的项目目录（直接回车取消）');
                 if ($project === null || $project === '') {
                     return $lastCode;

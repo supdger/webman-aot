@@ -20,7 +20,7 @@ final class MonologWebProcessorRule
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
             || is_link($mirrorDirectory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
+            || !\WebmanAotBuilder\Project\ProjectMirror::isOwnedPath($mirror)
         ) {
             throw new ConfigurationException('Monolog adaptation requires an isolated project mirror');
         }
