@@ -2,7 +2,7 @@
 
 [![macOS ARM64 构建](https://img.shields.io/badge/macOS%20ARM64%20%E6%9E%84%E5%BB%BA-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![Windows x64 构建](https://img.shields.io/badge/Windows%20x64%20%E6%9E%84%E5%BB%BA-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![Linux x86_64 启动](https://img.shields.io/badge/Linux%20x86__64%20%E5%90%AF%E5%8A%A8-%E5%AE%9E%E6%9C%BA%E9%80%9A%E8%BF%87%C2%B72026--09--30-brightgreen.svg)](https://github.com/supdger/webman-aot-builder#%E5%AE%9E%E6%9C%BA%E6%9E%84%E5%BB%BA%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%AA%8C%E8%AF%81) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/supdger/webman-aot-builder/blob/main/LICENSE)
 
-徽章链接到 v0.3.2 在 2026-09-30 的实机构建与启动记录。
+徽章链接到 2026-09-30 的实机构建与启动记录。
 
 Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态程序。
 在 macOS Apple Silicon 或 Windows x64 开发机上安装工具、构建项目，再将生成的 `dist-aot/` 部署到 Linux，目标机无需安装 PHP。
@@ -130,13 +130,17 @@ dist-aot/
 后台运行用 `./start.sh --daemon`，停止用 `./stop.sh`。
 目标机配置和启动后的业务检查见 [Linux 部署与验收](https://github.com/supdger/webman-aot-builder/wiki/Linux-Acceptance)。
 
+## 完整包续编验证
+
+2026-10-01，Agent 在 macOS Apple Silicon 隔离安装实际完整包，构建中立 Webman 109 单元项目。首轮复用 0/109；不改输入重试复用 109/109 并重新链接；损坏对象与完成记录后复用 107/109、重编两单元；源码变化后复用 108/109；`--fresh` 复用 0/109。各轮产物校验通过，首轮与同输入重试 ELF 摘要一致。此处是实际安装包的 Agent 测试，不能代替真人试用或 Linux 业务验收；固定包身份、耗时及其他平台边界见[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。
+
 ## 实机构建与启动验证
 
 2026-09-30，用户在 macOS Apple Silicon 和 Windows x64 实机构建 SaiAdmin 项目，并分别将产物复制到 Linux x86_64 服务器启动。以下为用户提供的终端关键输出摘录；macOS 和 Windows 是构建宿主，生成的程序面向 Linux。
 
 ### macOS Apple Silicon：构建并在 Linux 启动
 
-使用 v0.3.2 轻量包安装并准备编译组件，构建 SaiAdmin 项目。以下保留安装、组件准备、编译及产物校验的关键节点，省略重复进度行：
+使用轻量包安装并准备编译组件，构建 SaiAdmin 项目。以下保留安装、组件准备、编译及产物校验的关键节点，省略重复进度行：
 
 ```text
 Package contents SHA-256 verified.
@@ -169,7 +173,7 @@ Press Ctrl+C to stop. Start success.
 
 ### Windows x64：构建并在 CentOS 7 启动
 
-使用 v0.3.2 Windows 完整包构建 SaiAdmin 项目。现有日志保留了编译尾段、构建完成和产物校验，构建总耗时约 35 分 43 秒：
+使用 Windows 完整包构建 SaiAdmin 项目。现有日志保留了编译尾段、构建完成和产物校验，构建总耗时约 35 分 43 秒：
 
 ```text
 [1920/2063] 94% vendor\symfony\console\Formatter\OutputFormatterStyleStack.cc
