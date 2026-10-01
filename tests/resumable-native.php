@@ -35,12 +35,26 @@ $environment = getenv(); $environment['WEBMAN_AOT_BUILDER_HOME'] = $home;
 $reports = [];
 $run = static function (string $name, array $options = []) use ($launcher, $project, $environment, $evidence, &$reports): array {
     fwrite(STDOUT, "[test] {$name}\n"); $log = fopen($evidence . '/' . $name . '.log', 'xb'); $text = ''; $started = microtime(true);
-    $command = PHP_OS_FAMILY === 'Windows' ? ['cmd.exe', '/d', '/c', $launcher, 'build', ...$options] : [$launcher, 'build', ...$options];
-    $code = WebmanAotBuilder\Cli\ProcessOutput::run($command, $project, $environment,
+    $wrapper = null;
+    if (PHP_OS_FAMILY === 'Windows') {
+        if (preg_match('/["\r\n%!&|<>^]/', $launcher) || !in_array($options, [[], ['--fresh']], true)) {
+            throw new RuntimeException('Controlled Windows test arguments contain shell syntax');
+        }
+        // cmd /c receives an ASCII basename, while CALL quotes the actual public launcher.
+        $wrapper = $project . '/resume-native-test.cmd';
+        if (file_exists($wrapper) || file_put_contents($wrapper, "@echo off\r\nchcp 65001 >nul\r\ncall \""
+            . $launcher . "\" build" . ($options === [] ? '' : ' --fresh') . "\r\nexit /b %errorlevel%\r\n") === false) {
+            throw new RuntimeException('Cannot create the owned Windows test wrapper');
+        }
+        $command = ['cmd.exe', '/d', '/c', basename($wrapper)];
+    } else { $command = [$launcher, 'build', ...$options]; }
+    try {
+        $code = WebmanAotBuilder\Cli\ProcessOutput::run($command, $project, $environment,
         ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'],
         static function (int $index, string $chunk) use ($log, &$text): void { fwrite($log, $chunk); fwrite(STDOUT, $chunk); fflush(STDOUT); $text .= $chunk; },
         static function (float $elapsed, float $silent): void { fwrite(STDOUT, sprintf("[test] native process alive %.0fs; silent %.0fs\n", $elapsed, $silent)); }
-    );
+        );
+    } finally { if ($wrapper !== null) { unlink($wrapper); } }
     fclose($log); preg_match('/Reused verified objects: (\d+)/', $text, $match);
     $result = ['case' => $name, 'exit' => $code, 'reused' => isset($match[1]) ? (int) $match[1] : null, 'seconds' => round(microtime(true) - $started, 2)];
     $reports[] = $result; file_put_contents($evidence . '/results.json', json_encode($reports, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));

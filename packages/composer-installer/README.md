@@ -1,6 +1,6 @@
 # Webman AOT Builder Composer 入口
 
-通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.3.7 自动识别开发机，使用固定 0.3.2 完整运行时。
+通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.4.0 自动识别开发机，使用对应的 0.4.0 完整运行时。
 
 系统 PHP 须为 8.1+，Composer 须为 2.5.3+；作者实际验证为 PHP 8.4/Composer 2.9.5/macOS，PHP 8.1 与 Windows 真机验收仍未完成。运行 `composer global require supdger/webman-aot-builder`，首次接受 Composer 本身的插件信任询问后，包安装和自动加载完成即打开已有引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
 
@@ -10,7 +10,7 @@
 composer global exec -- webman-aot guide
 ```
 
-选择开始会自动复用资源或准备当前开发机的完整包；也可导入已下载包、结束。准备成功后进入原有项目菜单，输入或拖入项目完整路径，构建成功自动校验并显示产物位置；失败可重试或重选。无需查 bin、修改 PATH 或先查版本。包安装与项目流程结果分别显示，Composer 后续安全审计照常执行。只有终端中单独全局 require 本包会自动引导；其他包、局部项目、其他 Composer 命令、`--no-plugins`、`--no-scripts`、`--dry-run`、`--no-update`、`--no-install`、非交互与 CI 不自动打开菜单。拒绝信任后仍可使用上方显式命令；插件不会自行更改信任配置。
+选择开始会自动复用资源或准备当前开发机的完整包；也可导入已下载包、结束。准备成功后进入原有项目菜单，输入或拖入项目完整路径，构建成功自动校验并显示产物位置；失败可继续编译、重选目录、全量重建或结束。无需查 bin、修改 PATH 或先查版本。包安装与项目流程结果分别显示，Composer 后续安全审计照常执行。只有终端中单独全局 require 本包会自动引导；其他包、局部项目、其他 Composer 命令、`--no-plugins`、`--no-scripts`、`--dry-run`、`--no-update`、`--no-install`、非交互与 CI 不自动打开菜单。拒绝信任后仍可使用上方显式命令；插件不会自行更改信任配置。
 
 已配置 Composer 命令目录的终端也可直接运行 `webman-aot`。非终端无参仅提示入口，不准备资源。显式 `guide` 只在确认为已连接控制台时恢复交互；`--non-interactive`、`COMPOSER_NO_INTERACTION=1` 或 `CI=1` 阻止恢复和隐式准备。
 
@@ -36,11 +36,13 @@ webman-aot setup --archive="/完整包所在目录/对应完整安装包" --non-
 
 非交互环境不会等待输入。首次准备可显式使用 `webman-aot setup --yes --non-interactive`，或前述本地包命令；资源已准备后直接运行构建。全局选项必须放在 `doctor`、`build` 等原命令之前；原命令后所有参数（含 `--`）原样转交构建器。`setup` 自身的选项可放在后面。`--state-dir=目录` 将运行时、缓存和启动器全部放在指定目录，适合隔离测试。`--help`、`--version` 不联网，只说明入口和目标版本，不表示构建器已经安装。
 
-下载中可用 Ctrl+C 取消。准备失败时原项目命令不会运行；保留缓存方便重新校验重试。准备成功后会重新执行原命令，不提供编译断点续跑。
+下载中可用 Ctrl+C 取消。准备失败时原项目命令不会运行；保留缓存方便重新校验重试。准备成功后会重新执行原命令。0.4.0 的项目构建默认复用输入一致且大小、SHA-256 校验通过的完整编译单元；未完成或损坏的单元从头编译。引导失败后选择 `1` 继续编译、`2` 重选目录、`3` 全量重建、`0` 结束；每轮仍重新链接并验证最终产物。
 
-构建器详细安装、兼容性与 Linux 部署要求见[现有 Wiki](https://github.com/supdger/webman-aot-builder/wiki)。现有安装包与发行版的行为保持不变。Packagist 登记状态以[包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准；没有自动镜像切换，网络不可用时使用已校验的本地完整包。
+在项目根目录运行 `webman-aot build --fresh` 可让全部单元重新编译。对象缓存位于项目内 `.webman-aot-builder/cache/objects/`；失败 attempt 与缓存保留并占用磁盘，成功后清理本轮 attempt。`--fresh` 不清旧缓存或失败目录。Windows 与 PHP 8.1 的真实续编尚未验证。
 
-0.3.7 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
+构建器详细安装、兼容性与 Linux 部署要求见[现有 Wiki](https://github.com/supdger/webman-aot-builder/wiki)。旧安装不会自动获得 0.4.0 新功能。Packagist 登记状态以[包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准；没有自动镜像切换，网络不可用时使用已校验的本地完整包。
+
+0.4.0 Composer 入口与配套完整运行时同为 0.4.0；旧入口 0.3.7 仍固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
 
 当前入口提供统一卸载入口；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
 
@@ -52,7 +54,7 @@ webman-aot uninstall
 清理旧安装后改用 Composer：
 
 ```powershell
-composer global require supdger/webman-aot-builder:^0.3.7 --no-scripts
+composer global require supdger/webman-aot-builder:^0.4.0 --no-scripts
 if ($LASTEXITCODE -ne 0) { throw 'Composer 安装失败，未开始卸载。' }
 $aotBin = (composer global config bin-dir --absolute).Trim()
 & (Join-Path $aotBin 'webman-aot.bat') uninstall --list

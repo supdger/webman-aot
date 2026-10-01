@@ -163,6 +163,18 @@ try {
                 Copy-Item -LiteralPath $file.FullName -Destination $resumeLogs
             }
             $receipt.resumableNative = $resumeResults
+            $parentEvidence = Join-Path $WorkRoot 'resumable-parent'
+            & (Join-Path $repository 'tests\resumable-windows.ps1') -Home $installHome `
+                -Launcher (Join-Path $bin 'webman-aot.cmd') -Fixture $fixture -Evidence $parentEvidence
+            if (-not $?) { throw 'Windows partial interruption helper failed.' }
+            $parentResult = Get-Content -LiteralPath (Join-Path $parentEvidence 'results.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            if (-not $parentResult.success) { throw 'Windows partial interruption evidence failed.' }
+            $parentLogs = Join-Path $WorkRoot 'logs\resumable-parent'
+            [IO.Directory]::CreateDirectory($parentLogs) | Out-Null
+            foreach ($file in Get-ChildItem -LiteralPath $parentEvidence -File) {
+                Copy-Item -LiteralPath $file.FullName -Destination $parentLogs
+            }
+            $receipt.partialInterruption = $parentResult
         }
         $versionLog = Join-Path $WorkRoot ('logs\'+$flavor+'-version.log')
         Invoke-Native "absolute new $flavor launcher version" (Join-Path $bin 'webman-aot.cmd') @('version') $repository $versionLog

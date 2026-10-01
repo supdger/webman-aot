@@ -59,6 +59,8 @@ rejects(fn() => Archive::identity($identity, 'macos-arm64', '0.3.2'), '缺完整
 $bin = dirname(__DIR__) . '/bin/webman-aot';
 $help = Process::output([PHP_BINARY, $bin, '--help', '--state-dir=' . $directory . '/untouched']);
 check(str_contains($help, '尚未') === false && str_contains($help, '目标构建器：' . $targetVersion), 'help报告入口和目标版本');
+check(str_contains($help, '复用校验通过的已完成单元') && str_contains($help, 'build --fresh')
+    && !str_contains($help, '不提供编译断点续跑'), 'help解释成功单元恢复与全量重建');
 check(!file_exists($directory . '/untouched'), 'help不创建运行时状态');
 $version = Process::output([PHP_BINARY, $bin, '--version']);
 check(str_contains($version, 'Composer 入口 ' . Installer::VERSION) && str_contains($version, '目标 Webman AOT Builder ' . $targetVersion), 'version不冒充已安装版本');
