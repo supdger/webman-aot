@@ -27,12 +27,14 @@ final class ProjectBuilder
         array $tools,
         string $host,
         ?\Closure $beforeStage = null,
-        ?string $explicitProfile = null
+        ?string $explicitProfile = null,
+        bool $fresh = false
     ): array {
         $project = realpath($projectDirectory);
         if (!is_string($project) || is_link($projectDirectory)) {
             throw new ConfigurationException('build requires a real project directory');
         }
+        $lease = new ProjectBuildLease($project);
         $beforeStage?->__invoke('profile');
         $profile = (new ProfileDetector($project))->detect($explicitProfile);
         $compatibilityLock = $this->readLock($compatibilityLockFile, 'compatibility');
@@ -61,7 +63,6 @@ final class ProjectBuilder
         $beforeStage?->__invoke('workspace');
         $workspace = new ProjectWorkspace($project);
         $paths = $workspace->prepare($cacheKey, $source['sha256']);
-        $workspace->cleanTransient();
         $beforeStage?->__invoke('mirror');
         $mirror = (new ProjectMirror($project))->create($paths['build'])['path'];
         $cache = realpath($privateCache);
@@ -112,11 +113,24 @@ final class ProjectBuilder
             'sha256',
             json_encode($normalizedInput, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
         );
+        $beforeStage?->__invoke('fingerprint');
+        $identity = (new \WebmanAotBuilder\Toolchain\CompileInputFingerprint())->digest($tools, [
+            'toolchain' => $toolchainSha256,
+            'compatibility' => $compatibilitySha256,
+            'patches' => $compilerPatchSha256,
+            'project' => hash_file('sha256', $generated['projectFile']),
+            'profile' => $profile->name(),
+            'sdk' => $tools['sdkSha256'],
+        ], $beforeStage === null ? null : static fn(string $name) => $beforeStage('fingerprint-' . $name));
+        fwrite(STDERR, "[恢复] 已完成单元缓存：{$paths['cache']}/objects；全量重建不会清空缓存。\n");
         $beforeStage?->__invoke('compile');
         $compiled = (new TypePhpProjectCompiler())->compile(
             $mirror,
             'webman-server',
-            $tools
+            $tools,
+            $paths['cache'] . '/objects',
+            $identity,
+            $fresh
         );
         $beforeStage?->__invoke('package');
         $distribution = (new DistributionAssembler())->assemble(
@@ -139,6 +153,7 @@ final class ProjectBuilder
             beforeStage: $beforeStage,
             generatedMappings: $generated['coverageMappings']
         );
+        $workspace->finishAttempt($paths['build']);
         return [
             'profile' => $profile->name(),
             'sourceSha256' => $source['sha256'],

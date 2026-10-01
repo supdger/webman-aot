@@ -14,6 +14,10 @@ try {
         throw new RuntimeException('Packaging requires system PHP ext-zip and Composer; the installed bridge does not require ext-zip.');
     }
     $version = Supdger\WebmanAotInstaller\Installer::VERSION;
+    $release = json_decode((string) file_get_contents($root . '/packages/composer-installer/resources/releases.json'), true, flags: JSON_THROW_ON_ERROR);
+    if (($release['version'] ?? null) !== $version) {
+        throw new RuntimeException('Composer release must bind the same native runtime version.');
+    }
     $name = 'webman-aot-builder-' . $version . '-composer';
     $metadata = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
     if (($metadata['name'] ?? null) !== 'supdger/webman-aot-builder'
@@ -68,7 +72,7 @@ try {
     }
     file_put_contents($resolved . '/SHA256SUMS', hash_file('sha256', $archive) . '  ' . basename($archive) . PHP_EOL);
     fwrite(STDOUT, '[package] Verified ' . count($expected) . ' source-identical files, ' . filesize($archive) . ' bytes; ' . $archive . PHP_EOL);
-    fwrite(STDOUT, '[package] Publish only to v' . $version . ' with --latest=false; keep complete runtime v0.3.2 unchanged.' . PHP_EOL);
+    fwrite(STDOUT, '[package] Native runtime binding: v' . $release['version'] . '; publish with the matching complete release assets.' . PHP_EOL);
 } catch (Throwable $error) {
     fwrite(STDERR, '[package failed] ' . $error->getMessage() . PHP_EOL);
     exit(1);

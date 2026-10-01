@@ -6,6 +6,7 @@ require dirname(__DIR__) . '/src/Installer.php';
 use Supdger\WebmanAotInstaller\Installer;
 
 $root = dirname(__DIR__);
+$targetVersion = json_decode((string) file_get_contents($root . '/resources/releases.json'), true, flags: JSON_THROW_ON_ERROR)['version'];
 $base = sys_get_temp_dir() . '/composer-guide-tests-' . bin2hex(random_bytes(6));
 mkdir($base, 0700, true);
 $passed = 0;
@@ -66,7 +67,7 @@ try {
         check($code === 0 && !file_exists($state), $name . ' 明确无人标志下不恢复控制台或安装');
     }
     [$code, $output] = invoke(['--version']);
-    check($code === 0 && trim($output) === 'Composer 入口 ' . Installer::VERSION . '；目标 Webman AOT Builder 0.3.2',
+    check($code === 0 && trim($output) === 'Composer 入口 ' . Installer::VERSION . '；目标 Webman AOT Builder ' . $targetVersion,
         '非TTY版本输出保持机器调用兼容');
     [$code, $output] = invoke(['--version'], '', true);
     check($code === 0 && str_contains($output, '下一步：') && !file_exists($state), 'TTY版本查询显示菜单下一步，不准备资源');
@@ -84,7 +85,7 @@ try {
         file_put_contents($state . '/runtime/current/app/bin/webman-aot-builder.php', '<?php exit(99);');
         file_put_contents($state . '/runtime/current/app/tools/guided.php',
             '<?php file_put_contents(' . var_export($record, true) . ',json_encode([getcwd(),array_slice($argv,1),getenv("WEBMAN_AOT_BUILDER_HOME")])); exit(23);');
-        file_put_contents($state . '/ready.json', json_encode(['version' => '0.3.2', 'host' => 'macos-arm64']));
+        file_put_contents($state . '/ready.json', json_encode(['version' => $targetVersion, 'host' => 'macos-arm64']));
         file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'supdger/webman-aot-builder']));
         [$code, $output] = invoke(['guide', '--state-dir=' . $state], "invalid\n1\n", true);
         $actual = json_decode(file_get_contents($record), true);

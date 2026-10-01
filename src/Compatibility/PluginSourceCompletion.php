@@ -20,7 +20,7 @@ final class PluginSourceCompletion
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror) || is_link($mirrorDirectory)
-            || !str_ends_with(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/project')
+            || !\WebmanAotBuilder\Project\ProjectMirror::isOwnedPath($mirror)
             || !in_array($profile, [ProjectProfile::WEBMAN, ProjectProfile::SAIADMIN], true)
         ) {
             throw new ConfigurationException('plugin source completion requires an isolated project mirror');

@@ -13,6 +13,7 @@ $temporaryRoot = getenv('WEBMAN_AOT_TEST_TMP') ?: (PHP_OS_FAMILY === 'Darwin' ? 
 $directory = $temporaryRoot . '/composer-aot-tests-' . bin2hex(random_bytes(6));
 mkdir($directory, 0700, true);
 $passed = 0;
+$targetVersion = json_decode((string) file_get_contents(dirname(__DIR__) . '/resources/releases.json'), true, flags: JSON_THROW_ON_ERROR)['version'];
 function check(bool $condition, string $message): void {
     global $passed;
     if (!$condition) { throw new RuntimeException($message); }
@@ -57,10 +58,10 @@ rejects(fn() => Archive::identity($identity, 'macos-arm64', '0.3.2'), '缺完整
 
 $bin = dirname(__DIR__) . '/bin/webman-aot';
 $help = Process::output([PHP_BINARY, $bin, '--help', '--state-dir=' . $directory . '/untouched']);
-check(str_contains($help, '尚未') === false && str_contains($help, '目标构建器：0.3.2'), 'help报告入口和目标版本');
+check(str_contains($help, '尚未') === false && str_contains($help, '目标构建器：' . $targetVersion), 'help报告入口和目标版本');
 check(!file_exists($directory . '/untouched'), 'help不创建运行时状态');
 $version = Process::output([PHP_BINARY, $bin, '--version']);
-check(str_contains($version, 'Composer 入口 ' . Installer::VERSION) && str_contains($version, '目标 Webman AOT Builder 0.3.2'), 'version不冒充已安装版本');
+check(str_contains($version, 'Composer 入口 ' . Installer::VERSION) && str_contains($version, '目标 Webman AOT Builder ' . $targetVersion), 'version不冒充已安装版本');
 
 if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     $code = Process::run([PHP_BINARY, $bin, '--state-dir=' . $directory . '/fresh', '--non-interactive', 'build']);
@@ -88,7 +89,7 @@ if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     file_put_contents($state . '/runtime/current/app/bin/webman-aot-builder.php',
         '<?php file_put_contents(' . var_export($record, true) . ', json_encode([getcwd(), array_slice($argv,1), getenv("WEBMAN_AOT_BUILDER_HOME")])); exit(23);');
     file_put_contents($state . '/owner.json', json_encode(['schema' => 1, 'package' => 'supdger/webman-aot-builder']));
-    file_put_contents($state . '/ready.json', json_encode(['version' => '0.3.2', 'host' => 'macos-arm64']));
+    file_put_contents($state . '/ready.json', json_encode(['version' => $targetVersion, 'host' => 'macos-arm64']));
     $code = Process::run([PHP_BINARY, $bin, '--state-dir=' . $state, '--non-interactive', 'build', '--profile=saiadmin', '--', '--yes', '--archive=not-a-bridge-option', '--non-interactive'], $directory);
     $actual = json_decode((string) file_get_contents($record), true);
     check($code === 23, '原程序退出码透传');

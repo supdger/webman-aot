@@ -23,11 +23,11 @@ final class TypePhpProjectCompiler
      * @param array{php:string,typephp:string,phpx:string,compiler:string,objcopy:string,sysroot:string,phprc:string,sdkSha256:string} $tools
      * @return array{artifact:string,sha256:string,size:int}
      */
-    public function compile(string $mirrorDirectory, string $outputName, array $tools): array
+    public function compile(string $mirrorDirectory, string $outputName, array $tools, ?string $objectCache = null, ?string $identity = null, bool $fresh = false): array
     {
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
-            || !str_contains(str_replace('\\', '/', $mirror), '/.webman-aot-builder/build/')
+            || !\WebmanAotBuilder\Project\ProjectMirror::isOwnedPath($mirror)
             || is_link($mirrorDirectory)
             || preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $outputName) !== 1
         ) {
@@ -92,6 +92,28 @@ final class TypePhpProjectCompiler
                 $environment[$name] = $value;
             }
         }
+        if ($objectCache !== null) {
+            (new TypePhpPatchSourceVerifier())->verify($tools['typephp'], dirname(__DIR__, 2) . '/toolchain/patches/typephp/0.9.2/manifest.json');
+            $build = dirname($mirror);
+            if (basename($build) !== 'build') { $build = dirname($build); }
+            $cacheParent = realpath(dirname($objectCache));
+            if (!is_string($cacheParent) || $cacheParent !== realpath(dirname($build) . '/cache')
+                || basename($objectCache) !== 'objects') {
+                throw new ConfigurationException('object checkpoint cache escaped the project workspace');
+            }
+            if (!is_string($identity) || preg_match('/^[a-f0-9]{64}$/D', $identity) !== 1
+                || is_link($objectCache) || (!is_dir($objectCache) && !mkdir($objectCache, 0700, true) && !is_dir($objectCache))) {
+                throw new ConfigurationException('unsafe object checkpoint cache');
+            }
+            $environment['WEBMAN_AOT_OBJECT_CACHE'] = $objectCache;
+            $environment['WEBMAN_AOT_CACHE_IDENTITY'] = $identity;
+            $environment['WEBMAN_AOT_PROJECT_ROOT'] = $mirror;
+            $environment['WEBMAN_AOT_FRESH'] = $fresh ? '1' : '0';
+        } else {
+            foreach (['WEBMAN_AOT_OBJECT_CACHE', 'WEBMAN_AOT_CACHE_IDENTITY', 'WEBMAN_AOT_PROJECT_ROOT', 'WEBMAN_AOT_FRESH'] as $name) {
+                unset($environment[$name]);
+            }
+        }
         $environment['PHPX_HOME'] = $tools['phpx'];
         $environment['PHP_HOME'] = dirname($tools['php']);
         $environment['PHPRC'] = $tools['phprc'];
@@ -114,10 +136,10 @@ final class TypePhpProjectCompiler
             ),
             '--job=4',
             '--no-progress',
-            '--force',
         ];
+        if ($objectCache === null) { $compile[] = '--force'; }
         if (($this->run)($compile, $mirror, $environment) !== 0) {
-            throw new \RuntimeException('TypePHP full-static project compilation failed');
+            throw new \RuntimeException('编译未完成；已完成单元已保留。修正上面的错误后重试 webman-aot build；需要全量重建时运行 webman-aot build --fresh。未完成单元将从头编译。');
         }
 
         $artifact = $mirror . '/build/' . $outputName;

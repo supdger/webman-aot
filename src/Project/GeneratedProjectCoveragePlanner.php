@@ -25,10 +25,7 @@ final class GeneratedProjectCoveragePlanner
         $mirror = realpath($mirrorDirectory);
         if (!is_string($mirror)
             || is_link($mirrorDirectory)
-            || !str_ends_with(
-                str_replace('\\', '/', $mirror),
-                '/.webman-aot-builder/build/project'
-            )
+            || !ProjectMirror::isOwnedPath($mirror)
         ) {
             throw new ConfigurationException(
                 'generated coverage requires an isolated project mirror'

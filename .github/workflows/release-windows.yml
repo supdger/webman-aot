@@ -23,7 +23,11 @@ on:
       version:
         description: Expected source version
         required: true
-        default: '0.3.0'
+        default: '0.4.0'
+        type: string
+      native_build_revision:
+        description: Native package build commit (defaults to checkout revision)
+        required: false
         type: string
 
 permissions:
@@ -54,6 +58,7 @@ jobs:
       - name: Build and verify both packages at the exact revision
         shell: powershell
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_REVISION: ${{ inputs.revision }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
@@ -89,10 +94,11 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_OPERATION: ${{ inputs.operation }}
           RELEASE_SUMS_SHA256: ${{ inputs.checksums_sha256 }}
+          NATIVE_BUILD_REVISION: ${{ inputs.native_build_revision }}
         run: |
           $mode = if ($env:RELEASE_OPERATION -eq 'verify-draft') { 'draft' } else { 'public' }
           & .\tools\verify-release-windows.ps1 `
-            -Revision $env:RELEASE_REVISION -Version $env:RELEASE_VERSION `
+            -Revision $env:RELEASE_REVISION -NativeBuildRevision $env:NATIVE_BUILD_REVISION -Version $env:RELEASE_VERSION `
             -Mode $mode -ChecksumsSha256 $env:RELEASE_SUMS_SHA256 `
             -WorkRoot (Join-Path $env:RUNNER_TEMP 'release-consumer')
           if ($LASTEXITCODE -ne 0) { throw "Release consumer verification failed: $LASTEXITCODE" }

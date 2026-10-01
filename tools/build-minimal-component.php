@@ -56,6 +56,8 @@ function reuseComponent(array $arguments, string $repository): array
     $predecessorLock = json_decode(file_get_contents($generation . '/toolchain.lock.json'), true, flags: JSON_THROW_ON_ERROR);
     $comparison = $lock;
     unset($comparison['evidence']['patchedSdk']);
+    $predecessorComparison = $predecessorLock;
+    unset($predecessorComparison['evidence']['patchedSdk']);
     foreach ($comparison['components'] as &$componentDefinition) {
         if ($componentDefinition['id'] === 'phpx-sdk-linux-x64') {
             foreach ($predecessorLock['components'] as $previousDefinition) {
@@ -66,7 +68,10 @@ function reuseComponent(array $arguments, string $repository): array
     unset($componentDefinition);
     $coveredIds = ['openssl', 'curl', 'libzip', 'icu', 'libpq', 'zlib', 'libxml2', 'oniguruma'];
     $seenCovered = [];
-    $oldSdkDigest = $lock['evidence']['patchedSdk']['upstreamArchiveSha256'];
+    $oldSdkDigest = null;
+    foreach ($predecessorLock['components'] as $definition) {
+        if ($definition['id'] === 'phpx-sdk-linux-x64') { $oldSdkDigest = $definition['sha256']; }
+    }
     $newSdkDigest = null;
     foreach ($lock['components'] as $definition) {
         if ($definition['id'] === 'phpx-sdk-linux-x64') { $newSdkDigest = $definition['sha256']; }
@@ -90,7 +95,7 @@ function reuseComponent(array $arguments, string $repository): array
     }
     unset($componentDefinition);
     sort($coveredIds); sort($seenCovered);
-    if ($coveredIds !== $seenCovered || $comparison !== $predecessorLock) {
+    if ($coveredIds !== $seenCovered || $comparison !== $predecessorComparison) {
         throw new RuntimeException('Component reuse cannot change other locked toolchain inputs');
     }
     $prepared = json_decode(file_get_contents($generation . '/prepared/prepared-toolchain.json'), true, flags: JSON_THROW_ON_ERROR);

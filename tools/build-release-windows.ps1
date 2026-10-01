@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Revision,
     [Parameter(Mandatory=$true)][string]$Output,
-    [string]$ExpectedVersion = '0.3.0'
+    [string]$ExpectedVersion = '0.4.0'
 )
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
@@ -23,18 +23,23 @@ try {
     $toolchainHash = (Get-FileHash -LiteralPath (Join-Path $repository 'toolchain.lock.json') -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($lock.version -ne $ExpectedVersion -or $lock.toolchainLockSha256 -ne $toolchainHash) { throw 'Component lock version or toolchain hash differs.' }
     Write-Host "[release] Fixed revision $Revision / version $ExpectedVersion"
-    Write-Host '[input] Downloading the immutable, SHA-locked 0.2.3 Windows component; compiler bytes remain unchanged.'
+    Write-Host "[input] Downloading the immutable, SHA-locked $ExpectedVersion Windows component."
     $inputPath = Join-Path $Output $component.archive
     $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
-    $url = 'https://github.com/supdger/webman-aot-builder/releases/download/v0.2.3/webman-aot-builder-0.2.3-windows-x86_64-components.zip'
-    $download = Start-Process -FilePath $curl -ArgumentList @('--fail','--location','--proto','=https','--proto-redir','=https','--retry','2','--connect-timeout','30','--max-time','1200','--output',('"'+$inputPath+'"'),$url) -NoNewWindow -PassThru
-    $downloadHandle = $download.Handle
-    try {
-        $download.WaitForExit()
-        $downloadExit = $download.ExitCode
-        if ($downloadExit -isnot [int]) { throw 'Unknown curl exit status.' }
-        if ($downloadExit -ne 0) { throw "Component download failed (curl exit $downloadExit)." }
-    } finally { $download.Dispose() }
+    $url = "https://github.com/supdger/webman-aot-builder/releases/download/v$ExpectedVersion/$($component.archive)"
+    if ($env:GH_TOKEN) {
+        & gh release download "v$ExpectedVersion" --repo supdger/webman-aot-builder --pattern $component.archive --dir $Output
+        if ($LASTEXITCODE -ne 0) { throw "Locked draft/public component download failed: $LASTEXITCODE" }
+    } else {
+        $download = Start-Process -FilePath $curl -ArgumentList @('--fail','--location','--proto','=https','--proto-redir','=https','--retry','2','--connect-timeout','30','--max-time','1200','--output',('"'+$inputPath+'"'),$url) -NoNewWindow -PassThru
+        $downloadHandle = $download.Handle
+        try {
+            $download.WaitForExit()
+            $downloadExit = $download.ExitCode
+            if ($downloadExit -isnot [int]) { throw 'Unknown curl exit status.' }
+            if ($downloadExit -ne 0) { throw "Component download failed (curl exit $downloadExit)." }
+        } finally { $download.Dispose() }
+    }
     $inputHash = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($inputHash -ne $component.sha256) { throw 'Component archive SHA-256 mismatch.' }
     Add-Type -AssemblyName System.IO.Compression.FileSystem

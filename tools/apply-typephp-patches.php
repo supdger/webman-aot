@@ -58,6 +58,21 @@ try {
         throw new RuntimeException('TypePHP patch manifest has no rules');
     }
 
+    $alreadyApplied = true;
+    foreach ($rules as $rule) {
+        $target = $typephp . '/' . (string) ($rule['path'] ?? '');
+        if (!is_file($target) || is_link($target)
+            || hash_file('sha256', $target) !== ($rule['afterSha256'] ?? null)) {
+            $alreadyApplied = false;
+            break;
+        }
+    }
+    if ($alreadyApplied) {
+        fwrite(STDOUT, json_encode(['component' => 'typephp-source', 'version' => '0.9.2',
+            'patches' => 25, 'rules' => count($rules), 'status' => 'already-applied-and-verified'], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . PHP_EOL);
+        exit(0);
+    }
+
     foreach ($rules as $rule) {
         $path = (string) ($rule['path'] ?? '');
         $expected = (string) ($rule['beforeSha256'] ?? '');
@@ -94,6 +109,8 @@ try {
         '0021-portable-source-scan-order.patch',
         '0022-full-static-hide-host-only-reflection.patch',
         '0023-full-static-select-target-reflection.patch',
+        '0024-closure-runtime-binding-and-reference-storage.patch',
+        '0025-verified-object-checkpoints.patch',
     ] as $patch) {
         $applier->apply($patchDirectory . '/' . $patch, $typephp);
     }
@@ -113,7 +130,7 @@ try {
             [
                 'component' => 'typephp-source',
                 'version' => '0.9.2',
-                'patches' => 23,
+                'patches' => 25,
                 'rules' => count($rules),
                 'status' => 'applied-and-verified',
             ],

@@ -88,6 +88,14 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 
 自动 `verify` 检查构建产物的结构、完整性及工具报告的静态属性；Linux 目标机启动、数据库和业务接口仍需部署后验收。
 
+## 断点续编（Unreleased：0.4.x 源码候选）
+
+此功能尚未发布到原生安装包或 Composer 绑定资源；Composer 入口 0.3.7 仍使用 0.3.2 运行时，不能用上方安装命令取得续编功能。
+
+候选的 `webman-aot build` 默认复用输入一致且完整性校验通过的已完成编译单元，未完成的单元从头编译；每次仍重新链接并校验最终产物。`webman-aot build --fresh` 会重新编译全部单元，保留旧缓存和未完成的构建目录。以上命令只说明候选行为，不适用于当前公开安装。
+
+当前受控验证需隔离安装候选程序和匹配的编译器补丁，直接运行源码入口可能转到旧安装，或误用未包含补丁的旧工具链。缓存与未完成的构建目录会持续占用项目磁盘，成功后会清理本轮临时镜像，恢复规则及候选验证边界见[源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)与[测试与验证范围](https://github.com/supdger/webman-aot-builder/wiki/Verification)。Windows 与 PHP 8.1 的真实续编尚未验证。
+
 ## v0.3.2 兼容范围
 
 v0.3.2 适配锁定的 Carbon 3.14.1 与 `symfony/polyfill-deepclone` 1.42.0，并使用本项目重建的 PHPX 静态 SDK 支持其所需的闭包绑定和引用存储。适配只作用于隔离构建副本，版本或源码摘要不匹配时拒绝应用；`Closure::call()` 仍不支持。适用组合与限制见 [SaiAdmin 兼容说明](https://github.com/supdger/webman-aot-builder/wiki/SaiAdmin-Compatibility)。

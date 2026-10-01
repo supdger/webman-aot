@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$Revision,
+    [string]$NativeBuildRevision = '',
     [Parameter(Mandatory=$true)][string]$Version,
     [Parameter(Mandatory=$true)][ValidateSet('draft','public')][string]$Mode,
     [Parameter(Mandatory=$true)][string]$ChecksumsSha256,
@@ -54,6 +55,9 @@ $keys = @('PATH','TEMP','TMP','LOCALAPPDATA','WEBMAN_AOT_BUILDER_HOME','WEBMAN_A
 $saved = @{}; foreach ($key in $keys) { $saved[$key] = [Environment]::GetEnvironmentVariable($key,'Process') }
 $owned = $false; $receipt = @{ revision=$Revision; version=$Version; mode=$Mode; success=$false }; $failure = $null
 try {
+    if (-not $NativeBuildRevision) { $NativeBuildRevision = $Revision }
+    if ($NativeBuildRevision -notmatch '^[a-f0-9]{40}$') { throw 'NativeBuildRevision must be a full commit SHA.' }
+    $receipt.nativeBuildRevision = $NativeBuildRevision
     if ($Revision -notmatch '^[a-f0-9]{40}$' -or $Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $ChecksumsSha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid release identity or trusted checksum digest.' }
     $head = (& git -C $repository rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $head -ne $Revision) { throw 'Checkout differs from the fixed release revision.' }
@@ -97,7 +101,7 @@ try {
             $reader = New-Object IO.StreamReader($entries[0].Open(),[Text.Encoding]::UTF8)
             try { $metadata = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
             $expectedFlavor = if ($flavor -eq 'full') { 'complete' } else { 'small' }
-            if ($metadata.schema -ne 'webman-aot-builder-installer-package-v1' -or $metadata.version -ne $Version -or $metadata.revision -ne $Revision -or $metadata.platform -ne 'windows-x86_64' -or $metadata.flavor -ne $expectedFlavor) { throw 'Actual package identity differs from the release.' }
+            if ($metadata.schema -ne 'webman-aot-builder-installer-package-v1' -or $metadata.version -ne $Version -or $metadata.revision -ne $NativeBuildRevision -or $metadata.platform -ne 'windows-x86_64' -or $metadata.flavor -ne $expectedFlavor) { throw 'Actual package identity differs from the native build revision.' }
         } finally { $zip.Dispose() }
     }
     $runtimePackage = Join-Path $WorkRoot 'fixture-runtime'
@@ -139,6 +143,26 @@ try {
             if ($verify.scope -ne 'build-host-structure-and-integrity' -or $verify.staticStructure -ne 'pass' -or [IO.Path]::GetFullPath($verify.path) -ne $expectedDist -or -not [regex]::IsMatch($guidedText,'(?m)^\[成功\] 校验本次项目产物，耗时 .+，退出码 0\r?$') -or -not $guidedText.Contains('Successfully compiled 109 files')) { throw 'Full setup did not prove 109 compilation units and successful automatic verify for this fixture.' }
             [IO.File]::WriteAllText((Join-Path $WorkRoot 'logs\actual-verify-report.json'),($verify | ConvertTo-Json -Depth 5),$utf8)
             $receipt.verifyScope = $verify.scope; $receipt.verifyPath = $verify.path; $receipt.compiledFiles = 109
+            $resumeEvidence = Join-Path $WorkRoot 'resumable-native'
+            $installedRuntime = Join-Path $installHome 'current\runtime'
+            $installedPhp = Join-Path $installedRuntime 'php.exe'
+            $env:WEBMAN_AOT_CALLER_CWD = $repository
+            Invoke-Native 'installed runtime resumable native regression' $installedPhp @(
+                '-c','php.ini','-d','extension_dir=ext','..\app\tools\windows-php-bootstrap.php',
+                (Join-Path $repository 'tests\resumable-native.php'),$installHome,
+                (Join-Path $bin 'webman-aot.cmd'),$fixture,$resumeEvidence) $installedRuntime
+            $env:WEBMAN_AOT_CALLER_CWD = $null
+            $resumeResults = Get-Content -LiteralPath (Join-Path $resumeEvidence 'results.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($resumeResults.Count -ne 5 -or @($resumeResults | Where-Object { $_.exit -ne 0 }).Count -ne 0
+                -or $resumeResults[0].reused -ne 0 -or $resumeResults[1].reused -ne 109
+                -or $resumeResults[2].reused -ne 107 -or $resumeResults[3].reused -ne 108
+                -or $resumeResults[4].reused -ne 0) { throw 'Installed runtime resume/invalidation/fresh assertions failed.' }
+            $resumeLogs = Join-Path $WorkRoot 'logs\resumable-native'
+            [IO.Directory]::CreateDirectory($resumeLogs) | Out-Null
+            foreach ($file in Get-ChildItem -LiteralPath $resumeEvidence -File) {
+                Copy-Item -LiteralPath $file.FullName -Destination $resumeLogs
+            }
+            $receipt.resumableNative = $resumeResults
         }
         $versionLog = Join-Path $WorkRoot ('logs\'+$flavor+'-version.log')
         Invoke-Native "absolute new $flavor launcher version" (Join-Path $bin 'webman-aot.cmd') @('version') $repository $versionLog

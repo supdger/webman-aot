@@ -23,14 +23,17 @@ $revisionProvided = false;
 $flavor = 'small';
 $minimalComponentInput = null;
 $resultPath = null;
+$inputDirectory = $root . '/dist/installer-inputs';
 
 foreach (array_slice($argv, 1) as $argument) {
     if ($argument === '--help') {
-        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--flavor=small|full] [--minimal-component=<local-zip>] [--compare=<local-zip>] [--output=<directory>] [--revision=<value>]\n");
+        fwrite(STDOUT, "Usage: php tools/build-windows-installer.php [--flavor=small|full] [--minimal-component=<local-zip>] [--compare=<local-zip>] [--inputs=<cache-directory>] [--output=<directory>] [--revision=<value>]\n");
         exit(0);
     }
     if (str_starts_with($argument, '--result=')) {
         $resultPath = substr($argument, strlen('--result='));
+    } elseif (str_starts_with($argument, '--inputs=')) {
+        $inputDirectory = substr($argument, strlen('--inputs='));
     } elseif (str_starts_with($argument, '--compare=')) {
         $compare = substr($argument, strlen('--compare='));
     } elseif (str_starts_with($argument, '--output=')) {
@@ -302,7 +305,7 @@ try {
     if (!is_array($windowsRuntime) || !is_array($typePhp)) {
         throw new RuntimeException('Locked Windows runtime or TypePHP source is missing');
     }
-    $inputs = $root . '/dist/installer-inputs';
+    $inputs = $inputDirectory;
     fwrite(STDOUT, "[prepare] Checking locked PHP and TypePHP inputs ...\n");
     $phpArchive = verifiedInput(
         (string) $windowsRuntime['archiveUrl'],
