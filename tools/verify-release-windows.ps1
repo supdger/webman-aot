@@ -153,10 +153,10 @@ try {
                 (Join-Path $bin 'webman-aot.cmd'),$fixture,$resumeEvidence) $installedRuntime
             $env:WEBMAN_AOT_CALLER_CWD = $null
             $resumeResults = Get-Content -LiteralPath (Join-Path $resumeEvidence 'results.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($resumeResults.Count -ne 5 -or @($resumeResults | Where-Object { $_.exit -ne 0 }).Count -ne 0
-                -or $resumeResults[0].reused -ne 0 -or $resumeResults[1].reused -ne 109
-                -or $resumeResults[2].reused -ne 107 -or $resumeResults[3].reused -ne 108
-                -or $resumeResults[4].reused -ne 0) { throw 'Installed runtime resume/invalidation/fresh assertions failed.' }
+            if ($resumeResults.Count -ne 5 -or @($resumeResults | Where-Object { $_.exit -ne 0 }).Count -ne 0 -or
+                $resumeResults[0].reused -ne 0 -or $resumeResults[1].reused -ne 109 -or
+                $resumeResults[2].reused -ne 107 -or $resumeResults[3].reused -ne 108 -or
+                $resumeResults[4].reused -ne 0) { throw 'Installed runtime resume/invalidation/fresh assertions failed.' }
             $resumeLogs = Join-Path $WorkRoot 'logs\resumable-native'
             [IO.Directory]::CreateDirectory($resumeLogs) | Out-Null
             foreach ($file in Get-ChildItem -LiteralPath $resumeEvidence -File) {
