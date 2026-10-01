@@ -1,0 +1,10 @@
+* text=auto
+/bin/webman-aot text eol=lf
+/resources/*.json text eol=lf
+/.agents export-ignore
+/openspec export-ignore
+/tests export-ignore
+/vendor export-ignore
+/composer.lock export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

@@ -1,0 +1,31 @@
+{
+  "name": "saiadmin/webman-aot-builder",
+  "description": "Global Composer entry point for the locked Webman AOT Builder runtime",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1"
+  },
+  "bin": [
+    "bin/webman-aot"
+  ],
+  "autoload": {
+    "psr-4": {
+      "SaiAdmin\\WebmanAotInstaller\\": "src/"
+    }
+  },
+  "scripts": {
+    "test": "@php tests/run.php"
+  },
+  "archive": {
+    "exclude": [
+      "/openspec/",
+      "/.agents/",
+      "/tests/",
+      "/vendor/",
+      "/composer.lock",
+      "/.gitignore",
+      "/.gitattributes"
+    ]
+  }
+}
