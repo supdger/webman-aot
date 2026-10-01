@@ -199,6 +199,16 @@ finally {
         $cleanupErrors = @()
         $tempRoot = Join-Path $WorkRoot 'temp'
         try {
+            foreach ($evidenceName in @('resumable-native','resumable-parent')) {
+                $evidencePath = Join-Path $WorkRoot $evidenceName
+                if (Test-Path -LiteralPath $evidencePath) {
+                    $evidenceLogs = Join-Path (Join-Path $WorkRoot 'logs') $evidenceName
+                    [IO.Directory]::CreateDirectory($evidenceLogs) | Out-Null
+                    foreach ($file in Get-ChildItem -LiteralPath $evidencePath -File) {
+                        Copy-Item -LiteralPath $file.FullName -Destination $evidenceLogs -Force
+                    }
+                }
+            }
             if (Test-Path -LiteralPath $tempRoot) {
                 foreach ($log in Get-ChildItem -LiteralPath $tempRoot -Filter '*.log' -Recurse -File) {
                     $relative = $log.FullName.Substring($tempRoot.Length).TrimStart('\')

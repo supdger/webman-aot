@@ -80,7 +80,7 @@ try {
         Start-Sleep -Milliseconds 100
         Show-Logs 'interrupted'
         if ($parent.HasExited) { throw 'Builder completed before the partial interruption trigger.' }
-        $text = Read-Log (Join-Path $Evidence 'interrupted-stdout.log')
+        $text = (Read-Log (Join-Path $Evidence 'interrupted-stdout.log'))+(Read-Log (Join-Path $Evidence 'interrupted-stderr.log'))
         if (-not $lockChecked -and $text.Contains('[build] fingerprint')) {
             Write-Host '[test] Checking same-project concurrent build refuses before compilation.'
             $concurrent = Start-Builder 'concurrent'
