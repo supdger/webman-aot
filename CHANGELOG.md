@@ -2,6 +2,12 @@
 
 本文记录各版本的变更；正式发布状态以 GitHub Release 为准，已发布版本日期采用 Release 的 UTC 发布日期。
 
+## [v0.3.6](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.6)
+
+- Composer 入口无参数即可进入引导，选择自动准备或导入完整包，随后选项目、构建并自动校验；失败可重试或重选。
+- 安装说明提供一次复制的安装与启动命令，自动找到 Composer 代理；帮助和交互版本查询显示下一步。
+- 非交互无参仅显示启动方式，不隐式下载、安装或构建。完整运行时继续使用 0.3.2。
+
 ## [v0.3.5](https://github.com/supdger/webman-aot-builder/releases/tag/v0.3.5)
 
 - 将 Composer 包归属更正为 `supdger/webman-aot-builder`，入口命名空间与状态所有权同步为 Supdger。SaiAdmin 是业务兼容生态，不代表该工具的包归属。

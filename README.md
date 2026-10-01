@@ -23,18 +23,29 @@ Webman AOT Builder 将 Webman / SaiAdmin 项目编译成 Linux amd64 全静态�
 开发或自行制作安装包可从 [最新开发源码](https://github.com/supdger/webman-aot-builder/tree/main) 开始，
 具体步骤见 [源码构建指南](https://github.com/supdger/webman-aot-builder/wiki/Build-from-source)。
 
-Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。Composer 入口与仓库标签共用 **0.3.5**，使用固定的 0.3.2 完整运行时；可安装版本以 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)为准。在已安装系统 PHP 8.1+ 与 Composer 的开发机运行：
+Composer 安装入口的源码也在本仓库，包名为 `supdger/webman-aot-builder`。入口版本 **0.3.6** 使用固定的 0.3.2 完整运行时；可安装版本以 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)为准。开发机须已安装系统 PHP 8.1+ 与 Composer，复制整段命令，安装成功后直接进入引导；程序自动识别系统、取得对应组件并接到项目菜单。
+
+macOS Apple Silicon：
 
 ```sh
-composer global require supdger/webman-aot-builder:^0.3.5
-composer global config bin-dir --absolute
+composer global require supdger/webman-aot-builder:^0.3.6 &&
+composer global exec -- webman-aot guide
 ```
 
-将输出的命令目录放到旧版 `webman-aot` 所在目录之前，或使用此目录下代理的完整路径。`webman-aot --version` 应显示入口 0.3.5、目标构建器 0.3.2。第一次 `webman-aot build` 会准备经校验的既有 0.3.2 完整运行时；进入含 `composer.json`、`composer.lock` 和 `start.php` 的项目目录后执行。网络失败可导入对应完整安装包。Composer 只安装轻量入口 ZIP，源码回退时会取得整个仓库；原有安装不会被覆盖。入口的 PHP 8.1 与 Windows 真机验收仍未完成。受影响用法见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。
+Windows x64 PowerShell：
 
-0.3.5 是仓库标签与 Composer 入口版本，已验收完整运行时仍为 0.3.2。本次补充 Release 只提供 Composer 入口，发布时不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
+```powershell
+composer global require supdger/webman-aot-builder:^0.3.6
+if ($LASTEXITCODE -eq 0) {
+    composer global exec -- webman-aot guide
+}
+```
 
-第一次安装，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
+按菜单选择开始或导入已有完整包，再输入已备好 Composer 依赖的 Webman 项目目录；构建后自动校验并显示 `dist-aot/` 位置，失败可在同一菜单重试或重选。下次直接运行 `composer global exec -- webman-aot guide`；终端已配置 Composer 命令目录时，也可直接运行 `webman-aot`。准备组件不会覆盖旧安装或修改 PATH。详细步骤见[安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。PHP 8.1 与 Windows 真机验收仍未完成。
+
+0.3.6 是 Composer 入口版本，完整运行时仍为 0.3.2。补充 Release 只提供轻量 Composer 入口，不设为 `latest`；下述 setup 和完整资源仍由原完整发行入口提供。
+
+使用独立安装包时，请打开 [最新发布包下载页](https://github.com/supdger/webman-aot-builder/releases/latest)，下载与你的**开发机**匹配的 **setup**。文件名包含发布版本，按下面的**后缀**选择：
 
 | 开发机 | 首次安装推荐下载 | 启动方式 |
 | --- | --- | --- |
@@ -46,7 +57,7 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 - **轻量包**：安装包较小，首次构建时联网下载编译组件。
 - **完整包**：包含编译组件，可提前下载后复制到离线开发机；自己的项目仍须事先备好 Composer 依赖及构建所需文件。
 
-两种包安装后都提供 `webman-aot` 命令。需要手动下载或离线安装时，具体资产及校验清单以 [最新 Release](https://github.com/supdger/webman-aot-builder/releases/latest) 为准，步骤见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。编译组件包不能独立安装工具，GitHub 的 `Source code` 是源码；首次安装请选择 setup。
+两种包安装后都提供 `webman-aot` 命令。需要手动下载或离线安装时，具体资产及校验清单以 [最新 Release](https://github.com/supdger/webman-aot-builder/releases/latest) 为准，步骤见 [安装与使用指南](https://github.com/supdger/webman-aot-builder/wiki/Install)。编译组件包不能独立安装工具，GitHub 的 `Source code` 是源码；独立安装包的首次安装请选择 setup。
 这些下载包安装在开发机上；Linux 目标机接收构建生成的整个 `dist-aot/`。
 
 ### macOS 首次打开被拦截时
@@ -68,6 +79,8 @@ setup 会让你选择轻量包或完整包，再自动下载、校验和安装�
 若找不到“仍要打开”，重新双击一次文件，再回到该设置页面；该按钮通常只在尝试打开后约一小时内显示。详见 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。以上步骤适用于“无法验证”提示；若提示“将损坏你的电脑”或“文件已损坏”，请停止安装，重新下载并核对校验值。
 
 ## 开始使用
+
+本节适用于独立安装包；通过 Composer 安装后，运行上方的统一引导命令即可。
 
 无论选择轻量包还是完整包，都须先按目标项目自身的安装要求完成 Composer 依赖安装（包括 `vendor/`）。
 选择项目目录时，请使用包含 `composer.json`、`composer.lock`、`start.php` 和 `app/` 的 Webman / SaiAdmin 后端根目录。

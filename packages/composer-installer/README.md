@@ -1,30 +1,18 @@
 # Webman AOT Builder Composer 入口
 
-通过 Composer 全局命令准备固定版本的 Webman AOT Builder，再在自己的项目目录构建 Linux x86_64 程序。支持 macOS Apple Silicon、Windows x64；入口版本为 0.3.5，使用原构建器 0.3.2 完整安装包。
+通过 Composer 在同一终端选择准备组件、项目目录、构建和校验。支持 macOS Apple Silicon、Windows x64；入口 0.3.6 自动识别开发机，使用固定 0.3.2 完整运行时。
 
-源码与发行包见[本仓库](https://github.com/supdger/webman-aot-builder)。Composer 入口与仓库标签共用 0.3.5，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准：
+系统 PHP 须为 8.1+，需 Composer；作者实际验证为 PHP 8.4/macOS，PHP 8.1 与 Windows 真机验收仍未完成。一次复制的安装与启动命令见[仓库 README](https://github.com/supdger/webman-aot-builder#源码与安装包)，安装成功后直接进入引导。包归属为 [supdger/webman-aot-builder（Packagist）](https://packagist.org/packages/supdger/webman-aot-builder)。
 
-```sh
-composer global require supdger/webman-aot-builder:^0.3.5
-```
-
-需系统 PHP 8.1 或更新版本、Composer，以及 macOS 的 curl/tar 或 Windows 的 curl.exe/Windows PowerShell 5.1。目前作者运行验证使用 PHP 8.4；PHP 8.1 和 Windows 实机验收尚待完成。运行 `composer global config bin-dir --absolute` 可查看命令目录，将它加入终端 PATH 后重新打开终端。
-
-已有原版 `webman-aot` 时，将 Composer 命令目录放在旧命令目录之前，或使用代理完整路径，避免继续运行旧入口。先确认 `--version` 显示入口 0.3.5、目标构建器 0.3.2；这不表示平台资源已经安装。
-
-macOS：
+已安装时直接运行：
 
 ```sh
-aot_bin="$(composer global config bin-dir --absolute)"
-"$aot_bin/webman-aot" --version
+composer global exec -- webman-aot guide
 ```
 
-Windows PowerShell：
+选择开始会自动复用资源或准备当前开发机的完整包；也可导入已下载包、结束。准备成功后进入原有项目菜单，构建成功自动校验并显示产物位置；失败可重试或重选。无需查 bin、修改 PATH 或先查版本。已配置 Composer 命令目录的终端也可直接运行 `webman-aot`。非终端无参仅提示入口，不准备资源。显式 `guide` 只在确认为已连接控制台时恢复交互；`--non-interactive`、`COMPOSER_NO_INTERACTION=1` 或 `CI=1` 阻止恢复和隐式准备。
 
-```powershell
-$aotBin = composer global config bin-dir --absolute
-& (Join-Path $aotBin 'webman-aot.bat') --version
-```
+需要原构建参数的自动化调用仍可直接进入项目目录运行：
 
 进入包含 `composer.json`、`composer.lock` 和 `start.php` 的 Webman 项目目录：
 
@@ -50,9 +38,9 @@ webman-aot setup --archive="/完整包所在目录/对应完整安装包" --non-
 
 构建器详细安装、兼容性与 Linux 部署要求见[现有 Wiki](https://github.com/supdger/webman-aot-builder/wiki)。现有安装包与发行版的行为保持不变。Packagist 登记状态以[包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准；没有自动镜像切换，网络不可用时使用已校验的本地完整包。
 
-0.3.5 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
+0.3.6 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
 
-0.3.5 提供统一卸载入口；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
+当前入口提供统一卸载入口；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
 
 ```sh
 webman-aot uninstall --list
@@ -62,7 +50,7 @@ webman-aot uninstall
 清理旧安装后改用 Composer：
 
 ```powershell
-composer global require supdger/webman-aot-builder:^0.3.5
+composer global require supdger/webman-aot-builder:^0.3.6
 if ($LASTEXITCODE -ne 0) { throw 'Composer 安装失败，未开始卸载。' }
 $aotBin = (composer global config bin-dir --absolute).Trim()
 & (Join-Path $aotBin 'webman-aot.bat') uninstall --list
@@ -71,7 +59,7 @@ $aotBin = (composer global config bin-dir --absolute).Trim()
 & (Join-Path $aotBin 'webman-aot.bat') --version
 ```
 
-按列表对旧原生版本、旧公开命令和历史备份选择 `y`；对“Composer 全局包（supdger/webman-aot-builder）”选择 `n` 保留新入口。需要清空已有 Composer 私有运行时以重新准备时，单独确认该状态项；安装锁与用户文件保留。若也选了卸载 Composer 全局包，需再次运行首行安装命令，然后重新取得命令目录。最后版本应显示入口 0.3.5、目标 0.3.2；再从项目目录通过该代理运行 `build`，首次构建自动准备固定完整运行时。上述参数不修改用户 PATH，旧空 PATH 目录可另行核对整理。
+按列表对旧原生版本、旧公开命令和历史备份选择 `y`；对“Composer 全局包（supdger/webman-aot-builder）”选择 `n` 保留新入口。需要清空已有 Composer 私有运行时以重新准备时，单独确认该状态项；安装锁与用户文件保留。若也选了卸载 Composer 全局包，需再次运行首行安装命令，然后重新取得命令目录。清理后运行 `composer global exec -- webman-aot guide`，按同一菜单准备资源并选择项目。上述参数不修改用户 PATH，旧空 PATH 目录可另行核对整理。
 
 先只读查看类型、静态版本和绝对路径，再逐项输入 `y` 卸载、回车保留或 `q` 结束；非交互环境始终保留。入口不会先下载或安装运行时。自定义状态目录使用 `webman-aot uninstall --state-dir="目录"`；自定义原生目录可用 `--home="目录"`、命令目录用 `--bin-dir="目录"`。仅清理可确认归属的选中对象，未知旧入口保留并显示精确路径；Composer 全局包由 Composer 移除这一包，其他全局工具保留。Composer 状态根的 `setup.lock` 与额外用户文件保留，避免并发安装换锁；项目产物、共享工具链与 PATH 保留，旧备份命令不会恢复；失败返回非零并列出残留。
 
@@ -80,6 +68,7 @@ $aotBin = (composer global config bin-dir --absolute).Trim()
 ```sh
 composer validate --strict
 php packages/composer-installer/tests/run.php
+php packages/composer-installer/tests/guide.php
 php packages/composer-installer/tests/uninstall.php
 ```
 
