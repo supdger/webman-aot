@@ -60,7 +60,7 @@ $help = Process::output([PHP_BINARY, $bin, '--help', '--state-dir=' . $directory
 check(str_contains($help, '尚未') === false && str_contains($help, '目标构建器：0.3.2'), 'help报告入口和目标版本');
 check(!file_exists($directory . '/untouched'), 'help不创建运行时状态');
 $version = Process::output([PHP_BINARY, $bin, '--version']);
-check(str_contains($version, 'Composer 入口 0.3.5') && str_contains($version, '目标 Webman AOT Builder 0.3.2'), 'version不冒充已安装版本');
+check(str_contains($version, 'Composer 入口 ' . Installer::VERSION) && str_contains($version, '目标 Webman AOT Builder 0.3.2'), 'version不冒充已安装版本');
 
 if (PHP_OS_FAMILY === 'Darwin' && php_uname('m') === 'arm64') {
     $code = Process::run([PHP_BINARY, $bin, '--state-dir=' . $directory . '/fresh', '--non-interactive', 'build']);

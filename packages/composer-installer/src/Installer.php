@@ -5,9 +5,10 @@ namespace Supdger\WebmanAotInstaller;
 
 final class Installer
 {
-    public const VERSION = '0.3.5';
+    public const VERSION = '0.3.6';
     private array $release;
     private bool $interactive;
+    private bool $consoleRecoveryAllowed;
 
     public function __construct(?array $release = null, ?bool $interactive = null)
     {
@@ -17,6 +18,7 @@ final class Installer
             flags: JSON_THROW_ON_ERROR
         );
         $this->interactive = $interactive ?? (stream_isatty(STDIN) && stream_isatty(STDOUT));
+        $this->consoleRecoveryAllowed = $interactive === null;
     }
 
     /** @param list<string> $argv */
@@ -24,7 +26,15 @@ final class Installer
     {
         try {
             [$arguments, $options] = $this->parse(array_slice($argv, 1));
-            $command = $arguments[0] ?? 'help';
+            if (($options['non-interactive'] ?? false) === true) {
+                $this->interactive = false;
+            }
+            $command = $arguments[0] ?? 'guide';
+            $guided = in_array($command, ['guide', 'start'], true);
+            if ($guided) {
+                require_once __DIR__ . '/Console.php';
+                if (Console::unattended()) { $this->interactive = false; }
+            }
             if ($command === 'uninstall') {
                 require_once __DIR__ . '/Uninstaller.php';
                 $uninstallArguments = array_slice($arguments, 1);
@@ -44,12 +54,25 @@ final class Installer
             }
             if (in_array($command, ['version', '--version', '-V'], true)) {
                 $this->say('Composer 入口 ' . self::VERSION . '；目标 Webman AOT Builder ' . $this->release['version']);
+                if ($this->interactive) {
+                    $this->nextStep();
+                }
                 return 0;
             }
-            if (($options['non-interactive'] ?? false) === true) {
-                $this->interactive = false;
+            if ($guided && !$this->interactive) {
+                if (isset($arguments[0]) && $this->consoleRecoveryAllowed && !isset($options['non-interactive'])) {
+                    $code = Console::restore($argv);
+                    if ($code !== null) { return $code; }
+                }
+                $this->say('项目菜单需要交互终端；本次未下载、安装或构建。');
+                $this->nextStep();
+                return 0;
             }
             $host = self::host();
+            if ($guided && !$this->guideOptions($host, $options)) {
+                $this->say('流程已结束；未准备资源或构建项目。');
+                return 0;
+            }
             $state = $options['state-dir'] ?? $this->defaultState($host);
             $state = $this->state((string) $state);
             $originalDirectory = getcwd();
@@ -58,8 +81,16 @@ final class Installer
             }
             $this->prepare($state, $host, $options);
             if ($command === 'setup') {
-                $this->say('准备成功；现在可在项目目录运行 webman-aot build。');
+                $this->say('准备成功。');
+                $this->nextStep();
                 return 0;
+            }
+            if ($guided) {
+                $this->say('[就绪] 下面选择“1 构建项目”，再输入项目目录；构建后会自动校验并显示产物位置。');
+                return $this->forward($state, $host, [
+                    '--mode=project', '--home=' . $state . '/runtime',
+                    '--bin-dir=' . $state . '/bin', '--no-path',
+                ], $originalDirectory, 'tools/guided.php');
             }
             return $this->forward($state, $host, $arguments, $originalDirectory);
         } catch (\Throwable $error) {
@@ -109,10 +140,11 @@ final class Installer
             break;
         }
         $forward = array_slice($arguments, $i);
-        if (($forward[0] ?? '') === 'setup') {
+        if (in_array($forward[0] ?? '', ['setup', 'guide', 'start'], true)) {
+            $command = $forward[0];
             [$tail, $setupOptions] = $this->parse(array_slice($forward, 1));
             if ($tail !== []) {
-                throw new \InvalidArgumentException('setup 不接受项目参数；使用 --archive、--state-dir、--yes 或 --non-interactive。');
+                throw new \InvalidArgumentException($command . ' 不接受项目参数；使用 --archive、--state-dir、--yes 或 --non-interactive。');
             }
             foreach ($setupOptions as $key => $value) {
                 if (isset($options[$key])) {
@@ -120,7 +152,7 @@ final class Installer
                 }
                 $options[$key] = $value;
             }
-            $forward = ['setup'];
+            $forward = [$command];
         }
         return [$forward, $options];
     }
@@ -128,8 +160,48 @@ final class Installer
     private function help(): void
     {
         $this->say("supdger/webman-aot-builder Composer 入口 " . self::VERSION . "\n目标构建器：" . $this->release['version']
-            . "\n\n用法：\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot uninstall [--list]\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
-            . "\n\n首次 build/doctor 需准备完整包；help/version/uninstall 不准备资源。交互模式自动准备，非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup 的选项可放后面。\n默认只支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。准备成功后重跑原命令，不提供编译断点续跑。");
+            . "\n\n开始使用：\n  composer global exec -- webman-aot guide"
+            . "\n自动识别当前系统并打开准备与项目构建菜单；已配置 Composer bin 到 PATH 时，也可直接运行 webman-aot。\n\n用法：\n  webman-aot guide\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot uninstall [--list]\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
+            . "\n\n菜单可选择自动准备或导入完整包，然后选择项目目录、构建并校验产物。\n首次 build/doctor 需准备完整包；help/version/uninstall 不准备资源。非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup/guide 的选项可放后面。\n支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。失败后可从同一菜单重试，不提供编译断点续跑。");
+    }
+
+    private function nextStep(): void
+    {
+        $this->say('下一步：在终端运行 composer global exec -- webman-aot guide，选择准备方式和项目目录。');
+    }
+
+    /** @param array<string,string|bool> $options */
+    private function guideOptions(string $host, array &$options): bool
+    {
+        $package = $this->release['packages'][$host];
+        $this->say('Webman AOT 项目构建：准备组件 → 选择项目 → 构建并校验产物。');
+        $this->say('当前系统：' . $host . '；目标构建器：' . $this->release['version']);
+        if (isset($options['archive'])) {
+            $this->say('使用指定的本地完整包；校验通过后进入项目菜单。');
+            return true;
+        }
+        $this->say('1 开始（已准备资源自动复用；首次下载完整包，' . sprintf('%.1f MB', $package['size'] / 1000000) . '）'
+            . "\n2 导入已下载的完整包\n0 结束");
+        while (($line = fgets(STDIN)) !== false) {
+            $choice = trim($line);
+            if ($choice === '' || $choice === '0') {
+                return false;
+            }
+            if ($choice === '1') {
+                return true;
+            }
+            if ($choice === '2') {
+                $this->say("所需完整包：\n" . $package['filename'] . "\n" . $package['url']);
+                $archive = $this->offline($package);
+                if ($archive === null) {
+                    return false;
+                }
+                $options['archive'] = $archive;
+                return true;
+            }
+            $this->say('选择无效，请输入 1、2 或 0。');
+        }
+        return false;
     }
 
     private function defaultState(string $host): string
@@ -252,6 +324,9 @@ final class Installer
                         throw new \RuntimeException('网络失败；下载后使用 setup --archive=完整路径 --non-interactive 导入。');
                     }
                     $archive = $this->offline($package);
+                    if ($archive === null) {
+                        throw new \RuntimeException('已取消资源准备；原项目命令尚未运行。');
+                    }
                 }
             }
             Archive::verify($archive, $package);
@@ -325,13 +400,13 @@ final class Installer
         return $archive;
     }
 
-    private function offline(array $package): string
+    private function offline(array $package): ?string
     {
         while (true) {
             $this->say('下载后按回车检查常规 Downloads 目录，或输入/拖入完整安装包路径；输入 0 取消。');
             $line = fgets(STDIN);
             if ($line === false || trim($line) === '0') {
-                throw new \RuntimeException('已取消资源准备；原项目命令尚未运行。');
+                return null;
             }
             if (trim($line) !== '') {
                 $path = self::inputPath($line);
@@ -373,10 +448,13 @@ final class Installer
         return $input;
     }
 
-    private function forward(string $state, string $host, array $arguments, string $cwd): int
+    private function forward(string $state, string $host, array $arguments, string $cwd, string $script = 'bin/webman-aot-builder.php'): int
     {
         $runtime = $state . '/runtime/current/runtime';
-        $entry = $state . '/runtime/current/app/bin/webman-aot-builder.php';
+        $entry = $state . '/runtime/current/app/' . $script;
+        if (!is_file($entry) || is_link($entry)) {
+            throw new \RuntimeException('私有运行时缺少所需入口：' . $script . '；请重新准备完整包。');
+        }
         $environment = getenv();
         if (!is_array($environment)) {
             $environment = [];
