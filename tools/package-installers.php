@@ -377,6 +377,14 @@ final class InstallerPackager
         );
         $this->createDirectory($app . '/installer');
         copy($this->root . '/installer/runtime.lock.json', $app . '/installer/runtime.lock.json');
+        $this->createDirectory($app . '/packages/composer-installer/src');
+        $this->copyRequiredFile($this->root . '/packages/composer-installer/src/Uninstaller.php', $app . '/packages/composer-installer/src/Uninstaller.php');
+        $this->createDirectory($app . '/packages/composer-installer/resources');
+        $this->copyRequiredFile($this->root . '/packages/composer-installer/resources/uninstall-launchers.json', $app . '/packages/composer-installer/resources/uninstall-launchers.json');
+        $this->createDirectory($app . '/installer/windows');
+        $this->copyRequiredFile($this->root . '/installer/windows/uninstall.ps1', $app . '/installer/windows/uninstall.ps1');
+        $this->createDirectory($app . '/installer/macos');
+        $this->copyRequiredFile($this->root . '/installer/macos/uninstall.sh', $app . '/installer/macos/uninstall.sh');
         $this->createDirectory($app . '/tools');
         foreach ([
             'guided.php',

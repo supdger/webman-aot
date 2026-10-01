@@ -42,6 +42,7 @@ try {
     }
     $expected = ['LICENSE', 'README.md', 'composer.json', 'packages/composer-installer/bin/webman-aot',
         'packages/composer-installer/resources/extract-windows.ps1', 'packages/composer-installer/resources/releases.json',
+        'packages/composer-installer/resources/uninstall-launchers.json', 'packages/composer-installer/src/Uninstaller.php',
         'packages/composer-installer/src/Archive.php', 'packages/composer-installer/src/Installer.php', 'packages/composer-installer/src/Process.php'];
     $zip = new ZipArchive();
     if ($zip->open($archive) !== true) {

@@ -5,7 +5,7 @@ namespace SaiAdmin\WebmanAotInstaller;
 
 final class Installer
 {
-    public const VERSION = '0.3.3';
+    public const VERSION = '0.3.4';
     private array $release;
     private bool $interactive;
 
@@ -25,6 +25,19 @@ final class Installer
         try {
             [$arguments, $options] = $this->parse(array_slice($argv, 1));
             $command = $arguments[0] ?? 'help';
+            if ($command === 'uninstall') {
+                require_once __DIR__ . '/Uninstaller.php';
+                $uninstallArguments = array_slice($arguments, 1);
+                foreach (['state-dir', 'non-interactive'] as $key) {
+                    if (isset($options[$key])) {
+                        $uninstallArguments[] = $key === 'state-dir' ? '--state-dir=' . $options[$key] : '--non-interactive';
+                    }
+                }
+                if (isset($options['yes']) || isset($options['archive'])) {
+                    throw new \InvalidArgumentException('卸载须逐项确认；不接受 --yes 或 --archive。');
+                }
+                return (new Uninstaller($this->interactive))->run($uninstallArguments);
+            }
             if (in_array($command, ['help', '--help', '-h'], true)) {
                 $this->help();
                 return 0;
@@ -115,7 +128,7 @@ final class Installer
     private function help(): void
     {
         $this->say("saiadmin/webman-aot-builder Composer 入口 " . self::VERSION . "\n目标构建器：" . $this->release['version']
-            . "\n\n用法：\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
+            . "\n\n用法：\n  webman-aot build [原构建参数]\n  webman-aot doctor\n  webman-aot uninstall [--list]\n  webman-aot setup --yes\n  webman-aot setup --archive=完整安装包路径 --non-interactive"
             . "\n\n首次运行需准备完整包；交互模式自动准备，非交互需 --yes 或 --archive。\n--state-dir=目录 指定独立安装和缓存目录，不修改旧安装或 PATH。\n全局选项放在 doctor/build 等原命令之前；setup 的选项可放后面。\n默认只支持 macOS ARM64 / Windows x64，产物运行在 Linux x86_64。\nhelp/version 只说明入口，不表示原构建器已安装。准备成功后重跑原命令，不提供编译断点续跑。");
     }
 

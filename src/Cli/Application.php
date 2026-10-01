@@ -223,6 +223,7 @@ final class Application
             '  doctor     Check the host and toolchain; prepare missing components',
             '  build      Compile and verify a Linux amd64 musl distribution',
             '  verify     Independently check dist-aot (use --deployed after editing external resources)',
+            '  uninstall [--list]  List installations and confirm removal one by one',
             '  self-update [--rollback]  Install or roll back a verified CLI generation',
             '  toolchain update [--rollback]  Install or roll back a verified toolchain',
             '',
