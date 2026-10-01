@@ -4,8 +4,6 @@
 
 源码与发行包见[本仓库](https://github.com/supdger/webman-aot-builder)。Composer 入口与仓库标签共用 0.3.5，使用固定的 0.3.2 完整运行时；可安装版本以 [Packagist 包页面](https://packagist.org/packages/supdger/webman-aot-builder)为准：
 
-已装旧 `saiadmin/webman-aot-builder` 时，先用 `composer global remove saiadmin/webman-aot-builder` 移除旧全局包，再执行下面的新包安装；旧运行时状态由新入口逐项清理，不会自动接管。
-
 ```sh
 composer global require supdger/webman-aot-builder:^0.3.5
 ```
@@ -54,16 +52,7 @@ webman-aot setup --archive="/完整包所在目录/对应完整安装包" --non-
 
 0.3.5 只表示仓库发行标签与 Composer 入口；原运行时固定 0.3.2。根 `composer.json` 注册元数据的 bin/autoload 路径与小 ZIP 保持同样的 `packages/composer-installer/` 布局。普通 Composer 安装取得轻量 Release ZIP，`--prefer-source` 会下载完整源码仓库。
 
-已安装旧 `saiadmin/webman-aot-builder` 时，两包共用 `webman-aot` 命令名，先移除旧全局包，再安装新包：
-
-```sh
-composer global remove saiadmin/webman-aot-builder
-composer global require supdger/webman-aot-builder:^0.3.5
-```
-
-然后取得新的 Composer bin 目录，通过代理完整路径运行下述逐项卸载，确认清理旧包的私有状态和旧原生安装、保留新 supdger 全局包。新 setup 不会接管旧 owner；显式卸载旧状态后会保留同一把安装锁，新入口可以重新准备该目录。旧标签和下载资产保留。SaiAdmin 项目仍使用 `--profile=saiadmin`。
-
-0.3.5 提供统一卸载入口并支持清理旧包身份；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
+0.3.5 提供统一卸载入口；旧 0.3.3 和原生 0.3.2 没有这个命令。请先更新 Composer 包，然后从代理完整路径启动：
 
 ```sh
 webman-aot uninstall --list
